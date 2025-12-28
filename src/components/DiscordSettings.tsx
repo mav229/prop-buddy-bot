@@ -35,6 +35,8 @@ export const DiscordSettings = () => {
       setRegistering(false);
     }
   };
+
+  const handleTest = async () => {
     if (!testMessage.trim()) {
       toast({
         variant: "destructive",
