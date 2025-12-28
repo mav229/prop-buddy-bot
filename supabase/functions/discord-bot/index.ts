@@ -657,13 +657,27 @@ serve(async (req) => {
         const userName = message.author?.username || "User";
 
         // Remove bot mention from content before sending to AI
-        const cleanContent = content.replace(/<@!?\d+>/g, "").trim();
+        let cleanContent = content.replace(/<@!?\d+>/g, "").trim();
         
         // Build reply context if replying to a message
         const replyContext = repliedToMessage ? {
           content: repliedToContent,
           authorName: repliedToMessage.author?.username || "Unknown User"
         } : undefined;
+        
+        // If user just tagged the bot with no message but replied to a message, use the replied message as the question
+        if (!cleanContent && repliedToContent) {
+          console.log(`User just tagged bot - using replied message as question: "${repliedToContent}"`);
+          cleanContent = `Please answer this question: "${repliedToContent}"`;
+        }
+        
+        // If still no content, ask for a question
+        if (!cleanContent) {
+          await sendDiscordMessage(channelId, "Hey! 👋 What would you like to know? Just include your question and I'll help you out! 🎯", DISCORD_BOT_TOKEN, messageId);
+          return new Response(JSON.stringify({ success: true, action: "no_question" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         
         const aiResponse = await getAIResponse(cleanContent, knowledgeContext, userHistory, userName, replyContext);
 
@@ -708,13 +722,27 @@ serve(async (req) => {
         const userName = message.author?.username || "User";
 
         // Remove bot mention from content before sending to AI
-        const cleanContent = content.replace(/<@!?\d+>/g, "").trim();
+        let cleanContent = content.replace(/<@!?\d+>/g, "").trim();
         
         // Build reply context if replying to a message
         const replyContext = repliedToMessage ? {
           content: repliedToContent,
           authorName: repliedToMessage.author?.username || "Unknown User"
         } : undefined;
+        
+        // If user just tagged the bot with no message but replied to a message, use the replied message as the question
+        if (!cleanContent && repliedToContent) {
+          console.log(`User just tagged bot - using replied message as question: "${repliedToContent}"`);
+          cleanContent = `Please answer this question: "${repliedToContent}"`;
+        }
+        
+        // If still no content, ask for a question
+        if (!cleanContent) {
+          await sendDiscordMessage(channelId, "Hey! 👋 What would you like to know? Just include your question and I'll help you out! 🎯", DISCORD_BOT_TOKEN, messageId);
+          return new Response(JSON.stringify({ success: true, action: "no_question" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         
         const aiResponse = await getAIResponse(cleanContent, knowledgeContext, userHistory, userName, replyContext);
 
