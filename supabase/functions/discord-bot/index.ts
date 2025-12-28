@@ -306,29 +306,74 @@ serve(async (req) => {
       );
     }
 
-    // Handle slash commands
+    // Handle slash commands / interactions
+    // IMPORTANT: Discord requires a response within ~3 seconds.
+    // We ACK immediately (type 5) and then post the real answer as a follow-up message.
     if (body.type === 2) {
-      const content = body.data?.options?.[0]?.value || "";
-      
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const supabase = createClient(supabaseUrl, supabaseKey);
+      const question =
+        body.data?.options?.find((o: any) => o?.name === "question")?.value ||
+        body.data?.options?.[0]?.value ||
+        "";
 
-      const { data: knowledgeEntries } = await supabase
-        .from("knowledge_base")
-        .select("title, content, category")
-        .order("category");
+      const applicationId = body.application_id;
+      const interactionToken = body.token;
 
-      let knowledgeContext = knowledgeEntries?.length
-        ? knowledgeEntries.map(e => `[${e.category.toUpperCase()}] ${e.title}:\n${e.content}`).join("\n\n---\n\n")
-        : "No knowledge base entries available.";
+      const run = (async () => {
+        try {
+          const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+          const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+          const supabase = createClient(supabaseUrl, supabaseKey);
 
-      const aiResponse = await getAIResponse(content, knowledgeContext);
+          const { data: knowledgeEntries } = await supabase
+            .from("knowledge_base")
+            .select("title, content, category")
+            .order("category");
 
-      return new Response(
-        JSON.stringify({ type: 4, data: { content: aiResponse } }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+          const knowledgeContext = knowledgeEntries?.length
+            ? knowledgeEntries
+                .map((e: any) => `[${String(e.category).toUpperCase()}] ${e.title}:\n${e.content}`)
+                .join("\n\n---\n\n")
+            : "No knowledge base entries available.";
+
+          const aiResponse = await getAIResponse(String(question || ""), knowledgeContext);
+
+          const followup = await fetch(
+            `${DISCORD_API_BASE}/webhooks/${applicationId}/${interactionToken}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ content: aiResponse }),
+            }
+          );
+
+          if (!followup.ok) {
+            const t = await followup.text();
+            console.error("Discord follow-up error:", followup.status, t);
+          }
+        } catch (e) {
+          console.error("Slash command processing error:", e);
+          // Best-effort error follow-up
+          try {
+            await fetch(`${DISCORD_API_BASE}/webhooks/${applicationId}/${interactionToken}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ content: "I'm experiencing technical difficulties. Please try again later." }),
+            });
+          } catch {
+            // ignore
+          }
+        }
+      })();
+
+      const waitUntil = (globalThis as any)?.EdgeRuntime?.waitUntil;
+      if (typeof waitUntil === "function") {
+        waitUntil(run);
+      }
+
+      // ACK immediately
+      return new Response(JSON.stringify({ type: 5 }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Handle message create events
