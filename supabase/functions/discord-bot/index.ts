@@ -112,11 +112,19 @@ async function getUserConversationHistory(
   discordUserId: string,
   limit = 20
 ): Promise<ConversationMessage[]> {
+  if (!discordUserId) {
+    console.error("No discordUserId provided for conversation history");
+    return [];
+  }
+  
+  const sessionId = `discord-user-${discordUserId}`;
+  console.log(`Fetching conversation history for session: ${sessionId}`);
+  
   try {
     const { data, error } = await supabase
       .from("chat_history")
-      .select("role, content")
-      .eq("session_id", `discord-user-${discordUserId}`)
+      .select("role, content, created_at")
+      .eq("session_id", sessionId)
       .order("created_at", { ascending: false })
       .limit(limit);
 
@@ -125,8 +133,14 @@ async function getUserConversationHistory(
       return [];
     }
 
-    // Reverse to get chronological order
-    return (data || []).reverse() as ConversationMessage[];
+    const history = (data || []).reverse().map((msg: any) => ({
+      role: msg.role as "user" | "assistant",
+      content: msg.content,
+    }));
+    
+    console.log(`Found ${history.length} messages in history for user ${discordUserId}`);
+    
+    return history;
   } catch (e) {
     console.error("Error in getUserConversationHistory:", e);
     return [];
@@ -140,11 +154,17 @@ async function storeUserMessage(
   content: string
 ): Promise<void> {
   try {
-    await supabase.from("chat_history").insert({
+    const { error } = await supabase.from("chat_history").insert({
       session_id: `discord-user-${discordUserId}`,
       role,
       content,
     });
+    
+    if (error) {
+      console.error("Error storing user message:", error);
+    } else {
+      console.log(`Stored ${role} message for user ${discordUserId}`);
+    }
   } catch (e) {
     console.error("Error storing message:", e);
   }
@@ -555,12 +575,15 @@ serve(async (req) => {
       // Update message history for conversation detection
       updateMessageHistory(channelId, authorId, messageTimestamp);
 
+      // Log the author info for debugging
+      console.log(`Discord User ID: ${authorId}, Username: ${message.author?.username}`);
+
       // Get author's roles
       const authorRoles = await getMemberRoles(guildId, authorId, DISCORD_BOT_TOKEN);
       const isAuthorModerator = isModeratorRole(authorRoles);
       const botIsMentioned = isBotMentioned(content, mentions);
 
-      console.log(`Message from ${message.author?.username}: "${content}"`);
+      console.log(`Message from ${message.author?.username} (ID: ${authorId}): "${content}"`);
       console.log(`Is moderator: ${isAuthorModerator}, Bot mentioned: ${botIsMentioned}`);
 
       // CASE 1: Moderator tags the bot - respond immediately to moderator commands
