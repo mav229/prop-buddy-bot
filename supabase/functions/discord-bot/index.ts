@@ -169,6 +169,45 @@ async function getMemberRoles(guildId: string, userId: string, token: string): P
   }
 }
 
+async function registerGuildSlashCommands(token: string): Promise<void> {
+  // Register a single /ask command in the configured guild.
+  // Note: Application ID is the same as the bot user ID.
+  const applicationId = BOT_USER_ID;
+
+  const commands = [
+    {
+      name: "ask",
+      description: "Ask PropScholar a question",
+      options: [
+        {
+          type: 3, // STRING
+          name: "question",
+          description: "Your PropScholar question",
+          required: true,
+        },
+      ],
+    },
+  ];
+
+  const resp = await fetch(
+    `${DISCORD_API_BASE}/applications/${applicationId}/guilds/${GUILD_ID}/commands`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bot ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(commands),
+    }
+  );
+
+  if (!resp.ok) {
+    const t = await resp.text();
+    console.error("Failed to register slash commands:", resp.status, t);
+    throw new Error("Failed to register slash commands");
+  }
+}
+
 function isModeratorRole(roles: string[]): boolean {
   // If specific moderator roles are defined, check against them
   if (MODERATOR_ROLE_IDS.length > 0) {
@@ -457,10 +496,29 @@ serve(async (req) => {
       });
     }
 
+    // Handle register commands action
+    if (body.action === "register_commands") {
+      try {
+        await registerGuildSlashCommands(DISCORD_BOT_TOKEN);
+        return new Response(
+          JSON.stringify({ success: true, message: "Registered /ask command" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (e) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: e instanceof Error ? e.message : "Failed to register commands",
+          }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // Handle test action
     if (body.action === "test") {
       const testMessage = body.message || "What are the drawdown rules?";
-      
+
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const supabase = createClient(supabaseUrl, supabaseKey);

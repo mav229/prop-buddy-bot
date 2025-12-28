@@ -9,11 +9,32 @@ export const DiscordSettings = () => {
   const [testMessage, setTestMessage] = useState("");
   const [testResponse, setTestResponse] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [registering, setRegistering] = useState(false);
   const { toast } = useToast();
 
   const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/discord-bot`;
 
-  const handleTest = async () => {
+  const handleRegisterCommands = async () => {
+    setRegistering(true);
+    try {
+      const res = await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "register_commands" }),
+      });
+      const data = await res.json();
+      if (!res.ok || data?.error) throw new Error(data?.error || "Failed to register commands");
+      toast({ title: "Slash command registered", description: "Use /ask in your server." });
+    } catch (e) {
+      toast({
+        variant: "destructive",
+        title: "Registration failed",
+        description: e instanceof Error ? e.message : "Failed to register commands",
+      });
+    } finally {
+      setRegistering(false);
+    }
+  };
     if (!testMessage.trim()) {
       toast({
         variant: "destructive",
@@ -88,36 +109,45 @@ export const DiscordSettings = () => {
           <ol className="list-decimal list-inside space-y-2 ml-2">
             <li>Go to the <a href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Discord Developer Portal</a></li>
             <li>Select your application → Bot section</li>
-            <li>Enable <strong>Message Content Intent</strong> under Privileged Gateway Intents</li>
-            <li>Go to OAuth2 → URL Generator</li>
-            <li>Select scopes: <code className="bg-muted px-1 rounded">bot</code>, <code className="bg-muted px-1 rounded">applications.commands</code></li>
-            <li>Select bot permissions: Send Messages, Read Message History, Use Slash Commands</li>
-            <li>Copy the generated URL and open it to invite the bot to your server</li>
+            <li>Invite the bot to your server (OAuth2 → URL Generator, scopes: <code className="bg-muted px-1 rounded">bot</code>, <code className="bg-muted px-1 rounded">applications.commands</code>)</li>
+            <li>Paste the Interactions Endpoint URL below into your app's <strong>Interactions Endpoint URL</strong> field and save</li>
+            <li>Click <strong>Register /ask command</strong> below (one-time)</li>
+            <li>In your server, use <code className="bg-muted px-1 rounded">/ask</code> to ask questions</li>
           </ol>
         </div>
 
-        <div className="pt-4 border-t border-border">
-          <Label className="text-xs text-muted-foreground">Interactions Endpoint URL (for slash commands)</Label>
-          <div className="flex items-center gap-2 mt-1">
-            <Input
-              value={webhookUrl}
-              readOnly
-              className="font-mono text-xs"
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                navigator.clipboard.writeText(webhookUrl);
-                toast({ title: "Copied to clipboard" });
-              }}
-            >
-              <ExternalLink className="w-4 h-4" />
-            </Button>
+        <div className="pt-4 border-t border-border space-y-3">
+          <div>
+            <Label className="text-xs text-muted-foreground">Interactions Endpoint URL (for slash commands)</Label>
+            <div className="flex items-center gap-2 mt-1">
+              <Input
+                value={webhookUrl}
+                readOnly
+                className="font-mono text-xs"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  navigator.clipboard.writeText(webhookUrl);
+                  toast({ title: "Copied to clipboard" });
+                }}
+              >
+                <ExternalLink className="w-4 h-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Paste this URL in your Discord app's Interactions Endpoint URL field.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Note: In this serverless mode, the bot responds via <strong>/ask</strong> (slash command) — it won't auto-reply to @mentions.
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Paste this URL in your Discord app's Interactions Endpoint URL field
-          </p>
+
+          <Button onClick={handleRegisterCommands} disabled={registering} variant="secondary">
+            {registering && <Loader2 className="w-4 h-4 animate-spin" />}
+            Register /ask command
+          </Button>
         </div>
       </div>
 
@@ -159,11 +189,11 @@ export const DiscordSettings = () => {
           <AlertCircle className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
           <div>
             <h4 className="font-semibold text-sm mb-1">How the Bot Works</h4>
-            <p className="text-sm text-muted-foreground">
-              Once set up, users can mention the bot or use slash commands in your Discord server. 
-              The bot will respond with PropScholar-related information from your knowledge base. 
-              All conversations are logged in the Chat History tab.
-            </p>
+              <p className="text-sm text-muted-foreground">
+                In this setup, Discord calls your backend via the Interactions Endpoint URL.
+                That means the bot responds via slash commands (use <code className="bg-muted px-1 rounded">/ask</code>).
+                Mentions require an always-on bot host.
+              </p>
           </div>
         </div>
       </div>
