@@ -5,27 +5,21 @@
  * Requires: Deno runtime
  * 
  * Environment Variables needed:
- * - DISCORD_BOT_TOKEN
- * - SUPABASE_URL
- * - SUPABASE_SERVICE_ROLE_KEY
- * - LOVABLE_API_KEY
+ * - DISCORD_BOT_TOKEN (from Discord Developer Portal)
+ * - SUPABASE_URL (your Lovable project URL, e.g. https://pcvkjrxrlibhyyxldbzs.supabase.co)
+ * - SUPABASE_ANON_KEY (your Lovable project anon/publishable key)
  */
-
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // Configuration
 const DISCORD_BOT_TOKEN = Deno.env.get("DISCORD_BOT_TOKEN")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
 const DISCORD_API_BASE = "https://discord.com/api/v10";
 const DISCORD_GATEWAY_URL = "wss://gateway.discord.gg/?v=10&encoding=json";
 
 // Intents: GUILDS (1) + GUILD_MESSAGES (512) + MESSAGE_CONTENT (32768)
 const INTENTS = 1 | 512 | 32768;
-
-const SYSTEM_PROMPT = `You are PropScholar's helpful Discord assistant. Answer questions about PropScholar's prop trading services based on the knowledge base provided. Be concise, friendly, and accurate. If you don't know something, say so honestly.`;
 
 let ws: WebSocket | null = null;
 let heartbeatInterval: number | null = null;
@@ -34,63 +28,70 @@ let resumeGatewayUrl: string | null = null;
 let sequence: number | null = null;
 let botUserId: string | null = null;
 
-// Supabase client
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-// Get knowledge base context
-async function getKnowledgeContext(query: string): Promise<string> {
+// Get AI response by calling the chat edge function
+async function getAIResponse(message: string): Promise<string> {
   try {
-    const { data, error } = await supabase
-      .from("knowledge_base")
-      .select("title, content, category")
-      .limit(10);
-
-    if (error || !data || data.length === 0) {
-      console.log("No knowledge base entries found");
-      return "";
-    }
-
-    const context = data
-      .map((entry) => `## ${entry.title}\nCategory: ${entry.category}\n${entry.content}`)
-      .join("\n\n---\n\n");
-
-    return context;
-  } catch (e) {
-    console.error("Error fetching knowledge base:", e);
-    return "";
-  }
-}
-
-// Get AI response
-async function getAIResponse(message: string, knowledgeContext: string): Promise<string> {
-  try {
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    console.log("Calling chat edge function...");
+    
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/chat`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: `${SYSTEM_PROMPT}\n\nKnowledge Base:\n${knowledgeContext}`,
-          },
-          { role: "user", content: message },
-        ],
-        max_tokens: 1000,
+        messages: [{ role: "user", content: message }],
+        sessionId: `discord-${Date.now()}`,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("AI Gateway error:", response.status, errorText);
+      console.error("Chat function error:", response.status, errorText);
       return "Sorry, I'm having trouble processing your request right now.";
     }
 
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
+    // Handle streaming response - collect all chunks
+    const reader = response.body?.getReader();
+    if (!reader) {
+      return "Sorry, I couldn't get a response.";
+    }
+
+    const decoder = new TextDecoder();
+    let fullContent = "";
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // Process complete lines
+      let newlineIndex: number;
+      while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
+        const line = buffer.slice(0, newlineIndex).trim();
+        buffer = buffer.slice(newlineIndex + 1);
+
+        if (!line || line.startsWith(":")) continue;
+        if (!line.startsWith("data: ")) continue;
+
+        const jsonStr = line.slice(6).trim();
+        if (jsonStr === "[DONE]") continue;
+
+        try {
+          const parsed = JSON.parse(jsonStr);
+          const content = parsed.choices?.[0]?.delta?.content;
+          if (content) {
+            fullContent += content;
+          }
+        } catch {
+          // Incomplete JSON, will be handled in next chunk
+        }
+      }
+    }
+
+    return fullContent || "Sorry, I couldn't generate a response.";
   } catch (e) {
     console.error("AI request error:", e);
     return "Sorry, I encountered an error while processing your question.";
@@ -201,9 +202,8 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
     headers: { "Authorization": `Bot ${DISCORD_BOT_TOKEN}` },
   });
 
-  // Get knowledge context and AI response
-  const knowledgeContext = await getKnowledgeContext(cleanedMessage);
-  const response = await getAIResponse(cleanedMessage, knowledgeContext);
+  // Get AI response via edge function
+  const response = await getAIResponse(cleanedMessage);
 
   // Send response
   await sendMessage(channelId, response, messageId);
