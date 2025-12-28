@@ -1,12 +1,12 @@
-import { Bot, LogOut, MessageSquare, Database, ArrowLeft } from "lucide-react";
+import { Bot, LogOut, MessageSquare, Database, ArrowLeft, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { KnowledgeBaseManager } from "./KnowledgeBaseManager";
 import { ChatHistoryView } from "./ChatHistoryView";
 import { DiscordSettings } from "./DiscordSettings";
+import { TrainingCenter } from "./TrainingCenter";
 import { Link } from "react-router-dom";
-
 // Discord icon component
 const DiscordIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -63,6 +63,10 @@ export const AdminDashboard = () => {
               <Database className="w-4 h-4" />
               Knowledge Base
             </TabsTrigger>
+            <TabsTrigger value="training" className="gap-2">
+              <Brain className="w-4 h-4" />
+              Training
+            </TabsTrigger>
             <TabsTrigger value="history" className="gap-2">
               <MessageSquare className="w-4 h-4" />
               Chat History
@@ -75,6 +79,10 @@ export const AdminDashboard = () => {
 
           <TabsContent value="knowledge">
             <KnowledgeBaseManager />
+          </TabsContent>
+
+          <TabsContent value="training">
+            <TrainingCenter />
           </TabsContent>
 
           <TabsContent value="history">

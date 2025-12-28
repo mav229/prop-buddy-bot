@@ -117,6 +117,14 @@ export const useChat = () => {
           role: "assistant",
           content: assistantContent,
         });
+
+        // Log to training feedback for review
+        await supabase.from("training_feedback").insert({
+          question: content.trim(),
+          bot_answer: assistantContent,
+          confidence: 0.85, // Default confidence
+          session_id: sessionIdRef.current,
+        });
       }
     } catch (err) {
       console.error("Chat error:", err);
