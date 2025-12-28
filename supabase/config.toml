@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.discord-bot]
 verify_jwt = false
+
+[functions.firecrawl-scrape]
+verify_jwt = false
