@@ -82,14 +82,85 @@ KNOWLEDGE BASE CONTEXT:
 Tone: Professional, clear, trader-friendly.
 No emojis. No slang. No unnecessary explanations.`;
 
-async function getAIResponse(message: string, knowledgeContext: string): Promise<string> {
+interface ConversationMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+async function getUserConversationHistory(
+  supabase: any,
+  discordUserId: string,
+  limit = 10
+): Promise<ConversationMessage[]> {
+  try {
+    const { data, error } = await supabase
+      .from("chat_history")
+      .select("role, content")
+      .eq("session_id", `discord-user-${discordUserId}`)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error("Error fetching user history:", error);
+      return [];
+    }
+
+    // Reverse to get chronological order
+    return (data || []).reverse() as ConversationMessage[];
+  } catch (e) {
+    console.error("Error in getUserConversationHistory:", e);
+    return [];
+  }
+}
+
+async function storeUserMessage(
+  supabase: any,
+  discordUserId: string,
+  role: "user" | "assistant",
+  content: string
+): Promise<void> {
+  try {
+    await supabase.from("chat_history").insert({
+      session_id: `discord-user-${discordUserId}`,
+      role,
+      content,
+    });
+  } catch (e) {
+    console.error("Error storing message:", e);
+  }
+}
+
+async function getAIResponse(
+  message: string,
+  knowledgeContext: string,
+  conversationHistory: ConversationMessage[] = [],
+  userName?: string
+): Promise<string> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
     console.error("LOVABLE_API_KEY not configured");
     return "I'm experiencing technical difficulties. Please try again later.";
   }
 
-  const systemPrompt = SYSTEM_PROMPT.replace("{knowledge_base}", knowledgeContext);
+  let systemPrompt = SYSTEM_PROMPT.replace("{knowledge_base}", knowledgeContext);
+  
+  // Add user context if we have history
+  if (conversationHistory.length > 0 && userName) {
+    systemPrompt += `\n\nYou are continuing a conversation with ${userName}. Here is your previous conversation with them - use this context to provide personalized responses and remember what they've asked before.`;
+  }
+
+  // Build messages array with history
+  const messages: { role: string; content: string }[] = [
+    { role: "system", content: systemPrompt },
+  ];
+
+  // Add conversation history
+  for (const msg of conversationHistory) {
+    messages.push({ role: msg.role, content: msg.content });
+  }
+
+  // Add current message
+  messages.push({ role: "user", content: message });
 
   try {
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -100,10 +171,7 @@ async function getAIResponse(message: string, knowledgeContext: string): Promise
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: message },
-        ],
+        messages,
       }),
     });
 
@@ -372,6 +440,10 @@ serve(async (req) => {
 
       const applicationId = body.application_id;
       const interactionToken = body.token;
+      
+      // Get user info from interaction
+      const userId = body.member?.user?.id || body.user?.id;
+      const userName = body.member?.user?.username || body.user?.username || "User";
 
       const run = (async () => {
         try {
@@ -390,7 +462,16 @@ serve(async (req) => {
                 .join("\n\n---\n\n")
             : "No knowledge base entries available.";
 
-          const aiResponse = await getAIResponse(String(question || ""), knowledgeContext);
+          // Get user's conversation history
+          const userHistory = userId ? await getUserConversationHistory(supabase, userId) : [];
+
+          const aiResponse = await getAIResponse(String(question || ""), knowledgeContext, userHistory, userName);
+
+          // Store conversation if we have user ID
+          if (userId) {
+            await storeUserMessage(supabase, userId, "user", String(question || ""));
+            await storeUserMessage(supabase, userId, "assistant", aiResponse);
+          }
 
           const followup = await fetch(
             `${DISCORD_API_BASE}/webhooks/${applicationId}/${interactionToken}`,
@@ -479,11 +560,19 @@ serve(async (req) => {
           ? knowledgeEntries.map(e => `[${e.category.toUpperCase()}] ${e.title}:\n${e.content}`).join("\n\n---\n\n")
           : "No knowledge base entries available.";
 
+        // Get user's conversation history
+        const userHistory = await getUserConversationHistory(supabase, authorId);
+        const userName = message.author?.username || "User";
+
         // Remove bot mention from content before sending to AI
         const cleanContent = content.replace(/<@!?\d+>/g, "").trim();
-        const aiResponse = await getAIResponse(cleanContent, knowledgeContext);
+        const aiResponse = await getAIResponse(cleanContent, knowledgeContext, userHistory, userName);
 
         await sendDiscordMessage(channelId, aiResponse, DISCORD_BOT_TOKEN, messageId);
+
+        // Store in user-specific chat history
+        await storeUserMessage(supabase, authorId, "user", cleanContent);
+        await storeUserMessage(supabase, authorId, "assistant", aiResponse);
         
         return new Response(JSON.stringify({ success: true, action: "moderator_command" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -515,17 +604,19 @@ serve(async (req) => {
           ? knowledgeEntries.map(e => `[${e.category.toUpperCase()}] ${e.title}:\n${e.content}`).join("\n\n---\n\n")
           : "No knowledge base entries available.";
 
+        // Get user's conversation history
+        const userHistory = await getUserConversationHistory(supabase, authorId);
+        const userName = message.author?.username || "User";
+
         // Remove bot mention from content before sending to AI
         const cleanContent = content.replace(/<@!?\d+>/g, "").trim();
-        const aiResponse = await getAIResponse(cleanContent, knowledgeContext);
+        const aiResponse = await getAIResponse(cleanContent, knowledgeContext, userHistory, userName);
 
         await sendDiscordMessage(channelId, aiResponse, DISCORD_BOT_TOKEN, messageId);
 
-        // Store in chat history
-        await supabase.from("chat_history").insert([
-          { session_id: `discord-${channelId}`, role: "user", content: cleanContent },
-          { session_id: `discord-${channelId}`, role: "assistant", content: aiResponse },
-        ]);
+        // Store in user-specific chat history
+        await storeUserMessage(supabase, authorId, "user", cleanContent);
+        await storeUserMessage(supabase, authorId, "assistant", aiResponse);
 
         return new Response(JSON.stringify({ success: true, action: "user_mentioned_bot" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -582,14 +673,16 @@ serve(async (req) => {
         ? knowledgeEntries.map(e => `[${e.category.toUpperCase()}] ${e.title}:\n${e.content}`).join("\n\n---\n\n")
         : "No knowledge base entries available.";
 
-      const aiResponse = await getAIResponse(content, knowledgeContext);
+      // Get user's conversation history
+      const userHistory = await getUserConversationHistory(supabase, authorId);
+      const userName = message.author?.username || "User";
+
+      const aiResponse = await getAIResponse(content, knowledgeContext, userHistory, userName);
       await sendDiscordMessage(channelId, aiResponse, DISCORD_BOT_TOKEN, messageId);
 
-      // Store in chat history
-      await supabase.from("chat_history").insert([
-        { session_id: `discord-${channelId}`, role: "user", content },
-        { session_id: `discord-${channelId}`, role: "assistant", content: aiResponse },
-      ]);
+      // Store in user-specific chat history
+      await storeUserMessage(supabase, authorId, "user", content);
+      await storeUserMessage(supabase, authorId, "assistant", aiResponse);
 
       return new Response(JSON.stringify({ success: true, action: "responded" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
