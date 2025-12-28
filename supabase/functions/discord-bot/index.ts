@@ -359,7 +359,41 @@ serve(async (req) => {
         });
       }
 
-      // CASE 3: Detect ongoing conversation between users - stay silent
+      // CASE 3: User directly mentions the bot - respond immediately
+      if (botIsMentioned) {
+        console.log("Bot mentioned by user - responding immediately");
+        
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        const { data: knowledgeEntries } = await supabase
+          .from("knowledge_base")
+          .select("title, content, category")
+          .order("category");
+
+        let knowledgeContext = knowledgeEntries?.length
+          ? knowledgeEntries.map(e => `[${e.category.toUpperCase()}] ${e.title}:\n${e.content}`).join("\n\n---\n\n")
+          : "No knowledge base entries available.";
+
+        // Remove bot mention from content before sending to AI
+        const cleanContent = content.replace(/<@!?\d+>/g, "").trim();
+        const aiResponse = await getAIResponse(cleanContent, knowledgeContext);
+
+        await sendDiscordMessage(channelId, aiResponse, DISCORD_BOT_TOKEN, messageId);
+
+        // Store in chat history
+        await supabase.from("chat_history").insert([
+          { session_id: `discord-${channelId}`, role: "user", content: cleanContent },
+          { session_id: `discord-${channelId}`, role: "assistant", content: aiResponse },
+        ]);
+
+        return new Response(JSON.stringify({ success: true, action: "user_mentioned_bot" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // CASE 4: Detect ongoing conversation between users - stay silent
       if (isConversation(channelId, authorId, messageTimestamp)) {
         console.log("Ongoing conversation detected - staying silent");
         return new Response(JSON.stringify({ success: true, action: "ignored_conversation" }), {
@@ -367,7 +401,7 @@ serve(async (req) => {
         });
       }
 
-      // CASE 4: Regular user message that looks like a question - respond with delay
+      // CASE 5: Regular user message that looks like a question - respond with delay
       if (!isQuestion(content)) {
         console.log("Message doesn't appear to be a question - staying silent");
         return new Response(JSON.stringify({ success: true, action: "not_a_question" }), {
