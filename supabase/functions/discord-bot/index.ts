@@ -848,6 +848,49 @@ serve(async (req) => {
       }
     }
 
+    // Handle gateway_message action (from gateway bot)
+    if (body.action === "gateway_message") {
+      const { discordUserId, username, message, repliedToContent, repliedToAuthor } = body;
+      
+      console.log(`Gateway message from ${username} (${discordUserId}): "${message}"`);
+      
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      const { data: knowledgeEntries } = await supabase
+        .from("knowledge_base")
+        .select("title, content, category")
+        .order("category");
+
+      const knowledgeContext = knowledgeEntries?.length
+        ? knowledgeEntries.map(e => `[${e.category.toUpperCase()}] ${e.title}:\n${e.content}`).join("\n\n---\n\n")
+        : "No knowledge base entries available.";
+
+      // Get user's conversation history (up to 20 messages)
+      const userHistory = discordUserId ? await getUserConversationHistory(supabase, discordUserId, 20) : [];
+      console.log(`Found ${userHistory.length} messages in history for user ${discordUserId}`);
+
+      // Build reply context if present
+      const replyContext = repliedToContent ? {
+        content: repliedToContent,
+        authorName: repliedToAuthor || "Unknown User"
+      } : undefined;
+
+      const aiResponse = await getAIResponse(message, knowledgeContext, userHistory, username, replyContext);
+
+      // Store conversation for memory
+      if (discordUserId) {
+        await storeUserMessage(supabase, discordUserId, "user", message);
+        await storeUserMessage(supabase, discordUserId, "assistant", aiResponse);
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, response: aiResponse }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Handle test action
     if (body.action === "test") {
       const testMessage = body.message || "What are the drawdown rules?";
