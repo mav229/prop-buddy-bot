@@ -2,3 +2,6 @@ project_id = "pcvkjrxrlibhyyxldbzs"
 
 [functions.chat]
 verify_jwt = false
+
+[functions.discord-bot]
+verify_jwt = false
