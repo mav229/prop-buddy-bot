@@ -86,6 +86,45 @@ export type Database = {
         }
         Relationships: []
       }
+      training_feedback: {
+        Row: {
+          bot_answer: string
+          confidence: number | null
+          corrected_answer: string | null
+          created_at: string
+          id: string
+          is_correct: boolean | null
+          question: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          session_id: string | null
+        }
+        Insert: {
+          bot_answer: string
+          confidence?: number | null
+          corrected_answer?: string | null
+          created_at?: string
+          id?: string
+          is_correct?: boolean | null
+          question: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          session_id?: string | null
+        }
+        Update: {
+          bot_answer?: string
+          confidence?: number | null
+          corrected_answer?: string | null
+          created_at?: string
+          id?: string
+          is_correct?: boolean | null
+          question?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          session_id?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
