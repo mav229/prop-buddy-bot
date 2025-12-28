@@ -7,10 +7,17 @@ const corsHeaders = {
 };
 
 const DISCORD_API_BASE = "https://discord.com/api/v10";
-const MODERATOR_DELAY_MS = 15000; // 15 seconds
+const MODERATOR_DELAY_MS = 15000;
 const MONITORED_CHANNEL_ID = "1444871497981235320";
+const GUILD_ID = "1302986125035573250";
+const BOT_USER_ID = "1454702186398482555";
 
-// System prompt for Scholaris AI
+// Moderator role IDs - add your actual moderator role IDs here
+const MODERATOR_ROLE_IDS: string[] = [];
+
+// Track recent messages per channel for conversation detection
+const recentMessages = new Map<string, { authorId: string; timestamp: number }[]>();
+
 const SYSTEM_PROMPT = `You are Scholaris AI, the official PropScholar support bot.
 
 Rules you must follow strictly:
@@ -34,9 +41,6 @@ KNOWLEDGE BASE CONTEXT:
 
 Tone: Professional, clear, trader-friendly.
 No emojis. No slang. No unnecessary explanations.`;
-
-// Store pending responses to check for moderator replies
-const pendingResponses = new Map<string, { messageId: string; channelId: string; content: string; timestamp: number }>();
 
 async function getAIResponse(message: string, knowledgeContext: string): Promise<string> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -76,22 +80,28 @@ async function getAIResponse(message: string, knowledgeContext: string): Promise
   }
 }
 
-async function sendDiscordMessage(channelId: string, content: string, token: string): Promise<void> {
+async function sendDiscordMessage(channelId: string, content: string, token: string, replyToMessageId?: string): Promise<void> {
   try {
-    // Discord has a 2000 character limit per message
     const chunks = [];
     for (let i = 0; i < content.length; i += 1900) {
       chunks.push(content.slice(i, i + 1900));
     }
 
-    for (const chunk of chunks) {
+    for (let i = 0; i < chunks.length; i++) {
+      const body: any = { content: chunks[i] };
+      
+      // Only add message reference to first chunk
+      if (i === 0 && replyToMessageId) {
+        body.message_reference = { message_id: replyToMessageId };
+      }
+
       const response = await fetch(`${DISCORD_API_BASE}/channels/${channelId}/messages`, {
         method: "POST",
         headers: {
           Authorization: `Bot ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ content: chunk }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
@@ -101,47 +111,6 @@ async function sendDiscordMessage(channelId: string, content: string, token: str
     }
   } catch (error) {
     console.error("Error sending Discord message:", error);
-  }
-}
-
-async function checkForModeratorReply(channelId: string, afterMessageId: string, token: string): Promise<boolean> {
-  try {
-    const response = await fetch(
-      `${DISCORD_API_BASE}/channels/${channelId}/messages?after=${afterMessageId}&limit=50`,
-      {
-        headers: {
-          Authorization: `Bot ${token}`,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      console.error("Failed to fetch messages:", response.status);
-      return false;
-    }
-
-    const messages = await response.json();
-    
-    // Check if any message is from a moderator
-    for (const msg of messages) {
-      if (msg.author?.bot) continue;
-      
-      // Check if the author has moderator role
-      if (msg.member?.roles) {
-        // We'll check if the member has any roles (moderators typically have roles)
-        // In production, you'd check for specific moderator role IDs
-        const hasModerator = msg.member.roles.length > 0;
-        if (hasModerator) {
-          console.log("Moderator replied, staying silent:", msg.author?.username);
-          return true;
-        }
-      }
-    }
-
-    return false;
-  } catch (error) {
-    console.error("Error checking for moderator reply:", error);
-    return false;
   }
 }
 
@@ -156,10 +125,25 @@ async function getChannelMessagesAfter(channelId: string, messageId: string, tok
       }
     );
 
-    if (!response.ok) {
-      return [];
-    }
+    if (!response.ok) return [];
+    return await response.json();
+  } catch {
+    return [];
+  }
+}
 
+async function getRecentChannelMessages(channelId: string, token: string, limit = 10): Promise<any[]> {
+  try {
+    const response = await fetch(
+      `${DISCORD_API_BASE}/channels/${channelId}/messages?limit=${limit}`,
+      {
+        headers: {
+          Authorization: `Bot ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) return [];
     return await response.json();
   } catch {
     return [];
@@ -177,10 +161,7 @@ async function getMemberRoles(guildId: string, userId: string, token: string): P
       }
     );
 
-    if (!response.ok) {
-      return [];
-    }
-
+    if (!response.ok) return [];
     const member = await response.json();
     return member.roles || [];
   } catch {
@@ -188,8 +169,78 @@ async function getMemberRoles(guildId: string, userId: string, token: string): P
   }
 }
 
+function isModeratorRole(roles: string[]): boolean {
+  // If specific moderator roles are defined, check against them
+  if (MODERATOR_ROLE_IDS.length > 0) {
+    return roles.some(role => MODERATOR_ROLE_IDS.includes(role));
+  }
+  // Otherwise, anyone with roles is considered a moderator
+  return roles.length > 0;
+}
+
+function isBotMentioned(content: string, mentions: any[]): boolean {
+  // Check if bot is mentioned by ID
+  if (content.includes(`<@${BOT_USER_ID}>`) || content.includes(`<@!${BOT_USER_ID}>`)) {
+    return true;
+  }
+  // Check mentions array
+  if (mentions && mentions.some(m => m.id === BOT_USER_ID)) {
+    return true;
+  }
+  return false;
+}
+
+function isConversation(channelId: string, currentAuthorId: string, messageTimestamp: number): boolean {
+  const channelHistory = recentMessages.get(channelId) || [];
+  const recentWindow = 30000; // 30 seconds window
+  
+  // Get messages in the last 30 seconds
+  const recentMsgs = channelHistory.filter(
+    m => messageTimestamp - m.timestamp < recentWindow && m.authorId !== currentAuthorId
+  );
+  
+  // If there are recent messages from different users, it's a conversation
+  if (recentMsgs.length >= 1) {
+    const uniqueAuthors = new Set(recentMsgs.map(m => m.authorId));
+    // If there's back-and-forth between users, it's a conversation
+    if (uniqueAuthors.size >= 1) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+function updateMessageHistory(channelId: string, authorId: string, timestamp: number): void {
+  const history = recentMessages.get(channelId) || [];
+  history.push({ authorId, timestamp });
+  
+  // Keep only last 20 messages
+  if (history.length > 20) {
+    history.shift();
+  }
+  
+  // Clean old messages (older than 2 minutes)
+  const twoMinutesAgo = Date.now() - 120000;
+  const filtered = history.filter(m => m.timestamp > twoMinutesAgo);
+  
+  recentMessages.set(channelId, filtered);
+}
+
+function isQuestion(content: string): boolean {
+  const questionPatterns = [
+    /\?$/,
+    /^(what|how|why|when|where|who|which|can|could|would|should|is|are|do|does|will|have|has)/i,
+    /help/i,
+    /explain/i,
+    /tell me/i,
+    /need to know/i,
+  ];
+  
+  return questionPatterns.some(pattern => pattern.test(content.trim()));
+}
+
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -205,9 +256,9 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    console.log("Received Discord interaction:", JSON.stringify(body, null, 2));
+    console.log("Received Discord event:", JSON.stringify(body, null, 2));
 
-    // Handle Discord's URL verification
+    // Handle Discord's URL verification (PING)
     if (body.type === 1) {
       console.log("Responding to Discord PING");
       return new Response(
@@ -216,103 +267,163 @@ serve(async (req) => {
       );
     }
 
-    // Handle message create events (from gateway or webhook)
-    if (body.type === 2 || body.event === "MESSAGE_CREATE") {
-      const message = body.data || body;
-      const channelId = message.channel_id;
-      const messageId = message.id;
-      const content = message.content || message.options?.[0]?.value;
-      const authorId = message.author?.id || message.member?.user?.id;
-      const guildId = message.guild_id || body.guild_id || "1302986125035573250";
-
-      // Don't respond to bot messages
-      if (message.author?.bot) {
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // Initialize Supabase to fetch knowledge base
+    // Handle slash commands
+    if (body.type === 2) {
+      const content = body.data?.options?.[0]?.value || "";
+      
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const supabase = createClient(supabaseUrl, supabaseKey);
 
-      // Fetch knowledge base
       const { data: knowledgeEntries } = await supabase
         .from("knowledge_base")
         .select("title, content, category")
         .order("category");
 
-      let knowledgeContext = "";
-      if (knowledgeEntries && knowledgeEntries.length > 0) {
-        knowledgeContext = knowledgeEntries
-          .map((entry) => `[${entry.category.toUpperCase()}] ${entry.title}:\n${entry.content}`)
-          .join("\n\n---\n\n");
-      } else {
-        knowledgeContext = "No knowledge base entries available yet.";
-      }
+      let knowledgeContext = knowledgeEntries?.length
+        ? knowledgeEntries.map(e => `[${e.category.toUpperCase()}] ${e.title}:\n${e.content}`).join("\n\n---\n\n")
+        : "No knowledge base entries available.";
 
-      // Get AI response
       const aiResponse = await getAIResponse(content, knowledgeContext);
 
-      // For slash commands, respond immediately (no delay)
-      if (body.type === 2) {
-        return new Response(
-          JSON.stringify({
-            type: 4,
-            data: {
-              content: aiResponse,
-            },
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      return new Response(
+        JSON.stringify({ type: 4, data: { content: aiResponse } }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Handle message create events
+    if (body.event === "MESSAGE_CREATE" || body.t === "MESSAGE_CREATE") {
+      const message = body.d || body.data || body;
+      const channelId = message.channel_id;
+      const messageId = message.id;
+      const content = message.content || "";
+      const authorId = message.author?.id;
+      const guildId = message.guild_id || GUILD_ID;
+      const isBot = message.author?.bot;
+      const mentions = message.mentions || [];
+      const messageTimestamp = Date.now();
+
+      // Don't respond to bot messages
+      if (isBot) {
+        console.log("Ignoring bot message");
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
-      // For regular messages: wait 15 seconds, check for moderator replies
-      console.log(`Waiting ${MODERATOR_DELAY_MS}ms before responding...`);
+      // Update message history for conversation detection
+      updateMessageHistory(channelId, authorId, messageTimestamp);
+
+      // Get author's roles
+      const authorRoles = await getMemberRoles(guildId, authorId, DISCORD_BOT_TOKEN);
+      const isAuthorModerator = isModeratorRole(authorRoles);
+      const botIsMentioned = isBotMentioned(content, mentions);
+
+      console.log(`Message from ${message.author?.username}: "${content}"`);
+      console.log(`Is moderator: ${isAuthorModerator}, Bot mentioned: ${botIsMentioned}`);
+
+      // CASE 1: Moderator tags the bot - respond immediately to moderator commands
+      if (isAuthorModerator && botIsMentioned) {
+        console.log("Moderator command detected - responding immediately");
+        
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        const { data: knowledgeEntries } = await supabase
+          .from("knowledge_base")
+          .select("title, content, category")
+          .order("category");
+
+        let knowledgeContext = knowledgeEntries?.length
+          ? knowledgeEntries.map(e => `[${e.category.toUpperCase()}] ${e.title}:\n${e.content}`).join("\n\n---\n\n")
+          : "No knowledge base entries available.";
+
+        // Remove bot mention from content before sending to AI
+        const cleanContent = content.replace(/<@!?\d+>/g, "").trim();
+        const aiResponse = await getAIResponse(cleanContent, knowledgeContext);
+
+        await sendDiscordMessage(channelId, aiResponse, DISCORD_BOT_TOKEN, messageId);
+        
+        return new Response(JSON.stringify({ success: true, action: "moderator_command" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // CASE 2: Regular moderator message (not tagging bot) - stay silent
+      if (isAuthorModerator && !botIsMentioned) {
+        console.log("Moderator message - staying silent");
+        return new Response(JSON.stringify({ success: true, action: "ignored_moderator_message" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // CASE 3: Detect ongoing conversation between users - stay silent
+      if (isConversation(channelId, authorId, messageTimestamp)) {
+        console.log("Ongoing conversation detected - staying silent");
+        return new Response(JSON.stringify({ success: true, action: "ignored_conversation" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // CASE 4: Regular user message that looks like a question - respond with delay
+      if (!isQuestion(content)) {
+        console.log("Message doesn't appear to be a question - staying silent");
+        return new Response(JSON.stringify({ success: true, action: "not_a_question" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      console.log(`Question detected, waiting ${MODERATOR_DELAY_MS}ms before responding...`);
       
       // Wait 15 seconds
       await new Promise((resolve) => setTimeout(resolve, MODERATOR_DELAY_MS));
 
       // Check if a moderator replied during the wait
-      const messages = await getChannelMessagesAfter(channelId, messageId, DISCORD_BOT_TOKEN);
+      const newMessages = await getChannelMessagesAfter(channelId, messageId, DISCORD_BOT_TOKEN);
       
-      let moderatorReplied = false;
-      for (const msg of messages) {
+      for (const msg of newMessages) {
         if (msg.author?.bot) continue;
         
-        // Get member roles from the guild
         const roles = await getMemberRoles(guildId, msg.author.id, DISCORD_BOT_TOKEN);
-        
-        // Check if user has any roles (moderators typically have roles)
-        // In a real implementation, you'd check for specific moderator role IDs
-        if (roles.length > 0) {
-          console.log(`Moderator ${msg.author?.username} replied, staying silent.`);
-          moderatorReplied = true;
-          break;
+        if (isModeratorRole(roles)) {
+          console.log(`Moderator ${msg.author?.username} replied during wait - staying silent`);
+          return new Response(JSON.stringify({ success: true, action: "moderator_handled" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
       }
 
-      // Only respond if no moderator replied
-      if (!moderatorReplied) {
-        await sendDiscordMessage(channelId, aiResponse, DISCORD_BOT_TOKEN);
+      // No moderator replied - send response
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
 
-        // Store in chat history
-        await supabase.from("chat_history").insert([
-          { session_id: `discord-${channelId}`, role: "user", content: content },
-          { session_id: `discord-${channelId}`, role: "assistant", content: aiResponse },
-        ]);
-      } else {
-        console.log("Moderator handled the question, bot stayed silent.");
-      }
+      const { data: knowledgeEntries } = await supabase
+        .from("knowledge_base")
+        .select("title, content, category")
+        .order("category");
 
-      return new Response(
-        JSON.stringify({ success: true, moderatorReplied }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      let knowledgeContext = knowledgeEntries?.length
+        ? knowledgeEntries.map(e => `[${e.category.toUpperCase()}] ${e.title}:\n${e.content}`).join("\n\n---\n\n")
+        : "No knowledge base entries available.";
+
+      const aiResponse = await getAIResponse(content, knowledgeContext);
+      await sendDiscordMessage(channelId, aiResponse, DISCORD_BOT_TOKEN, messageId);
+
+      // Store in chat history
+      await supabase.from("chat_history").insert([
+        { session_id: `discord-${channelId}`, role: "user", content },
+        { session_id: `discord-${channelId}`, role: "assistant", content: aiResponse },
+      ]);
+
+      return new Response(JSON.stringify({ success: true, action: "responded" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Handle manual trigger to test the bot
+    // Handle test action
     if (body.action === "test") {
       const testMessage = body.message || "What are the drawdown rules?";
       
@@ -325,21 +436,14 @@ serve(async (req) => {
         .select("title, content, category")
         .order("category");
 
-      let knowledgeContext = "";
-      if (knowledgeEntries && knowledgeEntries.length > 0) {
-        knowledgeContext = knowledgeEntries
-          .map((entry) => `[${entry.category.toUpperCase()}] ${entry.title}:\n${entry.content}`)
-          .join("\n\n---\n\n");
-      }
+      let knowledgeContext = knowledgeEntries?.length
+        ? knowledgeEntries.map(e => `[${e.category.toUpperCase()}] ${e.title}:\n${e.content}`).join("\n\n---\n\n")
+        : "No knowledge base entries available.";
 
       const aiResponse = await getAIResponse(testMessage, knowledgeContext);
 
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          question: testMessage,
-          response: aiResponse 
-        }),
+        JSON.stringify({ success: true, question: testMessage, response: aiResponse }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
