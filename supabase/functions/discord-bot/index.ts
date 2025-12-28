@@ -170,11 +170,17 @@ async function storeUserMessage(
   }
 }
 
+interface ReplyContext {
+  content: string;
+  authorName: string;
+}
+
 async function getAIResponse(
   message: string,
   knowledgeContext: string,
   conversationHistory: ConversationMessage[] = [],
-  userName?: string
+  userName?: string,
+  repliedTo?: ReplyContext
 ): Promise<string> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
@@ -199,8 +205,15 @@ async function getAIResponse(
     messages.push({ role: msg.role, content: msg.content });
   }
 
+  // Build current message with reply context if present
+  let currentMessage = message;
+  if (repliedTo && repliedTo.content) {
+    currentMessage = `[User is replying to a message from ${repliedTo.authorName}: "${repliedTo.content}"]\n\nUser's message: ${message}`;
+    console.log(`Including reply context in AI message: "${repliedTo.content}"`);
+  }
+
   // Add current message
-  messages.push({ role: "user", content: message });
+  messages.push({ role: "user", content: currentMessage });
 
   try {
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -295,6 +308,29 @@ async function getRecentChannelMessages(channelId: string, token: string, limit 
     return await response.json();
   } catch {
     return [];
+  }
+}
+
+// Fetch a specific message by ID (for replied-to messages)
+async function getMessageById(channelId: string, messageId: string, token: string): Promise<any | null> {
+  try {
+    const response = await fetch(
+      `${DISCORD_API_BASE}/channels/${channelId}/messages/${messageId}`,
+      {
+        headers: {
+          Authorization: `Bot ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.error(`Failed to fetch message ${messageId}:`, response.status);
+      return null;
+    }
+    return await response.json();
+  } catch (e) {
+    console.error("Error fetching message by ID:", e);
+    return null;
   }
 }
 
@@ -563,6 +599,7 @@ serve(async (req) => {
       const isBot = message.author?.bot;
       const mentions = message.mentions || [];
       const messageTimestamp = Date.now();
+      const messageReference = message.message_reference; // Reply reference
 
       // Don't respond to bot messages
       if (isBot) {
@@ -577,6 +614,18 @@ serve(async (req) => {
 
       // Log the author info for debugging
       console.log(`Discord User ID: ${authorId}, Username: ${message.author?.username}`);
+
+      // Fetch replied-to message if this is a reply
+      let repliedToMessage: any = null;
+      let repliedToContent = "";
+      if (messageReference?.message_id) {
+        console.log(`Message is a reply to: ${messageReference.message_id}`);
+        repliedToMessage = await getMessageById(channelId, messageReference.message_id, DISCORD_BOT_TOKEN);
+        if (repliedToMessage) {
+          repliedToContent = repliedToMessage.content || "";
+          console.log(`Replied-to message content: "${repliedToContent}" by ${repliedToMessage.author?.username}`);
+        }
+      }
 
       // Get author's roles
       const authorRoles = await getMemberRoles(guildId, authorId, DISCORD_BOT_TOKEN);
@@ -609,7 +658,14 @@ serve(async (req) => {
 
         // Remove bot mention from content before sending to AI
         const cleanContent = content.replace(/<@!?\d+>/g, "").trim();
-        const aiResponse = await getAIResponse(cleanContent, knowledgeContext, userHistory, userName);
+        
+        // Build reply context if replying to a message
+        const replyContext = repliedToMessage ? {
+          content: repliedToContent,
+          authorName: repliedToMessage.author?.username || "Unknown User"
+        } : undefined;
+        
+        const aiResponse = await getAIResponse(cleanContent, knowledgeContext, userHistory, userName, replyContext);
 
         await sendDiscordMessage(channelId, aiResponse, DISCORD_BOT_TOKEN, messageId);
 
@@ -653,7 +709,14 @@ serve(async (req) => {
 
         // Remove bot mention from content before sending to AI
         const cleanContent = content.replace(/<@!?\d+>/g, "").trim();
-        const aiResponse = await getAIResponse(cleanContent, knowledgeContext, userHistory, userName);
+        
+        // Build reply context if replying to a message
+        const replyContext = repliedToMessage ? {
+          content: repliedToContent,
+          authorName: repliedToMessage.author?.username || "Unknown User"
+        } : undefined;
+        
+        const aiResponse = await getAIResponse(cleanContent, knowledgeContext, userHistory, userName, replyContext);
 
         await sendDiscordMessage(channelId, aiResponse, DISCORD_BOT_TOKEN, messageId);
 
@@ -719,8 +782,14 @@ serve(async (req) => {
       // Get user's conversation history
       const userHistory = await getUserConversationHistory(supabase, authorId);
       const userName = message.author?.username || "User";
+      
+      // Build reply context if replying to a message
+      const replyContext = repliedToMessage ? {
+        content: repliedToContent,
+        authorName: repliedToMessage.author?.username || "Unknown User"
+      } : undefined;
 
-      const aiResponse = await getAIResponse(content, knowledgeContext, userHistory, userName);
+      const aiResponse = await getAIResponse(content, knowledgeContext, userHistory, userName, replyContext);
       await sendDiscordMessage(channelId, aiResponse, DISCORD_BOT_TOKEN, messageId);
 
       // Store in user-specific chat history
