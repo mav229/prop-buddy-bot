@@ -1,10 +1,50 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import nacl from "https://esm.sh/tweetnacl@1.0.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-signature-ed25519, x-signature-timestamp",
 };
+
+// Verify Discord request signature
+async function verifyDiscordSignature(
+  request: Request,
+  rawBody: string
+): Promise<boolean> {
+  const publicKey = Deno.env.get("DISCORD_PUBLIC_KEY");
+  if (!publicKey) {
+    console.error("DISCORD_PUBLIC_KEY not configured");
+    return false;
+  }
+
+  const signature = request.headers.get("x-signature-ed25519");
+  const timestamp = request.headers.get("x-signature-timestamp");
+
+  if (!signature || !timestamp) {
+    console.log("Missing signature headers");
+    return false;
+  }
+
+  try {
+    const message = new TextEncoder().encode(timestamp + rawBody);
+    const signatureBytes = hexToBytes(signature);
+    const publicKeyBytes = hexToBytes(publicKey);
+
+    return nacl.sign.detached.verify(message, signatureBytes, publicKeyBytes);
+  } catch (e) {
+    console.error("Signature verification error:", e);
+    return false;
+  }
+}
+
+function hexToBytes(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
+  }
+  return bytes;
+}
 
 const DISCORD_API_BASE = "https://discord.com/api/v10";
 const MODERATOR_DELAY_MS = 15000;
@@ -294,7 +334,22 @@ serve(async (req) => {
   }
 
   try {
-    const body = await req.json();
+    // Clone request to read body twice (for verification and parsing)
+    const rawBody = await req.text();
+    
+    // Check if this is a Discord interaction (has signature headers)
+    const hasSignature = req.headers.get("x-signature-ed25519");
+    
+    if (hasSignature) {
+      // Verify Discord signature for interactions
+      const isValid = await verifyDiscordSignature(req, rawBody);
+      if (!isValid) {
+        console.error("Invalid Discord signature");
+        return new Response("Invalid signature", { status: 401 });
+      }
+    }
+
+    const body = JSON.parse(rawBody);
     console.log("Received Discord event:", JSON.stringify(body, null, 2));
 
     // Handle Discord's URL verification (PING)
