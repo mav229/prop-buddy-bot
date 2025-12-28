@@ -90,7 +90,7 @@ interface ConversationMessage {
 async function getUserConversationHistory(
   supabase: any,
   discordUserId: string,
-  limit = 10
+  limit = 20
 ): Promise<ConversationMessage[]> {
   try {
     const { data, error } = await supabase
