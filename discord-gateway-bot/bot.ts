@@ -37,73 +37,72 @@ let resumeGatewayUrl: string | null = null;
 let sequence: number | null = null;
 let botUserId: string | null = null;
 
-// Get AI response by calling the chat edge function
-async function getAIResponse(message: string): Promise<string> {
+// Get AI response by calling the discord-bot edge function
+async function getAIResponse(
+  message: string, 
+  discordUserId: string, 
+  username: string,
+  repliedToContent?: string,
+  repliedToAuthor?: string
+): Promise<string> {
   try {
-    console.log("Calling chat edge function...");
+    console.log(`Calling discord-bot edge function for user ${username} (${discordUserId})...`);
     
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/chat`, {
+    // Build the message with reply context if present
+    let fullMessage = message;
+    if (repliedToContent) {
+      fullMessage = `[User is replying to a message from ${repliedToAuthor || "someone"}: "${repliedToContent}"]\n\nUser's message: ${message}`;
+      console.log(`Including reply context: "${repliedToContent}"`);
+    }
+    
+    // Call the discord-bot function with proper context
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/discord-bot`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        messages: [{ role: "user", content: message }],
-        sessionId: `discord-${Date.now()}`,
+        action: "gateway_message",
+        discordUserId,
+        username,
+        message: fullMessage,
+        repliedToContent,
+        repliedToAuthor,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Chat function error:", response.status, errorText);
-      return "Sorry, I'm having trouble processing your request right now.";
+      console.error("discord-bot function error:", response.status, errorText);
+      return "Sorry, I'm having trouble processing your request right now. 😅";
     }
 
-    // Handle streaming response - collect all chunks
-    const reader = response.body?.getReader();
-    if (!reader) {
-      return "Sorry, I couldn't get a response.";
-    }
-
-    const decoder = new TextDecoder();
-    let fullContent = "";
-    let buffer = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-
-      // Process complete lines
-      let newlineIndex: number;
-      while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
-        const line = buffer.slice(0, newlineIndex).trim();
-        buffer = buffer.slice(newlineIndex + 1);
-
-        if (!line || line.startsWith(":")) continue;
-        if (!line.startsWith("data: ")) continue;
-
-        const jsonStr = line.slice(6).trim();
-        if (jsonStr === "[DONE]") continue;
-
-        try {
-          const parsed = JSON.parse(jsonStr);
-          const content = parsed.choices?.[0]?.delta?.content;
-          if (content) {
-            fullContent += content;
-          }
-        } catch {
-          // Incomplete JSON, will be handled in next chunk
-        }
-      }
-    }
-
-    return fullContent || "Sorry, I couldn't generate a response.";
+    const data = await response.json();
+    return data.response || "Sorry, I couldn't generate a response.";
   } catch (e) {
     console.error("AI request error:", e);
-    return "Sorry, I encountered an error while processing your question.";
+    return "Sorry, I encountered an error while processing your question. 😅";
+  }
+}
+
+// Fetch a specific message by ID (for replied-to messages)
+async function fetchMessage(channelId: string, messageId: string): Promise<Record<string, unknown> | null> {
+  try {
+    const response = await fetch(`${DISCORD_API_BASE}/channels/${channelId}/messages/${messageId}`, {
+      headers: {
+        "Authorization": `Bot ${DISCORD_BOT_TOKEN}`,
+      },
+    });
+
+    if (!response.ok) {
+      console.error(`Failed to fetch message ${messageId}:`, response.status);
+      return null;
+    }
+    return await response.json();
+  } catch (e) {
+    console.error("Error fetching message:", e);
+    return null;
   }
 }
 
@@ -182,26 +181,48 @@ function cleanMention(content: string): string {
 
 // Handle incoming message
 async function handleMessage(data: Record<string, unknown>): Promise<void> {
-  const author = data.author as { id: string; bot?: boolean } | undefined;
+  const author = data.author as { id: string; username?: string; bot?: boolean } | undefined;
   const content = data.content as string | undefined;
   const channelId = data.channel_id as string | undefined;
   const messageId = data.id as string | undefined;
   const mentions = data.mentions as Array<{ id: string }> | undefined;
+  const messageReference = data.message_reference as { message_id?: string } | undefined;
 
   // Ignore bot messages
   if (author?.bot) return;
   
   // Only respond if bot is @mentioned
-  if (!content || !channelId || !messageId) return;
+  if (!content || !channelId || !messageId || !author?.id) return;
   if (!isBotMentioned(content, mentions || [])) return;
 
-  console.log(`Bot mentioned by ${author?.id} in channel ${channelId}`);
+  console.log(`Bot mentioned by ${author.username} (${author.id}) in channel ${channelId}`);
 
   // Clean the message (remove mention)
   const cleanedMessage = cleanMention(content);
   
-  if (!cleanedMessage) {
-    await sendMessage(channelId, "Hi! How can I help you? Please include a question after mentioning me.", messageId);
+  // Fetch replied-to message if this is a reply
+  let repliedToContent: string | undefined;
+  let repliedToAuthor: string | undefined;
+  if (messageReference?.message_id) {
+    console.log(`Message is a reply to: ${messageReference.message_id}`);
+    const repliedMsg = await fetchMessage(channelId, messageReference.message_id);
+    if (repliedMsg) {
+      repliedToContent = repliedMsg.content as string;
+      const repliedAuthor = repliedMsg.author as { username?: string } | undefined;
+      repliedToAuthor = repliedAuthor?.username || "Unknown User";
+      console.log(`Replied-to message: "${repliedToContent}" by ${repliedToAuthor}`);
+    }
+  }
+  
+  // If user just mentioned bot with no text but replied to a message, use that as the question
+  let questionToAsk = cleanedMessage;
+  if (!questionToAsk && repliedToContent) {
+    console.log(`User just tagged bot - using replied message as question: "${repliedToContent}"`);
+    questionToAsk = `Please answer this question: "${repliedToContent}"`;
+  }
+  
+  if (!questionToAsk) {
+    await sendMessage(channelId, "Hey! 👋 What would you like to know? Just include your question and I'll help you out! 🎯", messageId);
     return;
   }
 
@@ -211,8 +232,14 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
     headers: { "Authorization": `Bot ${DISCORD_BOT_TOKEN}` },
   });
 
-  // Get AI response via edge function
-  const response = await getAIResponse(cleanedMessage);
+  // Get AI response via edge function with user context
+  const response = await getAIResponse(
+    questionToAsk, 
+    author.id, 
+    author.username || "User",
+    repliedToContent,
+    repliedToAuthor
+  );
 
   // Send response
   await sendMessage(channelId, response, messageId);
