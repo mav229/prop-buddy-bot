@@ -21,6 +21,15 @@ const DISCORD_GATEWAY_URL = "wss://gateway.discord.gg/?v=10&encoding=json";
 // Intents: GUILDS (1) + GUILD_MESSAGES (512) + MESSAGE_CONTENT (32768)
 const INTENTS = 1 | 512 | 32768;
 
+// Render “Web Service” expects an HTTP server + health check.
+// This keeps deployments stable even though the bot itself uses WebSockets.
+const PORT = Number(Deno.env.get("PORT") ?? "10000");
+Deno.serve({ port: PORT }, (req) => {
+  const url = new URL(req.url);
+  if (url.pathname === "/healthz") return new Response("ok", { status: 200 });
+  return new Response("ScholaX Discord bot running", { status: 200 });
+});
+
 let ws: WebSocket | null = null;
 let heartbeatInterval: number | null = null;
 let sessionId: string | null = null;
