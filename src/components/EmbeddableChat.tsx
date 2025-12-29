@@ -29,6 +29,22 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Allow host page to force open/close (fallback for click issues on some sites/mobile).
+  useEffect(() => {
+    if (!isWidget || !inIframe) return;
+
+    const onMessage = (e: MessageEvent) => {
+      if (!e?.data || typeof e.data !== "object") return;
+      const data = e.data as { type?: string; action?: string };
+      if (data.type !== "scholaris:host") return;
+      if (data.action === "expand") setIsMinimized(false);
+      if (data.action === "minimize") setIsMinimized(true);
+    };
+
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [isWidget, inIframe]);
+
   // Tell the parent page to resize the iframe when we expand/minimize.
   useEffect(() => {
     if (!isWidget || !inIframe) return;
@@ -58,7 +74,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         type="button"
         aria-label="Open Scholaris AI chat widget"
         onClick={() => setIsMinimized(false)}
-        className={`${bubbleClass} rounded-full overflow-hidden bg-gradient-to-br from-primary to-accent shadow-2xl transition-transform duration-300 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center`}
+        className={`${bubbleClass} cursor-pointer touch-manipulation select-none rounded-full overflow-hidden bg-gradient-to-br from-primary to-accent shadow-2xl transition-transform duration-300 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center`}
       >
         <img
           src={scholarisLogo}
