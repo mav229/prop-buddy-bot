@@ -38,6 +38,45 @@ export type Database = {
         }
         Relationships: []
       }
+      discord_users: {
+        Row: {
+          created_at: string
+          discord_user_id: string
+          display_name: string | null
+          first_seen_at: string
+          id: string
+          last_seen_at: string
+          message_count: number
+          notes: string | null
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          discord_user_id: string
+          display_name?: string | null
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          message_count?: number
+          notes?: string | null
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          discord_user_id?: string
+          display_name?: string | null
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          message_count?: number
+          notes?: string | null
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
       knowledge_base: {
         Row: {
           category: string
