@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from "react";
-import { X, MessageCircle, Send, Search, Home, HelpCircle, ExternalLink } from "lucide-react";
+import { X, MessageCircle, Send, Search, Home, HelpCircle, ExternalLink, ChevronLeft, MoreHorizontal } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
@@ -225,7 +225,31 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
 
         {activeTab === "messages" && (
           <div className="flex flex-col h-full">
-            <div className="flex-1 px-4 py-4 space-y-4">
+            {/* Chat Header - Scholaris AI */}
+            <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-100">
+              <button
+                onClick={() => setActiveTab("home")}
+                className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center shadow-sm">
+                <img
+                  src={scholarisLogo}
+                  alt="Scholaris AI"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-[15px] font-semibold text-gray-900">Scholaris AI</h3>
+                <p className="text-[13px] text-gray-500">The team can also help</p>
+              </div>
+              <button className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+                <MoreHorizontal className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 px-4 py-4 space-y-4 overflow-y-auto scrollbar-hide" style={{ background: 'linear-gradient(to bottom, hsl(220 20% 97%), hsl(220 14% 96%))' }}>
               {!isReady ? (
                 <ChatSkeleton />
               ) : messages.length === 0 ? (
