@@ -98,11 +98,11 @@
 
 @layer components {
   .glass-panel {
-    @apply bg-card/60 backdrop-blur-xl border border-border/50 rounded-xl;
+    @apply bg-card backdrop-blur-xl border border-border rounded-xl;
   }
 
   .glass-panel-subtle {
-    @apply bg-card/30 backdrop-blur-md border border-border/30 rounded-lg;
+    @apply bg-card/50 backdrop-blur-md border border-border/50 rounded-lg;
   }
 
   .glow-primary {
