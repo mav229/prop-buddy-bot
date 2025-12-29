@@ -87,16 +87,16 @@ export const EmbedCustomization = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="customDomain">Your Website URL</Label>
+              <Label htmlFor="customDomain">Published App URL</Label>
               <Input
                 id="customDomain"
-                placeholder="https://yourdomain.com"
+                placeholder="https://your-app.lovable.app"
                 value={config.customDomain}
                 onChange={(e) => setConfig({ ...config, customDomain: e.target.value })}
                 className="bg-background/50"
               />
               <p className="text-xs text-muted-foreground">
-                Enter your published website URL (e.g., https://yourdomain.com)
+                Enter your published Lovable app URL (click "Publish" to get it). The embed code will load the chat from this URL.
               </p>
             </div>
             <div className="space-y-2">
