@@ -107,6 +107,110 @@ interface ConversationMessage {
   content: string;
 }
 
+interface DiscordUserProfile {
+  id: string;
+  discord_user_id: string;
+  username: string;
+  display_name: string | null;
+  first_seen_at: string;
+  last_seen_at: string;
+  message_count: number;
+  notes: string | null;
+}
+
+async function getOrCreateUserProfile(
+  supabase: any,
+  discordUserId: string,
+  username: string,
+  displayName?: string
+): Promise<DiscordUserProfile | null> {
+  try {
+    // Try to get existing profile
+    const { data: existing, error: fetchError } = await supabase
+      .from("discord_users")
+      .select("*")
+      .eq("discord_user_id", discordUserId)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error("Error fetching user profile:", fetchError);
+      return null;
+    }
+
+    if (existing) {
+      // Update last_seen and increment message_count
+      const { data: updated, error: updateError } = await supabase
+        .from("discord_users")
+        .update({
+          username,
+          display_name: displayName || existing.display_name,
+          last_seen_at: new Date().toISOString(),
+          message_count: (existing.message_count || 0) + 1,
+        })
+        .eq("discord_user_id", discordUserId)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error("Error updating user profile:", updateError);
+        return existing;
+      }
+
+      console.log(`Updated profile for ${username} (${discordUserId}), message count: ${updated.message_count}`);
+      return updated;
+    }
+
+    // Create new profile
+    const { data: newProfile, error: insertError } = await supabase
+      .from("discord_users")
+      .insert({
+        discord_user_id: discordUserId,
+        username,
+        display_name: displayName,
+        message_count: 1,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error("Error creating user profile:", insertError);
+      return null;
+    }
+
+    console.log(`Created new profile for ${username} (${discordUserId})`);
+    return newProfile;
+  } catch (e) {
+    console.error("Error in getOrCreateUserProfile:", e);
+    return null;
+  }
+}
+
+function buildUserContextPrompt(profile: DiscordUserProfile | null): string {
+  if (!profile) return "";
+  
+  const firstSeen = new Date(profile.first_seen_at);
+  const daysSinceFirst = Math.floor((Date.now() - firstSeen.getTime()) / (1000 * 60 * 60 * 24));
+  const isNew = profile.message_count <= 3;
+  const isRegular = profile.message_count > 10;
+  
+  let context = `\n\nUSER PROFILE:
+- Name: ${profile.username}${profile.display_name ? ` (${profile.display_name})` : ""}
+- Messages sent: ${profile.message_count}
+- First seen: ${firstSeen.toLocaleDateString()} (${daysSinceFirst === 0 ? "today" : daysSinceFirst === 1 ? "yesterday" : `${daysSinceFirst} days ago`})`;
+
+  if (profile.notes) {
+    context += `\n- Notes: ${profile.notes}`;
+  }
+
+  if (isNew) {
+    context += `\n\nThis is a newer user - be extra welcoming and helpful! Make them feel like part of the PropScholar community.`;
+  } else if (isRegular) {
+    context += `\n\nThis is a regular user who's been around! Feel free to be more familiar and reference that you remember them.`;
+  }
+
+  return context;
+}
+
 async function getUserConversationHistory(
   supabase: any,
   discordUserId: string,
@@ -180,7 +284,8 @@ async function getAIResponse(
   knowledgeContext: string,
   conversationHistory: ConversationMessage[] = [],
   userName?: string,
-  repliedTo?: ReplyContext
+  repliedTo?: ReplyContext,
+  userProfile?: DiscordUserProfile | null
 ): Promise<string> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
@@ -190,7 +295,12 @@ async function getAIResponse(
 
   let systemPrompt = SYSTEM_PROMPT.replace("{knowledge_base}", knowledgeContext);
   
-  // Add user context if we have history
+  // Add user profile context
+  if (userProfile) {
+    systemPrompt += buildUserContextPrompt(userProfile);
+  }
+  
+  // Add conversation history context
   if (conversationHistory.length > 0 && userName) {
     systemPrompt += `\n\nYou are continuing a conversation with ${userName}. Here is your previous conversation with them - use this context to provide personalized responses and remember what they've asked before.`;
   }
@@ -538,10 +648,14 @@ serve(async (req) => {
                 .join("\n\n---\n\n")
             : "No knowledge base entries available.";
 
+          // Get or create user profile
+          const displayName = body.member?.user?.global_name || body.user?.global_name;
+          const userProfile = userId ? await getOrCreateUserProfile(supabase, userId, userName, displayName) : null;
+
           // Get user's conversation history
           const userHistory = userId ? await getUserConversationHistory(supabase, userId) : [];
 
-          const aiResponse = await getAIResponse(String(question || ""), knowledgeContext, userHistory, userName);
+          const aiResponse = await getAIResponse(String(question || ""), knowledgeContext, userHistory, userName, undefined, userProfile);
 
           // Store conversation if we have user ID
           if (userId) {
@@ -652,6 +766,10 @@ serve(async (req) => {
           ? knowledgeEntries.map(e => `[${e.category.toUpperCase()}] ${e.title}:\n${e.content}`).join("\n\n---\n\n")
           : "No knowledge base entries available.";
 
+        // Get or create user profile
+        const displayName = message.author?.global_name;
+        const userProfile = await getOrCreateUserProfile(supabase, authorId, message.author?.username || "User", displayName);
+
         // Get user's conversation history
         const userHistory = await getUserConversationHistory(supabase, authorId);
         const userName = message.author?.username || "User";
@@ -679,7 +797,7 @@ serve(async (req) => {
           });
         }
         
-        const aiResponse = await getAIResponse(cleanContent, knowledgeContext, userHistory, userName, replyContext);
+        const aiResponse = await getAIResponse(cleanContent, knowledgeContext, userHistory, userName, replyContext, userProfile);
 
         await sendDiscordMessage(channelId, aiResponse, DISCORD_BOT_TOKEN, messageId);
 
@@ -717,6 +835,10 @@ serve(async (req) => {
           ? knowledgeEntries.map(e => `[${e.category.toUpperCase()}] ${e.title}:\n${e.content}`).join("\n\n---\n\n")
           : "No knowledge base entries available.";
 
+        // Get or create user profile
+        const displayName = message.author?.global_name;
+        const userProfile = await getOrCreateUserProfile(supabase, authorId, message.author?.username || "User", displayName);
+
         // Get user's conversation history
         const userHistory = await getUserConversationHistory(supabase, authorId);
         const userName = message.author?.username || "User";
@@ -744,7 +866,7 @@ serve(async (req) => {
           });
         }
         
-        const aiResponse = await getAIResponse(cleanContent, knowledgeContext, userHistory, userName, replyContext);
+        const aiResponse = await getAIResponse(cleanContent, knowledgeContext, userHistory, userName, replyContext, userProfile);
 
         await sendDiscordMessage(channelId, aiResponse, DISCORD_BOT_TOKEN, messageId);
 
@@ -807,6 +929,10 @@ serve(async (req) => {
         ? knowledgeEntries.map(e => `[${e.category.toUpperCase()}] ${e.title}:\n${e.content}`).join("\n\n---\n\n")
         : "No knowledge base entries available.";
 
+      // Get or create user profile
+      const displayName = message.author?.global_name;
+      const userProfile = await getOrCreateUserProfile(supabase, authorId, message.author?.username || "User", displayName);
+
       // Get user's conversation history
       const userHistory = await getUserConversationHistory(supabase, authorId);
       const userName = message.author?.username || "User";
@@ -817,7 +943,7 @@ serve(async (req) => {
         authorName: repliedToMessage.author?.username || "Unknown User"
       } : undefined;
 
-      const aiResponse = await getAIResponse(content, knowledgeContext, userHistory, userName, replyContext);
+      const aiResponse = await getAIResponse(content, knowledgeContext, userHistory, userName, replyContext, userProfile);
       await sendDiscordMessage(channelId, aiResponse, DISCORD_BOT_TOKEN, messageId);
 
       // Store in user-specific chat history
