@@ -61,10 +61,17 @@ export const ChatMessage = ({ role, content, isStreaming, isWidget = false }: Ch
           <span className="whitespace-pre-wrap font-medium">{content}</span>
         ) : (
           <div className={cn(
-            "prose prose-sm max-w-none prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-code:font-medium prose-strong:font-semibold",
+            "prose prose-sm max-w-none",
+            "prose-p:my-3 prose-p:leading-relaxed",
+            "prose-ul:my-3 prose-ol:my-3 prose-li:my-1",
+            "prose-headings:my-4 prose-headings:font-semibold",
+            "prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-code:font-medium",
+            "prose-strong:font-semibold",
+            "prose-blockquote:my-4 prose-blockquote:pl-4 prose-blockquote:border-l-2",
+            "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
             isWidget 
-              ? "prose-pre:bg-gray-100 prose-pre:border prose-pre:border-gray-200 prose-code:text-[#007AFF] prose-code:bg-blue-50"
-              : "prose-invert prose-pre:bg-muted prose-pre:border prose-pre:border-border/50 prose-code:text-primary prose-code:bg-primary/10"
+              ? "prose-pre:bg-gray-100 prose-pre:border prose-pre:border-gray-200 prose-code:text-[#007AFF] prose-code:bg-blue-50 prose-blockquote:border-blue-300 prose-blockquote:text-gray-600"
+              : "prose-invert prose-pre:bg-muted prose-pre:border prose-pre:border-border/50 prose-code:text-primary prose-code:bg-primary/10 prose-blockquote:border-primary/50"
           )}>
             <ReactMarkdown>{content}</ReactMarkdown>
           </div>
