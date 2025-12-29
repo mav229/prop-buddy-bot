@@ -275,16 +275,30 @@
   transform: scale(0.96);
 }
 
-/* Subtle blue glow ring */
+/* Subtle blue glow ring - visible cyan/blue halo */
 .launcher-glow-ring {
   position: absolute;
-  inset: -5px;
+  inset: -8px;
   border-radius: 9999px;
   pointer-events: none;
   z-index: 0;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.25) 0%, transparent 70%);
   box-shadow:
-    0 0 18px 4px hsl(var(--primary) / 0.35),
-    0 0 32px 10px hsl(var(--primary) / 0.15);
+    0 0 20px 6px rgba(59, 130, 246, 0.5),
+    0 0 40px 12px rgba(59, 130, 246, 0.25),
+    0 0 60px 20px rgba(59, 130, 246, 0.1);
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
 }
 
 /* Panel animations */
