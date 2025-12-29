@@ -13,11 +13,29 @@ interface EmbeddableChatProps {
 export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const { messages, isLoading, error, sendMessage, clearChat } = useChat();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [isMinimized, setIsMinimized] = useState(false);
+
+  // In widget mode we start minimized (bubble) and expand on click.
+  const [isMinimized, setIsMinimized] = useState<boolean>(isWidget);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Tell the parent page to resize the iframe when we expand/minimize.
+  useEffect(() => {
+    if (!isWidget) return;
+    try {
+      window.parent?.postMessage(
+        {
+          type: "scholaris:widget",
+          action: isMinimized ? "minimized" : "expanded",
+        },
+        "*"
+      );
+    } catch {
+      // ignore cross-origin errors
+    }
+  }, [isMinimized, isWidget]);
 
   // Widget mode - floating bubble
   if (isWidget && isMinimized) {
@@ -26,21 +44,31 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         onClick={() => setIsMinimized(false)}
         className="fixed bottom-4 right-4 w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent shadow-2xl hover:scale-110 transition-transform duration-300 flex items-center justify-center z-50 animate-pulse-glow"
       >
-        <img src={scholarisLogo} alt="Scholaris" className="w-12 h-12 rounded-full object-cover" />
+        <img
+          src={scholarisLogo}
+          alt="Scholaris"
+          className="w-12 h-12 rounded-full object-cover"
+        />
       </button>
     );
   }
 
   return (
-    <div className={`flex flex-col bg-background ${isWidget ? 'fixed bottom-4 right-4 w-96 h-[600px] rounded-2xl shadow-2xl border border-border/50 z-50 overflow-hidden' : 'h-screen'}`}>
+    <div
+      className={`flex flex-col bg-background ${
+        isWidget
+          ? "w-full h-full rounded-2xl shadow-2xl border border-border/50 overflow-hidden"
+          : "h-screen"
+      }`}
+    >
       {/* Header */}
       <header className="flex-shrink-0 bg-gradient-to-r from-[#0a1628] to-[#0d1d35] border-b border-primary/20 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-primary/50 shadow-lg shadow-primary/20">
-              <img 
-                src={scholarisLogo} 
-                alt="Scholaris" 
+              <img
+                src={scholarisLogo}
+                alt="Scholaris"
                 className="w-full h-full object-cover"
               />
             </div>
@@ -97,9 +125,9 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-center animate-fade-in">
               <div className="w-20 h-20 rounded-full overflow-hidden ring-4 ring-primary/30 shadow-2xl shadow-primary/30 mb-4">
-                <img 
-                  src={scholarisLogo} 
-                  alt="Scholaris" 
+                <img
+                  src={scholarisLogo}
+                  alt="Scholaris"
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -107,7 +135,8 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                 Hey! I'm Scholaris 👋
               </h2>
               <p className="text-muted-foreground text-sm max-w-xs mb-6">
-                Your AI assistant for PropScholar. Ask me anything about evaluations, payouts, or trading.
+                Your AI assistant for PropScholar. Ask me anything about evaluations,
+                payouts, or trading.
               </p>
               <div className="grid grid-cols-1 gap-2 w-full max-w-xs">
                 {[
