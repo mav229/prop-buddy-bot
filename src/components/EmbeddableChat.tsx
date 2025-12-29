@@ -44,7 +44,6 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
 
   const handleOpen = () => {
     playOpenSound();
-    setShowNotification(false);
     setIsMinimized(false);
   };
 

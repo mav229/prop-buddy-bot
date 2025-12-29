@@ -248,6 +248,8 @@ export const EmbedCustomization = () => {
 
     applyExpandedStyles(false);
     scheduleNudge();
+  })();
+</script>`;
 
   const handleCopy = async (code: string, type: string) => {
     await navigator.clipboard.writeText(code);
