@@ -11,7 +11,7 @@ const Index = () => {
       
       {/* Floating Widget Test - for testing the embeddable widget */}
       {showWidget && (
-        <div className="fixed bottom-6 right-6 z-[9999]">
+        <div className="fixed bottom-6 right-6 z-[9999] w-14 h-14 sm:w-16 sm:h-16">
           <EmbeddableChat isWidget={true} />
         </div>
       )}
