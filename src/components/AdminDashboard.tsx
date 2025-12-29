@@ -1,4 +1,4 @@
-import { Bot, LogOut, MessageSquare, Database, ArrowLeft, Brain, Users, LayoutDashboard, Settings, Code } from "lucide-react";
+import { Bot, LogOut, MessageSquare, Database, ArrowLeft, Brain, Users, LayoutDashboard, Settings, Code, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,6 +9,7 @@ import { DiscordMemoryView } from "./DiscordMemoryView";
 import { TrainingCenter } from "./TrainingCenter";
 import { AnalyticsDashboard } from "./AnalyticsDashboard";
 import { EmbedCustomization } from "./EmbedCustomization";
+import { WidgetCustomizer } from "./WidgetCustomizer";
 import { Link } from "react-router-dom";
 
 // Discord icon component
@@ -87,6 +88,10 @@ export const AdminDashboard = () => {
               <Users className="w-4 h-4" />
               Users
             </TabsTrigger>
+            <TabsTrigger value="customizer" className="gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-lg">
+              <Palette className="w-4 h-4" />
+              Customize
+            </TabsTrigger>
             <TabsTrigger value="embed" className="gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-lg">
               <Code className="w-4 h-4" />
               Embed
@@ -115,6 +120,10 @@ export const AdminDashboard = () => {
 
           <TabsContent value="discord-memory">
             <DiscordMemoryView />
+          </TabsContent>
+
+          <TabsContent value="customizer">
+            <WidgetCustomizer />
           </TabsContent>
 
           <TabsContent value="embed">
