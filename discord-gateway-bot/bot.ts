@@ -46,34 +46,30 @@ let botUserId: string | null = null;
 
 // Get AI response by calling the discord-bot edge function
 async function getAIResponse(
-  message: string, 
-  discordUserId: string, 
+  message: string,
+  discordUserId: string,
   username: string,
+  displayName?: string,
   repliedToContent?: string,
   repliedToAuthor?: string
 ): Promise<string> {
   try {
-    console.log(`Calling discord-bot edge function for user ${username} (${discordUserId})...`);
-    
-    // Build the message with reply context if present
-    let fullMessage = message;
-    if (repliedToContent) {
-      fullMessage = `[User is replying to a message from ${repliedToAuthor || "someone"}: "${repliedToContent}"]\n\nUser's message: ${message}`;
-      console.log(`Including reply context: "${repliedToContent}"`);
-    }
-    
-    // Call the discord-bot function with proper context
+    console.log(
+      `Calling discord-bot edge function for user ${username} (${discordUserId})...`
+    );
+
     const response = await fetch(`${SUPABASE_URL}/functions/v1/discord-bot`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         action: "gateway_message",
         discordUserId,
         username,
-        message: fullMessage,
+        displayName,
+        message,
         repliedToContent,
         repliedToAuthor,
       }),
@@ -188,7 +184,7 @@ function cleanMention(content: string): string {
 
 // Handle incoming message
 async function handleMessage(data: Record<string, unknown>): Promise<void> {
-  const author = data.author as { id: string; username?: string; bot?: boolean } | undefined;
+  const author = data.author as { id: string; username?: string; global_name?: string; bot?: boolean } | undefined;
   const content = data.content as string | undefined;
   const channelId = data.channel_id as string | undefined;
   const messageId = data.id as string | undefined;
@@ -197,7 +193,7 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
 
   // Ignore bot messages
   if (author?.bot) return;
-  
+
   // Only respond if bot is @mentioned
   if (!content || !channelId || !messageId || !author?.id) return;
   if (!isBotMentioned(content, mentions || [])) return;
@@ -241,9 +237,10 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
 
   // Get AI response via edge function with user context
   const response = await getAIResponse(
-    questionToAsk, 
-    author.id, 
+    questionToAsk,
+    author.id,
     author.username || "User",
+    author.global_name,
     repliedToContent,
     repliedToAuthor
   );
