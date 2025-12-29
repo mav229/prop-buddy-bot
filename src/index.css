@@ -270,21 +270,27 @@
 }
 
 /* === PANEL CLOSE ANIMATION === */
+/* Refined collapse - subtle scale, smooth fade, slides down gently */
 @keyframes panel-close-anim {
   0% {
     opacity: 1;
     transform: scale(1) translateY(0);
     box-shadow: 0 16px 48px rgba(0, 0, 0, 0.14);
   }
+  30% {
+    opacity: 0.9;
+    transform: scale(0.98) translateY(8px);
+    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.1);
+  }
   100% {
     opacity: 0;
-    transform: scale(0.4) translateY(280px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    transform: scale(0.92) translateY(24px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
   }
 }
 
 .panel-close {
-  animation: panel-close-anim 0.26s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: panel-close-anim 0.22s cubic-bezier(0.4, 0, 0.6, 1) forwards;
 }
 
 /* === CONTENT STAGGER - OPEN === */
