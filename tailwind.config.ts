@@ -14,8 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        display: ['Outfit', 'sans-serif'],
+        sans: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'Inter', 'system-ui', 'sans-serif'],
+        display: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -79,7 +79,8 @@ export default {
           to: { height: "0" },
         },
         shimmer: {
-          "100%": { transform: "translateX(100%)" },
+          "0%": { backgroundPosition: "200% 0" },
+          "100%": { backgroundPosition: "-200% 0" },
         },
         "typing-dot": {
           "0%, 60%, 100%": { opacity: "0.3", transform: "scale(0.8)" },
@@ -89,7 +90,7 @@ export default {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        shimmer: "shimmer 2s infinite",
+        shimmer: "shimmer 1.5s ease-in-out infinite",
         "typing-dot-1": "typing-dot 1.4s ease-in-out infinite",
         "typing-dot-2": "typing-dot 1.4s ease-in-out 0.2s infinite",
         "typing-dot-3": "typing-dot 1.4s ease-in-out 0.4s infinite",
