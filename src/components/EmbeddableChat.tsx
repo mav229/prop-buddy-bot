@@ -52,7 +52,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     setTimeout(() => {
       setIsClosing(false);
       setIsMinimized(true);
-    }, 150);
+    }, 220);
   };
 
   const inIframe = (() => {
