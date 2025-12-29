@@ -3,6 +3,7 @@ import { useEffect } from "react";
 /**
  * In-app widget embed tester.
  * Mimics the real embed snippet behavior (iframe + overlay button + postMessage).
+ * Background page stays fully interactive when chat is open.
  */
 export function WidgetTestEmbed() {
   useEffect(() => {
@@ -22,15 +23,6 @@ export function WidgetTestEmbed() {
       const maxH = Math.max(360, Math.floor(window.innerHeight * 0.86));
       return Math.min(requestedH, maxH);
     }
-
-    const backdrop = document.createElement("div");
-    backdrop.setAttribute("data-scholaris-widget-test-backdrop", "true");
-    backdrop.style.position = "fixed";
-    backdrop.style.inset = "0";
-    backdrop.style.zIndex = "2147483646";
-    backdrop.style.background = "rgba(0,0,0,0.18)";
-    backdrop.style.backdropFilter = "blur(2px)";
-    backdrop.style.display = "none";
 
     const container = document.createElement("div");
     container.setAttribute("data-scholaris-widget-test", "true");
@@ -76,7 +68,6 @@ export function WidgetTestEmbed() {
 
     container.appendChild(iframe);
     container.appendChild(overlay);
-    document.body.appendChild(backdrop);
     document.body.appendChild(container);
 
     let isExpanded = false;
@@ -98,8 +89,6 @@ export function WidgetTestEmbed() {
       if (isExpanded) {
         const w = calcExpandedW();
         const h = calcExpandedH();
-
-        backdrop.style.display = "block";
 
         // Fullscreen on small devices
         const isSmall = window.innerWidth < 520;
@@ -124,8 +113,6 @@ export function WidgetTestEmbed() {
         overlay.style.display = "none";
         postToWidget("expand");
       } else {
-        backdrop.style.display = "none";
-
         container.style.left = "auto";
         container.style.right = "calc(16px + env(safe-area-inset-right))";
         container.style.bottom = "calc(16px + env(safe-area-inset-bottom))";
@@ -140,10 +127,7 @@ export function WidgetTestEmbed() {
     }
 
     const onOverlayClick = () => applyExpandedStyles(true);
-    const onBackdropClick = () => applyExpandedStyles(false);
-
     overlay.addEventListener("click", onOverlayClick);
-    backdrop.addEventListener("click", onBackdropClick);
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") applyExpandedStyles(false);
@@ -167,7 +151,6 @@ export function WidgetTestEmbed() {
     window.addEventListener("message", onMessage);
 
     const onIframeLoad = () => {
-      // Re-sync state after iframe finishes loading
       postToWidget(isExpanded ? "expand" : "minimize");
     };
     iframe.addEventListener("load", onIframeLoad);
@@ -180,8 +163,6 @@ export function WidgetTestEmbed() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("message", onMessage);
       overlay.removeEventListener("click", onOverlayClick);
-      backdrop.removeEventListener("click", onBackdropClick);
-      backdrop.remove();
       container.remove();
     };
   }, []);
