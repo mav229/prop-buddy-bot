@@ -980,10 +980,17 @@ serve(async (req) => {
 
     // Handle gateway_message action (from gateway bot)
     if (body.action === "gateway_message") {
-      const { discordUserId, username, message, repliedToContent, repliedToAuthor } = body;
-      
+      const {
+        discordUserId,
+        username,
+        displayName,
+        message,
+        repliedToContent,
+        repliedToAuthor,
+      } = body;
+
       console.log(`Gateway message from ${username} (${discordUserId}): "${message}"`);
-      
+
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const supabase = createClient(supabaseUrl, supabaseKey);
@@ -994,20 +1001,43 @@ serve(async (req) => {
         .order("category");
 
       const knowledgeContext = knowledgeEntries?.length
-        ? knowledgeEntries.map(e => `[${e.category.toUpperCase()}] ${e.title}:\n${e.content}`).join("\n\n---\n\n")
+        ? knowledgeEntries
+            .map((e) => `[${e.category.toUpperCase()}] ${e.title}:\n${e.content}`)
+            .join("\n\n---\n\n")
         : "No knowledge base entries available.";
 
+      // Get or create user profile (persistent)
+      const userProfile = discordUserId
+        ? await getOrCreateUserProfile(
+            supabase,
+            discordUserId,
+            username || "User",
+            displayName
+          )
+        : null;
+
       // Get user's conversation history (up to 20 messages)
-      const userHistory = discordUserId ? await getUserConversationHistory(supabase, discordUserId, 20) : [];
+      const userHistory = discordUserId
+        ? await getUserConversationHistory(supabase, discordUserId, 20)
+        : [];
       console.log(`Found ${userHistory.length} messages in history for user ${discordUserId}`);
 
       // Build reply context if present
-      const replyContext = repliedToContent ? {
-        content: repliedToContent,
-        authorName: repliedToAuthor || "Unknown User"
-      } : undefined;
+      const replyContext = repliedToContent
+        ? {
+            content: repliedToContent,
+            authorName: repliedToAuthor || "Unknown User",
+          }
+        : undefined;
 
-      const aiResponse = await getAIResponse(message, knowledgeContext, userHistory, username, replyContext);
+      const aiResponse = await getAIResponse(
+        message,
+        knowledgeContext,
+        userHistory,
+        username,
+        replyContext,
+        userProfile
+      );
 
       // Store conversation for memory
       if (discordUserId) {
@@ -1015,10 +1045,9 @@ serve(async (req) => {
         await storeUserMessage(supabase, discordUserId, "assistant", aiResponse);
       }
 
-      return new Response(
-        JSON.stringify({ success: true, response: aiResponse }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ success: true, response: aiResponse }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Handle test action
