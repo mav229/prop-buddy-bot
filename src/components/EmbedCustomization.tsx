@@ -39,11 +39,10 @@ export const EmbedCustomization = () => {
     var allowedOrigin = '';
     try { allowedOrigin = new URL(host).origin; } catch (e) { allowedOrigin = ''; }
 
-    var bubbleSize = 80;
+    var bubbleSize = 64;
     var requestedW = parseInt('${config.width}', 10) || 384;
     var requestedH = parseInt('${config.height}', 10) || 600;
 
-    // Mobile-friendly sizing (cap to viewport)
     function calcExpandedW() {
       var maxW = Math.max(280, Math.floor(window.innerWidth * 0.92));
       return Math.min(requestedW, maxW);
@@ -52,14 +51,6 @@ export const EmbedCustomization = () => {
       var maxH = Math.max(360, Math.floor(window.innerHeight * 0.82));
       return Math.min(requestedH, maxH);
     }
-
-    var backdrop = document.createElement('div');
-    backdrop.style.position = 'fixed';
-    backdrop.style.inset = '0';
-    backdrop.style.zIndex = '2147483646';
-    backdrop.style.background = 'rgba(0,0,0,0.18)';
-    backdrop.style.backdropFilter = 'blur(2px)';
-    backdrop.style.display = 'none';
 
     var container = document.createElement('div');
     container.style.position = 'fixed';
@@ -82,7 +73,6 @@ export const EmbedCustomization = () => {
     iframe.style.overflow = 'hidden';
     iframe.style.borderRadius = '999px';
     iframe.style.background = 'transparent';
-    // While minimized, we capture taps with an overlay button for maximum reliability.
     iframe.style.pointerEvents = 'none';
     iframe.style.boxShadow = '0 25px 50px -12px rgba(0,0,0,0.35)';
     iframe.style.transition = 'border-radius 220ms ease, box-shadow 220ms ease';
@@ -103,7 +93,6 @@ export const EmbedCustomization = () => {
 
     container.appendChild(iframe);
     container.appendChild(overlay);
-    document.body.appendChild(backdrop);
     document.body.appendChild(container);
 
     var isExpanded = false;
@@ -121,8 +110,6 @@ export const EmbedCustomization = () => {
       if (isExpanded) {
         var w = calcExpandedW();
         var h = calcExpandedH();
-
-        backdrop.style.display = 'block';
 
         var isSmall = window.innerWidth < 520;
         if (isSmall) {
@@ -146,8 +133,6 @@ export const EmbedCustomization = () => {
         overlay.style.display = 'none';
         postToWidget('expand');
       } else {
-        backdrop.style.display = 'none';
-
         container.style.left = 'auto';
         container.style.right = 'calc(16px + env(safe-area-inset-right))';
         container.style.bottom = 'calc(16px + env(safe-area-inset-bottom))';
@@ -162,20 +147,17 @@ export const EmbedCustomization = () => {
     }
 
     overlay.addEventListener('click', function() { applyExpandedStyles(true); });
-    backdrop.addEventListener('click', function() { applyExpandedStyles(false); });
 
     window.addEventListener('keydown', function(e) {
       if (e && e.key === 'Escape') applyExpandedStyles(false);
     });
 
     iframe.addEventListener('load', function() {
-      // Re-sync state after iframe finishes loading
       postToWidget(isExpanded ? 'expand' : 'minimize');
     });
 
     window.addEventListener('resize', function() {
       if (!isExpanded) return;
-      // Keep expanded widget within the viewport on orientation changes.
       applyExpandedStyles(true);
     });
 
@@ -186,7 +168,6 @@ export const EmbedCustomization = () => {
       if (e.data.action === 'minimized') applyExpandedStyles(false);
     });
 
-    // initial
     applyExpandedStyles(false);
   })();
 </script>`;
