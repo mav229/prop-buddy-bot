@@ -195,15 +195,14 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
           <div>
             <div className="flex items-start justify-between mb-4">
               <div 
-                className="w-12 h-12 rounded-2xl overflow-hidden"
+                className="w-11 h-11 rounded-full overflow-hidden"
                 style={{ 
-                  background: 'linear-gradient(145deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
+                  background: 'rgba(255,255,255,0.15)',
                   backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  padding: '6px'
+                  border: '2px solid rgba(255,255,255,0.25)'
                 }}
               >
-                <img src={headerLogo} alt="Logo" className="w-full h-full object-contain" />
+                <img src={headerLogo} alt="Logo" className="w-full h-full object-cover" />
               </div>
               {isWidget && (
                 <button onClick={handleClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
