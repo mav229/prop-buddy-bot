@@ -35,16 +35,53 @@ export const EmbedCustomization = () => {
   const widgetCode = `<!-- Scholaris Chat Widget -->
 <script>
   (function() {
+    var host = '${hostUrl}';
+    var allowedOrigin = '';
+    try { allowedOrigin = new URL(host).origin; } catch (e) { allowedOrigin = ''; }
+
+    var bubbleSize = 80;
+    var expandedW = parseInt('${config.width}', 10) || 384;
+    var expandedH = parseInt('${config.height}', 10) || 600;
+
     var iframe = document.createElement('iframe');
-    iframe.src = '${hostUrl}/widget';
-    iframe.style.cssText = 'position:fixed;bottom:0;right:0;width:100%;height:100%;border:none;z-index:2147483647;pointer-events:none;';
+    iframe.src = host + '/widget';
     iframe.allow = 'clipboard-write';
+    iframe.title = 'Scholaris chat widget';
+
+    iframe.style.position = 'fixed';
+    iframe.style.right = '16px';
+    iframe.style.bottom = '16px';
+    iframe.style.width = bubbleSize + 'px';
+    iframe.style.height = bubbleSize + 'px';
+    iframe.style.border = 'none';
+    iframe.style.zIndex = '2147483647';
+    iframe.style.overflow = 'hidden';
+    iframe.style.borderRadius = '999px';
+    iframe.style.background = 'transparent';
+    iframe.style.boxShadow = '0 25px 50px -12px rgba(0,0,0,0.35)';
+    iframe.style.transition = 'width 220ms ease, height 220ms ease, border-radius 220ms ease, box-shadow 220ms ease';
+
     document.body.appendChild(iframe);
-    
-    // Enable pointer events only on the widget
+
+    function setExpanded(isExpanded) {
+      if (isExpanded) {
+        iframe.style.width = expandedW + 'px';
+        iframe.style.height = expandedH + 'px';
+        iframe.style.borderRadius = '16px';
+        iframe.style.boxShadow = '0 25px 60px -18px rgba(0,0,0,0.5)';
+      } else {
+        iframe.style.width = bubbleSize + 'px';
+        iframe.style.height = bubbleSize + 'px';
+        iframe.style.borderRadius = '999px';
+        iframe.style.boxShadow = '0 25px 50px -12px rgba(0,0,0,0.35)';
+      }
+    }
+
     window.addEventListener('message', function(e) {
-      if (e.data === 'widget-hover') iframe.style.pointerEvents = 'auto';
-      if (e.data === 'widget-leave') iframe.style.pointerEvents = 'none';
+      if (!e || !e.data || e.data.type !== 'scholaris:widget') return;
+      if (allowedOrigin && e.origin && e.origin !== allowedOrigin) return;
+      if (e.data.action === 'expanded') setExpanded(true);
+      if (e.data.action === 'minimized') setExpanded(false);
     });
   })();
 </script>`;
@@ -98,7 +135,7 @@ export const EmbedCustomization = () => {
                 className="bg-background/50"
               />
               <p className="text-xs text-muted-foreground">
-                Enter your published Lovable app URL (click "Publish" to get it). The embed code will load the chat from this URL.
+                Enter your published app URL (from the Publish screen). The embed code will load the chat from this URL.
               </p>
             </div>
             <div className="space-y-2">
