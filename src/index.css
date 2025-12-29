@@ -195,11 +195,25 @@
   }
 
   .widget-bubble-assistant {
-    background: hsl(220 14% 96%);
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     color: hsl(220 20% 15%);
     border-radius: 20px;
     border-bottom-left-radius: 6px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.1);
+    box-shadow: 0 2px 12px -2px rgba(59, 130, 246, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+    position: relative;
+  }
+
+  .widget-bubble-assistant::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #3b82f6, #6366f1, #8b5cf6);
+    border-radius: 20px 20px 0 0;
+    opacity: 0.6;
   }
 
   .widget-input {
