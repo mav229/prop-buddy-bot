@@ -261,33 +261,36 @@
 
 /* Launcher button with premium glow */
 .launcher-button {
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   will-change: transform;
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  overflow: visible !important;
 }
 
 .launcher-button:hover {
   transform: scale(1.05);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
 }
 
 .launcher-button:active {
-  transform: scale(0.95);
+  transform: scale(0.96);
 }
 
-.launcher-ambient-glow {
+/* Subtle blue glow ring beside icon */
+.launcher-glow-ring {
   position: absolute;
-  inset: -8px;
+  inset: -4px;
   border-radius: 9999px;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.4) 0%, rgba(59, 130, 246, 0.15) 40%, transparent 70%);
+  background: transparent;
+  box-shadow: 0 0 20px 4px rgba(59, 130, 246, 0.35), 0 0 40px 8px rgba(59, 130, 246, 0.15);
   pointer-events: none;
   z-index: 0;
-  animation: ambient-pulse 2.5s ease-in-out infinite;
+  animation: glow-pulse 2s ease-in-out infinite;
 }
 
-@keyframes ambient-pulse {
-  0%, 100% { opacity: 0.7; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.15); }
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
 }
 
 /* Notification bubble */
@@ -324,13 +327,13 @@
 }
 
 @keyframes panel-close {
-  from { opacity: 1; transform: translateY(0); }
-  to { opacity: 0; transform: translateY(8px); }
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 
 .panel-close {
-  animation: panel-close 0.15s ease-out forwards;
-  will-change: opacity, transform;
+  animation: panel-close 0.12s ease-out forwards;
+  will-change: opacity;
 }
 
 /* Premium button interactions */

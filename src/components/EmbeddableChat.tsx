@@ -142,39 +142,42 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       : "fixed bottom-4 right-4 z-[9999]";
 
     return (
-      <div className={`${bubbleClass} flex flex-col items-end gap-3`}>
+      <div className={`${bubbleClass} flex flex-col items-end gap-3`} style={{ overflow: 'visible' }}>
         {/* Notification bubble */}
         {showNotification && (
           <div 
-            className="notification-bubble bg-white rounded-2xl shadow-lg px-4 py-3 max-w-[200px] mr-1"
+            className="notification-bubble bg-white rounded-2xl px-4 py-3 max-w-[180px] mr-1 relative"
             style={{ boxShadow: '0 4px 20px rgba(0, 0, 0, 0.12)' }}
           >
-            <p className="text-sm text-gray-700 font-medium">Hi there! 👋</p>
-            <p className="text-xs text-gray-500 mt-0.5">I can help you with any questions.</p>
+            <p className="text-[13px] text-gray-800 font-semibold">Hey, Try Me! 👋</p>
+            <p className="text-[11px] text-gray-500 mt-0.5">I can help you</p>
             <button 
-              onClick={() => setShowNotification(false)}
-              className="absolute -top-1 -right-1 w-5 h-5 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-400 text-xs"
+              onClick={(e) => { e.stopPropagation(); setShowNotification(false); }}
+              className="absolute -top-2 -right-2 w-5 h-5 bg-gray-200 hover:bg-gray-300 rounded-full flex items-center justify-center text-gray-500 text-xs font-bold transition-colors"
             >
               ×
             </button>
           </div>
         )}
         
-        {/* Launcher button */}
-        <button
-          type="button"
-          aria-label="Open chat widget"
-          onClick={handleOpen}
-          className="w-14 h-14 sm:w-16 sm:h-16 cursor-pointer touch-manipulation select-none rounded-full overflow-hidden border-0 outline-none ring-0 flex items-center justify-center launcher-button relative"
-        >
-          <div className="launcher-ambient-glow" />
-          <img
-            src={launcherLogo}
-            alt="Chat"
-            className="w-full h-full rounded-full object-cover relative z-10 active:scale-95 transition-transform duration-100"
-            draggable={false}
-          />
-        </button>
+        {/* Launcher button with glow */}
+        <div className="relative">
+          <div className="launcher-glow-ring" />
+          <button
+            type="button"
+            aria-label="Open chat widget"
+            onClick={handleOpen}
+            className="w-14 h-14 sm:w-16 sm:h-16 cursor-pointer touch-manipulation select-none rounded-full border-0 outline-none ring-0 flex items-center justify-center launcher-button relative"
+            style={{ overflow: 'visible' }}
+          >
+            <img
+              src={launcherLogo}
+              alt="Chat"
+              className="w-full h-full rounded-full object-cover relative z-10 active:scale-95 transition-transform duration-100"
+              draggable={false}
+            />
+          </button>
+        </div>
       </div>
     );
   }
