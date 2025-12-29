@@ -72,27 +72,22 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   if (isWidget && isMinimized) {
     const bubbleClass = inIframe
       ? "w-full h-full"
-      : "fixed bottom-4 right-4 z-[9999]";
+      : "fixed bottom-4 right-4 w-14 h-14 sm:w-16 sm:h-16 z-[9999]";
 
     return (
-      <div className={`${bubbleClass} flex flex-col items-center gap-1`}>
-        <button
-          type="button"
-          aria-label="Open Scholaris AI chat widget"
-          onClick={() => setIsMinimized(false)}
-          className="w-14 h-14 sm:w-16 sm:h-16 cursor-pointer touch-manipulation select-none rounded-full overflow-hidden shadow-lg transition-all duration-300 hover:scale-110 hover:shadow-xl active:scale-95 flex items-center justify-center animate-[soft-pulse_3s_ease-in-out_infinite]"
-        >
-          <img
-            src={scholarisLogo}
-            alt="Scholaris AI"
-            className="w-full h-full rounded-full object-cover"
-            draggable={false}
-          />
-        </button>
-        <span className="text-[10px] font-medium text-gray-500 whitespace-nowrap">
-          Powered by <span className="text-[#007AFF] font-semibold">PropScholar</span>
-        </span>
-      </div>
+      <button
+        type="button"
+        aria-label="Open Scholaris AI chat widget"
+        onClick={() => setIsMinimized(false)}
+        className={`${bubbleClass} cursor-pointer touch-manipulation select-none rounded-full overflow-hidden shadow-lg transition-all duration-300 hover:scale-110 hover:shadow-xl active:scale-95 flex items-center justify-center animate-[soft-pulse_3s_ease-in-out_infinite]`}
+      >
+        <img
+          src={scholarisLogo}
+          alt="Scholaris AI"
+          className="w-full h-full rounded-full object-cover"
+          draggable={false}
+        />
+      </button>
     );
   }
 
