@@ -70,7 +70,95 @@ export function WidgetTestEmbed() {
     container.appendChild(overlay);
     document.body.appendChild(container);
 
-    // No notification nudge - removed per user request
+    // Notification bubble rendered OUTSIDE the iframe (host DOM)
+    const nudge = document.createElement("div");
+    nudge.setAttribute("data-scholaris-nudge", "true");
+    nudge.style.position = "fixed";
+    nudge.style.right = "calc(16px + env(safe-area-inset-right))";
+    nudge.style.bottom = `calc(${bubbleSize + 28}px + env(safe-area-inset-bottom))`;
+    nudge.style.maxWidth = "200px";
+    nudge.style.padding = "12px 14px";
+    nudge.style.borderRadius = "18px";
+    nudge.style.background = "rgba(255,255,255,0.98)";
+    nudge.style.boxShadow = "0 12px 35px rgba(0,0,0,0.2)";
+    nudge.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+    nudge.style.display = "none";
+    nudge.style.zIndex = "2147483647";
+    nudge.style.backdropFilter = "blur(12px)";
+    nudge.style.cursor = "pointer";
+    nudge.style.transition = "opacity 0.3s ease, transform 0.3s ease";
+    nudge.style.opacity = "0";
+    nudge.style.transform = "translateY(10px)";
+
+    const nudgeText = document.createElement("div");
+    nudgeText.style.fontSize = "14px";
+    nudgeText.style.fontWeight = "600";
+    nudgeText.style.color = "#111827";
+    nudgeText.textContent = "Hey! 👋 Try me, I can help you";
+
+    const nudgeClose = document.createElement("button");
+    nudgeClose.type = "button";
+    nudgeClose.textContent = "×";
+    nudgeClose.setAttribute("aria-label", "Dismiss message");
+    nudgeClose.style.position = "absolute";
+    nudgeClose.style.top = "-8px";
+    nudgeClose.style.right = "-8px";
+    nudgeClose.style.width = "24px";
+    nudgeClose.style.height = "24px";
+    nudgeClose.style.borderRadius = "999px";
+    nudgeClose.style.border = "none";
+    nudgeClose.style.background = "#e5e7eb";
+    nudgeClose.style.cursor = "pointer";
+    nudgeClose.style.fontWeight = "700";
+    nudgeClose.style.fontSize = "16px";
+    nudgeClose.style.color = "#4b5563";
+    nudgeClose.style.display = "flex";
+    nudgeClose.style.alignItems = "center";
+    nudgeClose.style.justifyContent = "center";
+
+    nudge.appendChild(nudgeText);
+    nudge.appendChild(nudgeClose);
+    document.body.appendChild(nudge);
+
+    let nudgeTimer: number | null = null;
+    const NUDGE_KEY = "scholaris_nudge_dismissed_session";
+
+    function hideNudge() {
+      nudge.style.opacity = "0";
+      nudge.style.transform = "translateY(10px)";
+      setTimeout(() => { nudge.style.display = "none"; }, 300);
+      if (nudgeTimer) window.clearTimeout(nudgeTimer);
+      nudgeTimer = null;
+    }
+
+    function showNudge() {
+      if (sessionStorage.getItem(NUDGE_KEY) === "1") return;
+      nudge.style.display = "block";
+      requestAnimationFrame(() => {
+        nudge.style.opacity = "1";
+        nudge.style.transform = "translateY(0)";
+      });
+    }
+
+    function scheduleNudge() {
+      if (sessionStorage.getItem(NUDGE_KEY) === "1") return;
+      if (nudgeTimer) return;
+      nudgeTimer = window.setTimeout(() => {
+        if (!isExpanded) showNudge();
+      }, 20000);
+    }
+
+    nudge.addEventListener("click", () => {
+      hideNudge();
+      sessionStorage.setItem(NUDGE_KEY, "1");
+      applyExpandedStyles(true);
+    });
+
+    nudgeClose.addEventListener("click", (e) => {
+      e.stopPropagation();
+      hideNudge();
+      sessionStorage.setItem(NUDGE_KEY, "1");
+    });
 
     let isExpanded = false;
 
@@ -89,6 +177,7 @@ export function WidgetTestEmbed() {
       isExpanded = expand;
 
       if (isExpanded) {
+        hideNudge();
         const w = calcExpandedW();
         const h = calcExpandedH();
 
@@ -125,6 +214,7 @@ export function WidgetTestEmbed() {
         iframe.style.pointerEvents = "none";
         overlay.style.display = "block";
         postToWidget("minimize");
+        scheduleNudge();
       }
     }
 
@@ -158,6 +248,7 @@ export function WidgetTestEmbed() {
     iframe.addEventListener("load", onIframeLoad);
 
     applyExpandedStyles(false);
+    scheduleNudge();
 
     return () => {
       iframe.removeEventListener("load", onIframeLoad);
@@ -165,6 +256,8 @@ export function WidgetTestEmbed() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("message", onMessage);
       overlay.removeEventListener("click", onOverlayClick);
+      if (nudgeTimer) window.clearTimeout(nudgeTimer);
+      nudge.remove();
       container.remove();
     };
   }, []);
