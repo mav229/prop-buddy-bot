@@ -148,19 +148,6 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
               </div>
             </div>
 
-            {/* Avatar circles like reference */}
-            <div className="flex items-center -space-x-2">
-              <div className="w-9 h-9 rounded-full border-2 border-[#1e3a5f] overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600">
-                <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-bold">PS</div>
-              </div>
-              <div className="w-9 h-9 rounded-full border-2 border-[#1e3a5f] overflow-hidden bg-gradient-to-br from-purple-400 to-purple-600">
-                <div className="w-full h-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white text-xs font-bold">AI</div>
-              </div>
-              <div className="w-9 h-9 rounded-full border-2 border-[#1e3a5f] overflow-hidden bg-gradient-to-br from-cyan-400 to-cyan-600">
-                <div className="w-full h-full bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center text-white text-xs font-bold">24</div>
-              </div>
-            </div>
-
             {isWidget && (
               <button
                 onClick={handleClose}
@@ -192,10 +179,10 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
           <div className="p-4 space-y-3 animate-fade-in">
             {/* Action Cards */}
             <button
-              onClick={() => window.open('https://propscholar.com', '_blank')}
+              onClick={() => window.open('https://www.discord.com/invite/discord', '_blank')}
               className="w-full bg-white rounded-xl px-4 py-3.5 flex items-center justify-between shadow-sm border border-gray-100 hover:shadow-md transition-shadow active:scale-[0.99]"
             >
-              <span className="text-[15px] font-semibold text-gray-900">TRADER'S INTERVIEW</span>
+              <span className="text-[15px] font-semibold text-gray-900">JOIN DISCORD</span>
               <ExternalLink className="w-5 h-5 text-blue-500" />
             </button>
 
@@ -284,7 +271,19 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         )}
 
         {activeTab === "help" && (
-          <div className="p-4 animate-fade-in">
+          <div className="p-4 animate-fade-in space-y-3">
+            {/* Support Ticket Card */}
+            <a
+              href="mailto:support@propscholar.com"
+              className="w-full bg-white rounded-xl px-4 py-4 flex items-center justify-between shadow-sm border border-gray-100 hover:shadow-md transition-shadow active:scale-[0.99] block"
+            >
+              <div>
+                <span className="text-[15px] font-semibold text-gray-900 block">Open Support Ticket</span>
+                <span className="text-[13px] text-gray-500">support@propscholar.com</span>
+              </div>
+              <Send className="w-5 h-5 text-blue-500" />
+            </a>
+
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-100">
                 <span className="text-[15px] font-semibold text-gray-900">Frequently Asked</span>
@@ -295,8 +294,6 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                   "What are the drawdown rules?",
                   "How do payouts work?",
                   "Tell me about evaluations",
-                  "Account verification process",
-                  "Profit split information",
                 ].map((suggestion) => (
                   <button
                     key={suggestion}
