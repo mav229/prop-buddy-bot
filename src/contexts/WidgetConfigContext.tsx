@@ -1,0 +1,226 @@
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+
+export interface WidgetConfig {
+  // Header
+  headerGradientStart: string;
+  headerGradientMiddle: string;
+  headerGradientEnd: string;
+  headerGradientAngle: number;
+  
+  // Greeting
+  greetingText: string;
+  greetingEmoji: string;
+  greetingSubtext: string;
+  greetingTextColor: string;
+  greetingSubtextColor: string;
+  
+  // Bot Identity
+  botName: string;
+  botSubtitle: string;
+  
+  // Logo
+  logoUrl: string;
+  launcherLogoUrl: string;
+  showLogo: boolean;
+  logoSize: number;
+  logoBorderRadius: number;
+  
+  // Colors
+  primaryColor: string;
+  accentColor: string;
+  backgroundColor: string;
+  cardBackgroundColor: string;
+  textColor: string;
+  mutedTextColor: string;
+  
+  // Tab Colors
+  activeTabColor: string;
+  inactiveTabColor: string;
+  
+  // Cards
+  cardBorderRadius: number;
+  cardShadow: string;
+  showDiscordCard: boolean;
+  discordLink: string;
+  discordCardText: string;
+  showMessageCard: boolean;
+  messageCardText: string;
+  
+  // Help Section
+  showHelpSearch: boolean;
+  helpSearchText: string;
+  supportEmail: string;
+  showSupportCard: boolean;
+  supportCardGradientStart: string;
+  supportCardGradientEnd: string;
+  
+  // Suggested Questions
+  suggestedQuestions: string[];
+  
+  // Footer
+  footerText: string;
+  showFooter: boolean;
+  
+  // Dimensions
+  widgetWidth: number;
+  widgetHeight: number;
+  
+  // Animations
+  enableAnimations: boolean;
+  animationSpeed: "slow" | "normal" | "fast";
+  
+  // Online Indicator
+  showOnlineIndicator: boolean;
+  onlineIndicatorColor: string;
+}
+
+const defaultConfig: WidgetConfig = {
+  // Header
+  headerGradientStart: "#1e3a5f",
+  headerGradientMiddle: "#0f1c2e",
+  headerGradientEnd: "#0a1628",
+  headerGradientAngle: 135,
+  
+  // Greeting
+  greetingText: "Hello Trader!",
+  greetingEmoji: "👋",
+  greetingSubtext: "How can I help?",
+  greetingTextColor: "#93c5fd",
+  greetingSubtextColor: "#ffffff",
+  
+  // Bot Identity
+  botName: "Scholaris AI",
+  botSubtitle: "Online",
+  
+  // Logo
+  logoUrl: "",
+  launcherLogoUrl: "",
+  showLogo: true,
+  logoSize: 48,
+  logoBorderRadius: 12,
+  
+  // Colors
+  primaryColor: "#3b82f6",
+  accentColor: "#60a5fa",
+  backgroundColor: "#f9fafb",
+  cardBackgroundColor: "#ffffff",
+  textColor: "#111827",
+  mutedTextColor: "#6b7280",
+  
+  // Tab Colors
+  activeTabColor: "#3b82f6",
+  inactiveTabColor: "#9ca3af",
+  
+  // Cards
+  cardBorderRadius: 12,
+  cardShadow: "0 1px 3px rgba(0,0,0,0.1)",
+  showDiscordCard: true,
+  discordLink: "https://discord.gg/propscholar",
+  discordCardText: "JOIN DISCORD",
+  showMessageCard: true,
+  messageCardText: "Send us a message",
+  
+  // Help Section
+  showHelpSearch: true,
+  helpSearchText: "Search for help",
+  supportEmail: "support@propscholar.com",
+  showSupportCard: true,
+  supportCardGradientStart: "#3b82f6",
+  supportCardGradientEnd: "#2563eb",
+  
+  // Suggested Questions
+  suggestedQuestions: [
+    "How PropScholar works?",
+    "What are the drawdown rules?",
+    "How do payouts work?",
+    "Tell me about evaluations",
+  ],
+  
+  // Footer
+  footerText: "Powered by PropScholar",
+  showFooter: true,
+  
+  // Dimensions
+  widgetWidth: 380,
+  widgetHeight: 600,
+  
+  // Animations
+  enableAnimations: true,
+  animationSpeed: "normal",
+  
+  // Online Indicator
+  showOnlineIndicator: true,
+  onlineIndicatorColor: "#22c55e",
+};
+
+interface WidgetConfigContextType {
+  config: WidgetConfig;
+  updateConfig: (updates: Partial<WidgetConfig>) => void;
+  resetConfig: () => void;
+  saveConfig: () => void;
+}
+
+const WidgetConfigContext = createContext<WidgetConfigContextType | undefined>(undefined);
+
+const STORAGE_KEY = "widget-config";
+
+export const WidgetConfigProvider = ({ children }: { children: ReactNode }) => {
+  const [config, setConfig] = useState<WidgetConfig>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        return { ...defaultConfig, ...JSON.parse(stored) };
+      }
+    } catch (e) {
+      console.error("Failed to load widget config:", e);
+    }
+    return defaultConfig;
+  });
+
+  const updateConfig = (updates: Partial<WidgetConfig>) => {
+    setConfig((prev) => ({ ...prev, ...updates }));
+  };
+
+  const resetConfig = () => {
+    setConfig(defaultConfig);
+    localStorage.removeItem(STORAGE_KEY);
+  };
+
+  const saveConfig = () => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    } catch (e) {
+      console.error("Failed to save widget config:", e);
+    }
+  };
+
+  // Auto-save on config changes
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      saveConfig();
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, [config]);
+
+  return (
+    <WidgetConfigContext.Provider value={{ config, updateConfig, resetConfig, saveConfig }}>
+      {children}
+    </WidgetConfigContext.Provider>
+  );
+};
+
+export const useWidgetConfig = () => {
+  const context = useContext(WidgetConfigContext);
+  if (!context) {
+    // Return default config if not in provider
+    return {
+      config: defaultConfig,
+      updateConfig: () => {},
+      resetConfig: () => {},
+      saveConfig: () => {},
+    };
+  }
+  return context;
+};
+
+export { defaultConfig };
