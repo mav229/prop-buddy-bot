@@ -28,7 +28,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     setTimeout(() => {
       setIsClosing(false);
       setIsMinimized(true);
-    }, 280);
+    }, 180);
   };
 
   const inIframe = (() => {
@@ -188,6 +188,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
               </p>
               <div className="grid grid-cols-1 gap-2.5 w-full max-w-[300px]">
                 {[
+                  "How PropScholar works?",
                   "What are the drawdown rules?",
                   "How do payouts work?",
                   "Tell me about evaluations",
@@ -235,7 +236,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       <div className="flex-shrink-0 px-4 pb-4 pt-3 widget-input">
         <ChatInput onSend={sendMessage} isLoading={isLoading} isWidget={true} />
         <p className="text-[11px] text-gray-400 text-center mt-2.5 font-medium">
-          Powered by Scholaris AI
+          Powered by PropScholar
         </p>
       </div>
     </div>
