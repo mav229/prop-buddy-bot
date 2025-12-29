@@ -150,7 +150,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
           <div className="flex-1">
             <h3 className="text-[15px] font-semibold text-gray-900">Scholaris AI</h3>
             <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-green-500 shadow-sm shadow-green-500/50" />
+              <span className="w-2 h-2 rounded-full bg-green-500 online-pulse" />
               <p className="text-[13px] text-gray-500">Online</p>
             </div>
           </div>
@@ -173,7 +173,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
           <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-purple-500/5" />
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-5">
-              <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-blue-400/20 to-blue-600/20 backdrop-blur-sm shadow-lg shadow-blue-500/20">
+              <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-blue-400/20 to-blue-600/20 backdrop-blur-sm shadow-lg shadow-blue-500/20 logo-float">
                 <img
                   src={propscholarLogo}
                   alt="PropScholar"
@@ -205,11 +205,11 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         className="flex-1 overflow-y-auto scrollbar-hide bg-gray-50"
       >
         {activeTab === "home" && (
-          <div className="p-4 space-y-3 animate-fade-in">
+          <div className="p-4 space-y-3 content-fade">
             {/* Action Cards */}
             <button
               onClick={() => window.open('https://www.discord.com/invite/discord', '_blank')}
-              className="w-full bg-white rounded-xl px-4 py-3.5 flex items-center justify-between shadow-sm border border-gray-100 hover:shadow-md transition-shadow active:scale-[0.99]"
+              className="w-full bg-white rounded-xl px-4 py-3.5 flex items-center justify-between shadow-sm border border-gray-100 premium-card stagger-item stagger-1"
             >
               <span className="text-[15px] font-semibold text-gray-900">JOIN DISCORD</span>
               <ExternalLink className="w-5 h-5 text-blue-500" />
@@ -217,14 +217,14 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
 
             <button
               onClick={() => setActiveTab("messages")}
-              className="w-full bg-white rounded-xl px-4 py-3.5 flex items-center justify-between shadow-sm border border-gray-100 hover:shadow-md transition-shadow active:scale-[0.99]"
+              className="w-full bg-white rounded-xl px-4 py-3.5 flex items-center justify-between shadow-sm border border-gray-100 premium-card stagger-item stagger-2"
             >
               <span className="text-[15px] font-semibold text-gray-900">Send us a message</span>
               <Send className="w-5 h-5 text-blue-500" />
             </button>
 
             {/* Search/Help Section */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden stagger-item stagger-3">
               <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3">
                 <span className="text-[15px] font-medium text-gray-700">Search for help</span>
                 <Search className="w-5 h-5 text-gray-400 ml-auto" />
@@ -237,14 +237,14 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                   "What are the drawdown rules?",
                   "How do payouts work?",
                   "Tell me about evaluations",
-                ].map((suggestion) => (
+                ].map((suggestion, index) => (
                   <button
                     key={suggestion}
                     onClick={() => handleSendMessage(suggestion)}
-                    className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors text-left active:bg-gray-100"
+                    className="w-full px-4 py-3 flex items-center justify-between text-left help-item"
                   >
                     <span className="text-[14px] text-gray-600">{suggestion}</span>
-                    <span className="text-gray-300">›</span>
+                    <span className="text-gray-300 transition-transform group-hover:translate-x-1">›</span>
                   </button>
                 ))}
               </div>
@@ -258,8 +258,8 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
               {!isReady ? (
                 <ChatSkeleton />
               ) : messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center animate-fade-in">
-                  <div className="w-16 h-16 rounded-xl overflow-hidden bg-gradient-to-br from-blue-500/20 to-blue-600/20 shadow-lg shadow-blue-500/10 mb-4">
+                <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center content-fade">
+                  <div className="w-16 h-16 rounded-xl overflow-hidden bg-gradient-to-br from-blue-500/20 to-blue-600/20 shadow-lg shadow-blue-500/10 mb-4 logo-float">
                     <img
                       src={propscholarLogo}
                       alt="PropScholar"
@@ -273,17 +273,18 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
               ) : (
                 <>
                   {messages.map((message, index) => (
-                    <ChatMessage
-                      key={message.id}
-                      role={message.role}
-                      content={message.content}
-                      isStreaming={
-                        isLoading &&
-                        index === messages.length - 1 &&
-                        message.role === "assistant"
-                      }
-                      isWidget={true}
-                    />
+                    <div key={message.id} className="message-bubble">
+                      <ChatMessage
+                        role={message.role}
+                        content={message.content}
+                        isStreaming={
+                          isLoading &&
+                          index === messages.length - 1 &&
+                          message.role === "assistant"
+                        }
+                        isWidget={true}
+                      />
+                    </div>
                   ))}
                 </>
               )}
@@ -300,20 +301,20 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         )}
 
         {activeTab === "help" && (
-          <div className="p-4 animate-fade-in space-y-3">
+          <div className="p-4 content-fade space-y-3">
             {/* Support Ticket Card */}
             <a
               href="mailto:support@propscholar.com"
-              className="w-full bg-white rounded-xl px-4 py-4 flex items-center justify-between shadow-sm border border-gray-100 hover:shadow-md transition-shadow active:scale-[0.99] block"
+              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl px-4 py-4 flex items-center justify-between shadow-lg shadow-blue-500/20 premium-card stagger-item stagger-1 block"
             >
               <div>
-                <span className="text-[15px] font-semibold text-gray-900 block">Open Support Ticket</span>
-                <span className="text-[13px] text-gray-500">support@propscholar.com</span>
+                <span className="text-[15px] font-semibold text-white block">Open Support Ticket</span>
+                <span className="text-[13px] text-blue-100">support@propscholar.com</span>
               </div>
-              <Send className="w-5 h-5 text-blue-500" />
+              <Send className="w-5 h-5 text-white" />
             </a>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden stagger-item stagger-2">
               <div className="px-4 py-3 border-b border-gray-100">
                 <span className="text-[15px] font-semibold text-gray-900">Frequently Asked</span>
               </div>
@@ -327,7 +328,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                   <button
                     key={suggestion}
                     onClick={() => handleSendMessage(suggestion)}
-                    className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors text-left active:bg-gray-100"
+                    className="w-full px-4 py-3 flex items-center justify-between text-left help-item"
                   >
                     <span className="text-[14px] text-gray-600">{suggestion}</span>
                     <span className="text-gray-300">›</span>
@@ -341,7 +342,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
 
       {/* Input Area - only show on messages tab */}
       {activeTab === "messages" && (
-        <div className="flex-shrink-0 px-4 pb-2 pt-2 bg-gray-50 border-t border-gray-100">
+        <div className="flex-shrink-0 px-4 pb-2 pt-2 bg-gray-50 border-t border-gray-100 input-premium">
           <ChatInput onSend={handleSendMessage} isLoading={isLoading} isWidget={true} />
         </div>
       )}
@@ -351,8 +352,8 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         <div className="flex items-center justify-around">
           <button
             onClick={() => setActiveTab("home")}
-            className={`flex flex-col items-center gap-1 px-6 py-2 rounded-lg transition-colors ${
-              activeTab === "home" ? "text-blue-600" : "text-gray-400 hover:text-gray-600"
+            className={`flex flex-col items-center gap-1 px-6 py-2 rounded-lg tab-button ${
+              activeTab === "home" ? "text-blue-600 active" : "text-gray-400"
             }`}
           >
             <Home className="w-5 h-5" />
@@ -360,8 +361,8 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
           </button>
           <button
             onClick={() => setActiveTab("messages")}
-            className={`flex flex-col items-center gap-1 px-6 py-2 rounded-lg transition-colors ${
-              activeTab === "messages" ? "text-blue-600" : "text-gray-400 hover:text-gray-600"
+            className={`flex flex-col items-center gap-1 px-6 py-2 rounded-lg tab-button ${
+              activeTab === "messages" ? "text-blue-600 active" : "text-gray-400"
             }`}
           >
             <MessageCircle className="w-5 h-5" />
@@ -369,8 +370,8 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
           </button>
           <button
             onClick={() => setActiveTab("help")}
-            className={`flex flex-col items-center gap-1 px-6 py-2 rounded-lg transition-colors ${
-              activeTab === "help" ? "text-blue-600" : "text-gray-400 hover:text-gray-600"
+            className={`flex flex-col items-center gap-1 px-6 py-2 rounded-lg tab-button ${
+              activeTab === "help" ? "text-blue-600 active" : "text-gray-400"
             }`}
           >
             <HelpCircle className="w-5 h-5" />
