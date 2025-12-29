@@ -259,12 +259,11 @@
 
 /* ===== PREMIUM FINTECH ANIMATIONS ===== */
 
-/* Launcher button with premium glow */
+/* Launcher button */
 .launcher-button {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   will-change: transform;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  overflow: visible !important;
 }
 
 .launcher-button:hover {
@@ -276,21 +275,16 @@
   transform: scale(0.96);
 }
 
-/* Subtle blue glow ring beside icon */
+/* Subtle blue halo (kept inside iframe without scrollbars) */
 .launcher-glow-ring {
   position: absolute;
   inset: -4px;
   border-radius: 9999px;
-  background: transparent;
-  box-shadow: 0 0 20px 4px rgba(59, 130, 246, 0.35), 0 0 40px 8px rgba(59, 130, 246, 0.15);
   pointer-events: none;
   z-index: 0;
-  animation: glow-pulse 2s ease-in-out infinite;
-}
-
-@keyframes glow-pulse {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
+  box-shadow:
+    0 0 16px 3px hsl(var(--primary) / 0.28),
+    0 0 28px 8px hsl(var(--primary) / 0.12);
 }
 
 /* Notification bubble */

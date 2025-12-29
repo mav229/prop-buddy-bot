@@ -28,9 +28,6 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const [isMinimized, setIsMinimized] = useState<boolean>(isWidget);
   const [isClosing, setIsClosing] = useState(false);
   
-  // Notification state
-  const [showNotification, setShowNotification] = useState(false);
-  const notificationTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Use config logos or fallback to defaults
   const headerLogo = config.logoUrl || propscholarLogo;
@@ -67,28 +64,25 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     }
   })();
 
+  // Prevent tiny scrollbars inside the widget iframe (glow/animations can overflow)
+  useEffect(() => {
+    if (!isWidget) return;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+    };
+  }, [isWidget]);
+
   // Simulate initial load
   useEffect(() => {
     const timer = setTimeout(() => setIsReady(true), 600);
     return () => clearTimeout(timer);
   }, []);
 
-  // Show notification after 20 seconds if widget is minimized
-  useEffect(() => {
-    if (!isWidget) return;
-    
-    notificationTimerRef.current = setTimeout(() => {
-      if (isMinimized) {
-        setShowNotification(true);
-      }
-    }, 20000);
-
-    return () => {
-      if (notificationTimerRef.current) {
-        clearTimeout(notificationTimerRef.current);
-      }
-    };
-  }, [isWidget, isMinimized]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -142,33 +136,14 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       : "fixed bottom-4 right-4 z-[9999]";
 
     return (
-      <div className={`${bubbleClass} flex flex-col items-end gap-3`} style={{ overflow: 'visible' }}>
-        {/* Notification bubble */}
-        {showNotification && (
-          <div 
-            className="notification-bubble bg-white rounded-2xl px-4 py-3 max-w-[180px] mr-1 relative"
-            style={{ boxShadow: '0 4px 20px rgba(0, 0, 0, 0.12)' }}
-          >
-            <p className="text-[13px] text-gray-800 font-semibold">Hey, Try Me! 👋</p>
-            <p className="text-[11px] text-gray-500 mt-0.5">I can help you</p>
-            <button 
-              onClick={(e) => { e.stopPropagation(); setShowNotification(false); }}
-              className="absolute -top-2 -right-2 w-5 h-5 bg-gray-200 hover:bg-gray-300 rounded-full flex items-center justify-center text-gray-500 text-xs font-bold transition-colors"
-            >
-              ×
-            </button>
-          </div>
-        )}
-        
-        {/* Launcher button with glow */}
-        <div className="relative">
+      <div className={`${bubbleClass} flex items-center justify-center`} style={{ overflow: "hidden" }}>
+        <div className="relative" style={{ width: 64, height: 64 }}>
           <div className="launcher-glow-ring" />
           <button
             type="button"
             aria-label="Open chat widget"
             onClick={handleOpen}
-            className="w-14 h-14 sm:w-16 sm:h-16 cursor-pointer touch-manipulation select-none rounded-full border-0 outline-none ring-0 flex items-center justify-center launcher-button relative"
-            style={{ overflow: 'visible' }}
+            className="w-14 h-14 sm:w-16 sm:h-16 cursor-pointer touch-manipulation select-none rounded-full overflow-hidden border-0 outline-none ring-0 flex items-center justify-center launcher-button relative"
           >
             <img
               src={launcherLogo}

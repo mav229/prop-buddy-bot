@@ -95,6 +95,82 @@ export const EmbedCustomization = () => {
     container.appendChild(overlay);
     document.body.appendChild(container);
 
+    // Notification bubble rendered OUTSIDE the iframe (host DOM)
+    var nudge = document.createElement('div');
+    nudge.setAttribute('data-scholaris-nudge', 'true');
+    nudge.style.position = 'fixed';
+    nudge.style.right = 'calc(16px + env(safe-area-inset-right))';
+    nudge.style.bottom = 'calc(' + (bubbleSize + 28) + 'px + env(safe-area-inset-bottom))';
+    nudge.style.maxWidth = '190px';
+    nudge.style.padding = '10px 12px';
+    nudge.style.borderRadius = '16px';
+    nudge.style.background = 'rgba(255,255,255,0.98)';
+    nudge.style.boxShadow = '0 10px 30px rgba(0,0,0,0.18)';
+    nudge.style.fontFamily = 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+    nudge.style.display = 'none';
+    nudge.style.zIndex = '2147483647';
+    nudge.style.backdropFilter = 'blur(10px)';
+
+    var nudgeText = document.createElement('div');
+    nudgeText.style.fontSize = '13px';
+    nudgeText.style.fontWeight = '700';
+    nudgeText.style.color = '#111827';
+    nudgeText.textContent = 'Hey, Try Me! I can helpp you';
+
+    var nudgeClose = document.createElement('button');
+    nudgeClose.type = 'button';
+    nudgeClose.textContent = '×';
+    nudgeClose.setAttribute('aria-label', 'Dismiss message');
+    nudgeClose.style.position = 'absolute';
+    nudgeClose.style.top = '-8px';
+    nudgeClose.style.right = '-8px';
+    nudgeClose.style.width = '22px';
+    nudgeClose.style.height = '22px';
+    nudgeClose.style.borderRadius = '999px';
+    nudgeClose.style.border = 'none';
+    nudgeClose.style.background = '#e5e7eb';
+    nudgeClose.style.cursor = 'pointer';
+    nudgeClose.style.fontWeight = '700';
+    nudgeClose.style.color = '#4b5563';
+
+    nudge.appendChild(nudgeText);
+    nudge.appendChild(nudgeClose);
+    document.body.appendChild(nudge);
+
+    var nudgeTimer = null;
+    var NUDGE_KEY = 'scholaris_nudge_dismissed_session';
+
+    function hideNudge() {
+      nudge.style.display = 'none';
+      if (nudgeTimer) clearTimeout(nudgeTimer);
+      nudgeTimer = null;
+    }
+
+    function showNudge() {
+      try { if (sessionStorage.getItem(NUDGE_KEY) === '1') return; } catch (e) {}
+      nudge.style.display = 'block';
+    }
+
+    function scheduleNudge() {
+      try { if (sessionStorage.getItem(NUDGE_KEY) === '1') return; } catch (e) {}
+      if (nudgeTimer) return;
+      nudgeTimer = setTimeout(function() {
+        if (!isExpanded) showNudge();
+      }, 20000);
+    }
+
+    nudge.addEventListener('click', function() {
+      hideNudge();
+      try { sessionStorage.setItem(NUDGE_KEY, '1'); } catch (e) {}
+      applyExpandedStyles(true);
+    });
+
+    nudgeClose.addEventListener('click', function(e) {
+      e.stopPropagation();
+      hideNudge();
+      try { sessionStorage.setItem(NUDGE_KEY, '1'); } catch (e) {}
+    });
+
     var isExpanded = false;
 
     function postToWidget(action) {
@@ -108,6 +184,7 @@ export const EmbedCustomization = () => {
       isExpanded = !!expand;
 
       if (isExpanded) {
+        hideNudge();
         var w = calcExpandedW();
         var h = calcExpandedH();
 
@@ -143,6 +220,7 @@ export const EmbedCustomization = () => {
         iframe.style.pointerEvents = 'none';
         overlay.style.display = 'block';
         postToWidget('minimize');
+        scheduleNudge();
       }
     }
 
@@ -169,8 +247,7 @@ export const EmbedCustomization = () => {
     });
 
     applyExpandedStyles(false);
-  })();
-</script>`;
+    scheduleNudge();
 
   const handleCopy = async (code: string, type: string) => {
     await navigator.clipboard.writeText(code);
