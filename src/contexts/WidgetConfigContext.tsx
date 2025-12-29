@@ -75,17 +75,17 @@ export interface WidgetConfig {
 }
 
 const defaultConfig: WidgetConfig = {
-  // Header
-  headerGradientStart: "#1e3a5f",
-  headerGradientMiddle: "#0f1c2e",
-  headerGradientEnd: "#0a1628",
-  headerGradientAngle: 135,
+  // Header - Vibrant blue flowing gradient
+  headerGradientStart: "#6366f1",
+  headerGradientMiddle: "#4f46e5",
+  headerGradientEnd: "#7c3aed",
+  headerGradientAngle: 180,
   
   // Greeting
   greetingText: "Hello Trader!",
   greetingEmoji: "👋",
   greetingSubtext: "How can I help?",
-  greetingTextColor: "#93c5fd",
+  greetingTextColor: "#c7d2fe",
   greetingSubtextColor: "#ffffff",
   
   // Bot Identity
@@ -100,9 +100,9 @@ const defaultConfig: WidgetConfig = {
   logoBorderRadius: 12,
   
   // Colors
-  primaryColor: "#3b82f6",
-  accentColor: "#60a5fa",
-  backgroundColor: "#f9fafb",
+  primaryColor: "#6366f1",
+  accentColor: "#818cf8",
+  backgroundColor: "#e0e7ff",
   cardBackgroundColor: "#ffffff",
   textColor: "#111827",
   mutedTextColor: "#6b7280",

@@ -133,6 +133,9 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const headerGradient = `linear-gradient(${config.headerGradientAngle}deg, ${config.headerGradientStart} 0%, ${config.headerGradientMiddle} 50%, ${config.headerGradientEnd} 100%)`;
   const supportCardGradient = `linear-gradient(90deg, ${config.supportCardGradientStart}, ${config.supportCardGradientEnd})`;
 
+  // Full flowing gradient for the entire widget
+  const flowingGradient = `linear-gradient(180deg, ${config.headerGradientStart} 0%, ${config.headerGradientMiddle} 25%, ${config.headerGradientEnd} 50%, ${config.backgroundColor} 100%)`;
+
   return (
     <div
       className={`flex flex-col ${animationClass} ${
@@ -142,24 +145,30 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
             : `w-full h-full widget-container ${panelAnimation}`
           : "h-screen bg-background"
       }`}
-      style={widgetFloatingFrame ? { width: `${config.widgetWidth}px`, height: `${config.widgetHeight}px` } : {}}
+      style={{
+        ...(widgetFloatingFrame ? { width: `${config.widgetWidth}px`, height: `${config.widgetHeight}px` } : {}),
+        background: flowingGradient,
+      }}
     >
       {/* Header - Conditional based on chat state */}
       {activeTab === "messages" && messages.length > 0 ? (
         /* Compact chat header when messages exist */
         <header 
-          className="flex-shrink-0 px-4 py-3 flex items-center gap-3 border-b header-transition"
-          style={{ backgroundColor: config.cardBackgroundColor, borderColor: `${config.mutedTextColor}20` }}
+          className="flex-shrink-0 px-4 py-3 flex items-center gap-3 backdrop-blur-sm header-transition"
+          style={{ 
+            background: `linear-gradient(180deg, ${config.headerGradientStart}ee, ${config.headerGradientMiddle}cc)`,
+            borderBottom: `1px solid rgba(255,255,255,0.1)`
+          }}
         >
           <button
             onClick={() => setActiveTab("home")}
-            className="w-8 h-8 flex items-center justify-center rounded-full transition-colors"
-            style={{ color: config.mutedTextColor }}
+            className="w-8 h-8 flex items-center justify-center rounded-full transition-colors hover:bg-white/10"
+            style={{ color: 'rgba(255,255,255,0.8)' }}
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div 
-            className="overflow-hidden flex items-center justify-center shadow-sm"
+            className="overflow-hidden flex items-center justify-center shadow-lg ring-2 ring-white/20"
             style={{ 
               width: `${config.logoSize * 0.83}px`, 
               height: `${config.logoSize * 0.83}px`,
@@ -173,20 +182,20 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
             />
           </div>
           <div className="flex-1">
-            <h3 className="text-[15px] font-semibold" style={{ color: config.textColor }}>{config.botName}</h3>
+            <h3 className="text-[15px] font-semibold text-white">{config.botName}</h3>
             {config.showOnlineIndicator && (
               <div className="flex items-center gap-1.5">
                 <span 
                   className="w-2 h-2 rounded-full online-pulse" 
                   style={{ backgroundColor: config.onlineIndicatorColor }}
                 />
-                <p className="text-[13px]" style={{ color: config.mutedTextColor }}>{config.botSubtitle}</p>
+                <p className="text-[13px] text-white/70">{config.botSubtitle}</p>
               </div>
             )}
           </div>
           <button 
-            className="w-8 h-8 flex items-center justify-center rounded-full transition-colors"
-            style={{ color: config.mutedTextColor }}
+            className="w-8 h-8 flex items-center justify-center rounded-full transition-colors hover:bg-white/10"
+            style={{ color: 'rgba(255,255,255,0.7)' }}
           >
             <MoreHorizontal className="w-5 h-5" />
           </button>
@@ -194,8 +203,8 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
             <button
               onClick={handleClose}
               title="Close"
-              className="h-8 w-8 rounded-full transition-colors flex items-center justify-center close-button"
-              style={{ color: config.mutedTextColor }}
+              className="h-8 w-8 rounded-full transition-colors flex items-center justify-center hover:bg-white/10 close-button"
+              style={{ color: 'rgba(255,255,255,0.7)' }}
             >
               <X className="w-5 h-5" />
             </button>
@@ -204,19 +213,22 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       ) : (
         /* Full greeting header when no messages */
         <header 
-          className="flex-shrink-0 px-5 pt-5 pb-6 relative overflow-hidden header-transition" 
-          style={{ background: headerGradient }}
+          className="flex-shrink-0 px-5 pt-5 pb-8 relative overflow-hidden header-transition"
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-purple-500/5" />
+          {/* Decorative orbs for depth */}
+          <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white/5 blur-2xl" />
+          <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full bg-blue-300/10 blur-xl" />
+          
           <div className="relative z-10">
-            <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center justify-between mb-6">
               {config.showLogo && (
                 <div 
-                  className="overflow-hidden bg-gradient-to-br from-blue-400/20 to-blue-600/20 backdrop-blur-sm shadow-lg shadow-blue-500/20 logo-float"
+                  className="overflow-hidden backdrop-blur-sm shadow-xl ring-2 ring-white/20 logo-float"
                   style={{ 
                     width: `${config.logoSize}px`, 
                     height: `${config.logoSize}px`,
-                    borderRadius: `${config.logoBorderRadius}px`
+                    borderRadius: `${config.logoBorderRadius}px`,
+                    background: 'rgba(255,255,255,0.1)'
                   }}
                 >
                   <img
@@ -261,7 +273,6 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       {/* Content Area */}
       <div 
         className="flex-1 overflow-y-auto scrollbar-hide"
-        style={{ backgroundColor: config.backgroundColor }}
       >
         {activeTab === "home" && (
           <div className="p-4 space-y-3 content-fade">
@@ -269,11 +280,12 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
             {config.showDiscordCard && (
               <button
                 onClick={() => window.open(config.discordLink, '_blank')}
-                className="w-full px-4 py-3.5 flex items-center justify-between shadow-sm border premium-card stagger-item stagger-1"
+                className="w-full px-4 py-3.5 flex items-center justify-between shadow-lg backdrop-blur-md premium-card stagger-item stagger-1"
                 style={{ 
-                  backgroundColor: config.cardBackgroundColor,
+                  background: 'rgba(255,255,255,0.95)',
                   borderRadius: `${config.cardBorderRadius}px`,
-                  borderColor: `${config.mutedTextColor}20`
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  boxShadow: '0 4px 24px rgba(0,0,0,0.08)'
                 }}
               >
                 <span className="text-[15px] font-semibold" style={{ color: config.textColor }}>{config.discordCardText}</span>
@@ -285,11 +297,12 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
             {config.showMessageCard && (
               <button
                 onClick={() => setActiveTab("messages")}
-                className="w-full px-4 py-3.5 flex items-center justify-between shadow-sm border premium-card stagger-item stagger-2"
+                className="w-full px-4 py-3.5 flex items-center justify-between shadow-lg backdrop-blur-md premium-card stagger-item stagger-2"
                 style={{ 
-                  backgroundColor: config.cardBackgroundColor,
+                  background: 'rgba(255,255,255,0.95)',
                   borderRadius: `${config.cardBorderRadius}px`,
-                  borderColor: `${config.mutedTextColor}20`
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  boxShadow: '0 4px 24px rgba(0,0,0,0.08)'
                 }}
               >
                 <span className="text-[15px] font-semibold" style={{ color: config.textColor }}>{config.messageCardText}</span>
@@ -300,23 +313,24 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
             {/* Search/Help Section */}
             {config.showHelpSearch && (
               <div 
-                className="shadow-sm border overflow-hidden stagger-item stagger-3"
+                className="shadow-lg backdrop-blur-md overflow-hidden stagger-item stagger-3"
                 style={{ 
-                  backgroundColor: config.cardBackgroundColor,
+                  background: 'rgba(255,255,255,0.95)',
                   borderRadius: `${config.cardBorderRadius}px`,
-                  borderColor: `${config.mutedTextColor}20`
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  boxShadow: '0 4px 24px rgba(0,0,0,0.08)'
                 }}
               >
                 <div 
                   className="px-4 py-3 border-b flex items-center gap-3"
-                  style={{ borderColor: `${config.mutedTextColor}15` }}
+                  style={{ borderColor: 'rgba(0,0,0,0.06)' }}
                 >
                   <span className="text-[15px] font-medium" style={{ color: config.textColor }}>{config.helpSearchText}</span>
                   <Search className="w-5 h-5 ml-auto" style={{ color: config.mutedTextColor }} />
                 </div>
                 
                 {/* Help suggestions */}
-                <div className="divide-y" style={{ borderColor: `${config.mutedTextColor}10` }}>
+                <div className="divide-y" style={{ borderColor: 'rgba(0,0,0,0.04)' }}>
                   {config.suggestedQuestions.map((suggestion, index) => (
                     <button
                       key={suggestion}
@@ -336,20 +350,19 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         {activeTab === "messages" && (
           <div className="flex flex-col h-full">
             <div 
-              className="flex-1 px-4 py-4 space-y-4 overflow-y-auto scrollbar-hide" 
-              style={{ background: `linear-gradient(to bottom, ${config.backgroundColor}, ${config.backgroundColor}ee)` }}
+              className="flex-1 px-4 py-4 space-y-4 overflow-y-auto scrollbar-hide"
             >
               {!isReady ? (
                 <ChatSkeleton />
               ) : messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center content-fade">
                   <div 
-                    className="overflow-hidden shadow-lg mb-4 logo-float"
+                    className="overflow-hidden shadow-xl mb-4 logo-float ring-2 ring-white/30"
                     style={{ 
                       width: '64px', 
                       height: '64px',
                       borderRadius: `${config.logoBorderRadius}px`,
-                      background: `linear-gradient(135deg, ${config.primaryColor}20, ${config.accentColor}20)`
+                      background: 'rgba(255,255,255,0.2)'
                     }}
                   >
                     <img
@@ -358,7 +371,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  <p className="text-[14px] max-w-[260px]" style={{ color: config.mutedTextColor }}>
+                  <p className="text-[14px] max-w-[260px] text-white/80">
                     Ask me anything about PropScholar trading, evaluations, or payouts.
                   </p>
                 </div>
