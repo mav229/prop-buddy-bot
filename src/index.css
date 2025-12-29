@@ -275,9 +275,16 @@
   transform: scale(0.96);
 }
 
-/* No glow ring - clean launcher */
+/* Subtle blue glow ring */
 .launcher-glow-ring {
-  display: none;
+  position: absolute;
+  inset: -5px;
+  border-radius: 9999px;
+  pointer-events: none;
+  z-index: 0;
+  box-shadow:
+    0 0 18px 4px hsl(var(--primary) / 0.35),
+    0 0 32px 10px hsl(var(--primary) / 0.15);
 }
 
 /* Panel animations */
