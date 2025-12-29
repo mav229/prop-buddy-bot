@@ -1,10 +1,11 @@
-import { Bot, LogOut, MessageSquare, Database, ArrowLeft, Brain } from "lucide-react";
+import { Bot, LogOut, MessageSquare, Database, ArrowLeft, Brain, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { KnowledgeBaseManager } from "./KnowledgeBaseManager";
 import { ChatHistoryView } from "./ChatHistoryView";
 import { DiscordSettings } from "./DiscordSettings";
+import { DiscordMemoryView } from "./DiscordMemoryView";
 import { TrainingCenter } from "./TrainingCenter";
 import { Link } from "react-router-dom";
 // Discord icon component
@@ -58,7 +59,7 @@ export const AdminDashboard = () => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
         <Tabs defaultValue="knowledge" className="space-y-6">
-          <TabsList className="glass-panel p-1">
+          <TabsList className="glass-panel p-1 flex-wrap">
             <TabsTrigger value="knowledge" className="gap-2">
               <Database className="w-4 h-4" />
               Knowledge Base
@@ -71,9 +72,13 @@ export const AdminDashboard = () => {
               <MessageSquare className="w-4 h-4" />
               Chat History
             </TabsTrigger>
+            <TabsTrigger value="discord-memory" className="gap-2">
+              <Users className="w-4 h-4" />
+              Discord Memory
+            </TabsTrigger>
             <TabsTrigger value="discord" className="gap-2">
               <DiscordIcon className="w-4 h-4" />
-              Discord
+              Discord Settings
             </TabsTrigger>
           </TabsList>
 
@@ -87,6 +92,10 @@ export const AdminDashboard = () => {
 
           <TabsContent value="history">
             <ChatHistoryView />
+          </TabsContent>
+
+          <TabsContent value="discord-memory">
+            <DiscordMemoryView />
           </TabsContent>
 
           <TabsContent value="discord">
