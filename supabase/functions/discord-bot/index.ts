@@ -97,8 +97,23 @@ RULES:
 - Only use information from the knowledge base
 - Keep it professional even when being friendly - you represent PropScholar
 
+LINK FORMATTING (CRITICAL - Discord does not render markdown):
+- NEVER use markdown link format like [text](url) - Discord shows it literally
+- ALWAYS output URLs as plain text: https://example.com
+- Just write the URL directly and Discord will auto-embed it
+- Example: "Check out our help center: https://help.propscholar.com" ✓
+- Wrong: "[Help Center](https://help.propscholar.com)" ✗
+
+SMART FOLLOW-UPS:
+- When relevant, suggest 1-2 related topics the user might want to know about
+- Only do this when it genuinely adds value, not for every response
+- Format: "By the way, you might also want to know about [topic]! Want me to explain?"
+- Examples: After explaining payouts → mention withdrawal process; After explaining rules → mention trading tips
+
 KNOWLEDGE BASE:
 {knowledge_base}
+
+{learned_corrections}
 
 Make every trader feel like they've got a friend on the inside who actually cares about their success 🚀`;
 
@@ -283,13 +298,55 @@ interface ReplyContext {
   authorName: string;
 }
 
+// Fetch learned corrections from training feedback for auto-learning
+async function getLearnedCorrections(
+  supabase: any,
+  userQuestion: string
+): Promise<string> {
+  try {
+    // Get corrected answers that have been reviewed
+    const { data: corrections, error } = await supabase
+      .from("training_feedback")
+      .select("question, corrected_answer")
+      .eq("is_correct", false)
+      .not("corrected_answer", "is", null)
+      .order("reviewed_at", { ascending: false })
+      .limit(20);
+
+    if (error || !corrections || corrections.length === 0) {
+      return "";
+    }
+
+    // Simple keyword matching to find relevant corrections
+    const userWords = userQuestion.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+    const relevantCorrections = corrections.filter((c: any) => {
+      const questionWords = c.question.toLowerCase();
+      return userWords.some((word: string) => questionWords.includes(word));
+    }).slice(0, 5);
+
+    if (relevantCorrections.length === 0) {
+      return "";
+    }
+
+    const correctionsText = relevantCorrections.map((c: any) => 
+      `Q: ${c.question}\nCorrect Answer: ${c.corrected_answer}`
+    ).join("\n\n");
+
+    return `\n\nLEARNED CORRECTIONS (Use these verified answers for similar questions):\n${correctionsText}`;
+  } catch (e) {
+    console.error("Error fetching learned corrections:", e);
+    return "";
+  }
+}
+
 async function getAIResponse(
   message: string,
   knowledgeContext: string,
   conversationHistory: ConversationMessage[] = [],
   userName?: string,
   repliedTo?: ReplyContext,
-  userProfile?: DiscordUserProfile | null
+  userProfile?: DiscordUserProfile | null,
+  learnedCorrections: string = ""
 ): Promise<string> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
@@ -297,7 +354,9 @@ async function getAIResponse(
     return "I'm experiencing technical difficulties. Please try again later.";
   }
 
-  let systemPrompt = SYSTEM_PROMPT.replace("{knowledge_base}", knowledgeContext);
+  let systemPrompt = SYSTEM_PROMPT
+    .replace("{knowledge_base}", knowledgeContext)
+    .replace("{learned_corrections}", learnedCorrections);
   
   // Add user profile context
   if (userProfile) {
@@ -659,7 +718,10 @@ serve(async (req) => {
           // Get user's conversation history
           const userHistory = userId ? await getUserConversationHistory(supabase, userId) : [];
 
-          const aiResponse = await getAIResponse(String(question || ""), knowledgeContext, userHistory, userName, undefined, userProfile);
+          // Fetch learned corrections for auto-learning
+          const learnedCorrections = await getLearnedCorrections(supabase, String(question || ""));
+
+          const aiResponse = await getAIResponse(String(question || ""), knowledgeContext, userHistory, userName, undefined, userProfile, learnedCorrections);
 
           // Store conversation if we have user ID
           if (userId) {
@@ -801,7 +863,10 @@ serve(async (req) => {
           });
         }
         
-        const aiResponse = await getAIResponse(cleanContent, knowledgeContext, userHistory, userName, replyContext, userProfile);
+        // Fetch learned corrections for auto-learning
+        const learnedCorrections = await getLearnedCorrections(supabase, cleanContent);
+        
+        const aiResponse = await getAIResponse(cleanContent, knowledgeContext, userHistory, userName, replyContext, userProfile, learnedCorrections);
 
         await sendDiscordMessage(channelId, aiResponse, DISCORD_BOT_TOKEN, messageId);
 
@@ -870,7 +935,10 @@ serve(async (req) => {
           });
         }
         
-        const aiResponse = await getAIResponse(cleanContent, knowledgeContext, userHistory, userName, replyContext, userProfile);
+        // Fetch learned corrections for auto-learning
+        const learnedCorrections = await getLearnedCorrections(supabase, cleanContent);
+        
+        const aiResponse = await getAIResponse(cleanContent, knowledgeContext, userHistory, userName, replyContext, userProfile, learnedCorrections);
 
         await sendDiscordMessage(channelId, aiResponse, DISCORD_BOT_TOKEN, messageId);
 
@@ -947,7 +1015,10 @@ serve(async (req) => {
         authorName: repliedToMessage.author?.username || "Unknown User"
       } : undefined;
 
-      const aiResponse = await getAIResponse(content, knowledgeContext, userHistory, userName, replyContext, userProfile);
+      // Fetch learned corrections for auto-learning
+      const learnedCorrections = await getLearnedCorrections(supabase, content);
+
+      const aiResponse = await getAIResponse(content, knowledgeContext, userHistory, userName, replyContext, userProfile, learnedCorrections);
       await sendDiscordMessage(channelId, aiResponse, DISCORD_BOT_TOKEN, messageId);
 
       // Store in user-specific chat history
@@ -1030,13 +1101,17 @@ serve(async (req) => {
           }
         : undefined;
 
+      // Fetch learned corrections for auto-learning
+      const learnedCorrections = await getLearnedCorrections(supabase, message);
+
       const aiResponse = await getAIResponse(
         message,
         knowledgeContext,
         userHistory,
         username,
         replyContext,
-        userProfile
+        userProfile,
+        learnedCorrections
       );
 
       // Store conversation for memory
@@ -1067,7 +1142,10 @@ serve(async (req) => {
         ? knowledgeEntries.map(e => `[${e.category.toUpperCase()}] ${e.title}:\n${e.content}`).join("\n\n---\n\n")
         : "No knowledge base entries available.";
 
-      const aiResponse = await getAIResponse(testMessage, knowledgeContext);
+      // Fetch learned corrections for auto-learning
+      const learnedCorrections = await getLearnedCorrections(supabase, testMessage);
+
+      const aiResponse = await getAIResponse(testMessage, knowledgeContext, [], undefined, undefined, undefined, learnedCorrections);
 
       return new Response(
         JSON.stringify({ success: true, question: testMessage, response: aiResponse }),
