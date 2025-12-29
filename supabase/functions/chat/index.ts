@@ -81,17 +81,8 @@ serve(async (req) => {
 
     const systemPromptWithKnowledge = SYSTEM_PROMPT.replace("{knowledge_base}", knowledgeContext);
 
-    // Store user message in chat history
-    if (sessionId && messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage.role === "user") {
-        await supabase.from("chat_history").insert({
-          session_id: sessionId,
-          role: "user",
-          content: lastMessage.content,
-        });
-      }
-    }
+    // Note: Chat history storage is handled by the frontend useChat hook
+    // to avoid duplicate entries
 
     console.log("Sending request to Lovable AI Gateway...");
 

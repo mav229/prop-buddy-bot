@@ -1,5 +1,6 @@
 import { Bot, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ReactMarkdown from "react-markdown";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
@@ -34,14 +35,19 @@ export const ChatMessage = ({ role, content, isStreaming }: ChatMessageProps) =>
           isUser ? "chat-bubble-user" : "chat-bubble-assistant"
         )}
       >
-        {content || (isStreaming && (
+        {!content && isStreaming ? (
           <div className="flex gap-1">
             <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-typing-dot-1" />
             <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-typing-dot-2" />
             <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-typing-dot-3" />
           </div>
-        ))}
-        <span className="whitespace-pre-wrap">{content}</span>
+        ) : isUser ? (
+          <span className="whitespace-pre-wrap">{content}</span>
+        ) : (
+          <div className="prose prose-sm prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2 prose-pre:bg-background/50 prose-pre:border prose-pre:border-border/50 prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none">
+            <ReactMarkdown>{content}</ReactMarkdown>
+          </div>
+        )}
       </div>
     </div>
   );

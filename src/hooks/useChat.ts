@@ -110,8 +110,16 @@ export const useChat = () => {
         }
       }
 
-      // Store assistant response in history
+      // Store both messages in history
       if (assistantContent) {
+        // Store user message
+        await supabase.from("chat_history").insert({
+          session_id: sessionIdRef.current,
+          role: "user",
+          content: content.trim(),
+        });
+
+        // Store assistant response
         await supabase.from("chat_history").insert({
           session_id: sessionIdRef.current,
           role: "assistant",
@@ -122,7 +130,7 @@ export const useChat = () => {
         await supabase.from("training_feedback").insert({
           question: content.trim(),
           bot_answer: assistantContent,
-          confidence: 0.85, // Default confidence
+          confidence: 0.85,
           session_id: sessionIdRef.current,
         });
       }
