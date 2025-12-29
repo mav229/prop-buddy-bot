@@ -17,13 +17,21 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   // In widget mode we start minimized (bubble) and expand on click.
   const [isMinimized, setIsMinimized] = useState<boolean>(isWidget);
 
+  const inIframe = (() => {
+    try {
+      return window.self !== window.top;
+    } catch {
+      return true;
+    }
+  })();
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   // Tell the parent page to resize the iframe when we expand/minimize.
   useEffect(() => {
-    if (!isWidget) return;
+    if (!isWidget || !inIframe) return;
     try {
       window.parent?.postMessage(
         {
@@ -35,29 +43,42 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     } catch {
       // ignore cross-origin errors
     }
-  }, [isMinimized, isWidget]);
+  }, [isMinimized, isWidget, inIframe]);
 
-  // Widget mode - floating bubble
+  // Widget mode - minimized bubble
   if (isWidget && isMinimized) {
+    // When embedded, the iframe itself is already sized to the bubble.
+    // When previewed as a full page (/widget), render a floating bubble bottom-right.
+    const bubbleClass = inIframe
+      ? "w-full h-full"
+      : "fixed bottom-4 right-4 w-20 h-20 z-50";
+
     return (
       <button
+        type="button"
+        aria-label="Open Scholaris AI chat widget"
         onClick={() => setIsMinimized(false)}
-        className="fixed bottom-4 right-4 w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent shadow-2xl hover:scale-110 transition-transform duration-300 flex items-center justify-center z-50 animate-pulse-glow"
+        className={`${bubbleClass} rounded-full overflow-hidden bg-gradient-to-br from-primary to-accent shadow-2xl transition-transform duration-300 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center`}
       >
         <img
           src={scholarisLogo}
-          alt="Scholaris"
-          className="w-12 h-12 rounded-full object-cover"
+          alt="Scholaris AI chat widget logo"
+          className="w-[70%] h-[70%] rounded-full object-cover"
+          draggable={false}
         />
       </button>
     );
   }
 
+  const widgetFloatingFrame = isWidget && !inIframe;
+
   return (
     <div
       className={`flex flex-col bg-background ${
         isWidget
-          ? "w-full h-full rounded-2xl shadow-2xl border border-border/50 overflow-hidden"
+          ? widgetFloatingFrame
+            ? "fixed bottom-4 right-4 w-[384px] h-[600px] rounded-2xl shadow-2xl border border-border/50 overflow-hidden z-50"
+            : "w-full h-full rounded-2xl shadow-2xl border border-border/50 overflow-hidden"
           : "h-screen"
       }`}
     >

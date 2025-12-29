@@ -58,6 +58,8 @@ export const EmbedCustomization = () => {
     iframe.style.overflow = 'hidden';
     iframe.style.borderRadius = '999px';
     iframe.style.background = 'transparent';
+    iframe.style.pointerEvents = 'auto';
+    iframe.style.display = 'block';
     iframe.style.boxShadow = '0 25px 50px -12px rgba(0,0,0,0.35)';
     iframe.style.transition = 'width 220ms ease, height 220ms ease, border-radius 220ms ease, box-shadow 220ms ease';
 
