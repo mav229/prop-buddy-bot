@@ -79,7 +79,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         type="button"
         aria-label="Open Scholaris AI chat widget"
         onClick={() => setIsMinimized(false)}
-        className={`${bubbleClass} cursor-pointer touch-manipulation select-none rounded-full overflow-hidden shadow-lg transition-all duration-300 hover:scale-110 hover:shadow-xl active:scale-95 flex items-center justify-center animate-[soft-pulse_3s_ease-in-out_infinite]`}
+        className={`${bubbleClass} cursor-pointer touch-manipulation select-none rounded-full overflow-hidden transition-all duration-300 hover:scale-110 hover:shadow-xl active:scale-95 flex items-center justify-center animate-[soft-pulse_5s_ease-in-out_infinite]`}
       >
         <img
           src={scholarisLogo}
