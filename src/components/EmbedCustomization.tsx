@@ -19,22 +19,24 @@ export const EmbedCustomization = () => {
     customDomain: "",
   });
 
-  // Use custom domain if set, otherwise fall back to current origin
-  const baseUrl = config.customDomain.trim() || window.location.origin;
+  const previewUrl = window.location.origin;
+
+  // Host URL used in the embed code (production/custom domain). Preview links below always use the current app URL.
+  const hostUrl = (config.customDomain.trim() || previewUrl).replace(/\/+$/, "");
 
   const iframeCode = `<iframe 
-  src="${baseUrl}/embed" 
+  src="${hostUrl}/embed" 
   width="100%" 
   height="${config.height}px" 
   frameborder="0"
   style="border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);"
-></iframe>`;
+  ></iframe>`;
 
   const widgetCode = `<!-- Scholaris Chat Widget -->
 <script>
   (function() {
     var iframe = document.createElement('iframe');
-    iframe.src = '${baseUrl}/widget';
+    iframe.src = '${hostUrl}/widget';
     iframe.style.cssText = 'position:fixed;bottom:0;right:0;width:100%;height:100%;border:none;z-index:2147483647;pointer-events:none;';
     iframe.allow = 'clipboard-write';
     document.body.appendChild(iframe);
@@ -65,7 +67,7 @@ export const EmbedCustomization = () => {
           </p>
         </div>
         <a 
-          href={`${baseUrl}/embed`} 
+          href={`${previewUrl}/embed`} 
           target="_blank" 
           rel="noopener noreferrer"
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -255,7 +257,7 @@ export const EmbedCustomization = () => {
       {/* Quick Links */}
       <div className="grid sm:grid-cols-2 gap-4">
         <a 
-          href={`${baseUrl}/embed`}
+          href={`${previewUrl}/embed`}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-3 p-4 rounded-xl border border-border/50 bg-card/30 hover:bg-card/50 transition-colors"
@@ -264,13 +266,13 @@ export const EmbedCustomization = () => {
             <Layout className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <p className="font-medium text-sm">Full Page Embed</p>
-            <p className="text-xs text-muted-foreground">{baseUrl}/embed</p>
+            <p className="font-medium text-sm">Full Page Embed (Preview)</p>
+            <p className="text-xs text-muted-foreground">{previewUrl}/embed</p>
           </div>
           <ExternalLink className="w-4 h-4 ml-auto text-muted-foreground" />
         </a>
         <a 
-          href={`${baseUrl}/widget`}
+          href={`${previewUrl}/widget`}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-3 p-4 rounded-xl border border-border/50 bg-card/30 hover:bg-card/50 transition-colors"
@@ -280,7 +282,7 @@ export const EmbedCustomization = () => {
           </div>
           <div>
             <p className="font-medium text-sm">Widget Preview</p>
-            <p className="text-xs text-muted-foreground">{baseUrl}/widget</p>
+            <p className="text-xs text-muted-foreground">{previewUrl}/widget</p>
           </div>
           <ExternalLink className="w-4 h-4 ml-auto text-muted-foreground" />
         </a>
