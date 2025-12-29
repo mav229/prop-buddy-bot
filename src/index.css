@@ -233,46 +233,144 @@
   }
 }
 
-/* Soft pulse animation for widget bubble - very slow and smooth */
-@keyframes soft-pulse {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.03);
-    opacity: 0.95;
-  }
+/* ===== PREMIUM FINTECH LAUNCHER ANIMATIONS ===== */
+
+/* Launcher icon glow on hover */
+.launcher-glow {
+  background: radial-gradient(circle, rgba(0, 122, 255, 0.4) 0%, transparent 70%);
+  transition: opacity 0.2s ease-out;
 }
 
-.animate-soft-pulse {
-  animation: soft-pulse 4s ease-in-out infinite;
+.launcher-icon:active .launcher-glow {
+  background: radial-gradient(circle, rgba(0, 122, 255, 0.2) 0%, transparent 60%);
 }
 
-/* Chat open bounce animation - smooth spring effect */
-@keyframes chat-open {
+/* === PANEL OPEN ANIMATION === */
+/* Morph & elevate from icon position */
+@keyframes panel-open-anim {
   0% {
     opacity: 0;
-    transform: scale(0.8) translateY(40px);
+    transform: scale(0.4) translateY(280px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   }
-  40% {
+  60% {
     opacity: 1;
-    transform: scale(1.04) translateY(-8px);
-  }
-  65% {
-    transform: scale(0.97) translateY(3px);
-  }
-  85% {
-    transform: scale(1.01) translateY(-1px);
+    transform: scale(1) translateY(-10px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
   }
   100% {
     opacity: 1;
     transform: scale(1) translateY(0);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.14);
   }
 }
 
-.animate-chat-open {
-  animation: chat-open 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+.panel-open {
+  animation: panel-open-anim 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* === PANEL CLOSE ANIMATION === */
+@keyframes panel-close-anim {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.14);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.4) translateY(280px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  }
+}
+
+.panel-close {
+  animation: panel-close-anim 0.26s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* === CONTENT STAGGER - OPEN === */
+/* Header appears first */
+@keyframes content-fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.content-open-first {
+  opacity: 0;
+  animation: content-fade-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: 0.12s;
+}
+
+/* Message area appears second */
+.content-open-middle {
+  opacity: 0;
+  animation: content-fade-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: 0.2s;
+}
+
+/* Input field appears last with subtle glow */
+.content-open-last {
+  opacity: 0;
+  animation: content-fade-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: 0.28s;
+}
+
+/* Input underline glow effect */
+.input-glow-line {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%) scaleX(0);
+  width: 60%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 122, 255, 0.4), transparent);
+  animation: input-glow 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: 0.36s;
+}
+
+@keyframes input-glow {
+  0% {
+    transform: translateX(-50%) scaleX(0);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(-50%) scaleX(1);
+    opacity: 1;
+  }
+}
+
+/* === CONTENT STAGGER - CLOSE === */
+/* Input fades first */
+@keyframes content-fade-out {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.content-close-first {
+  animation: content-fade-out 0.12s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Message area follows */
+.content-close-middle {
+  animation: content-fade-out 0.12s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation-delay: 0.06s;
+}
+
+/* Header fades last */
+.content-close-last {
+  animation: content-fade-out 0.12s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation-delay: 0.12s;
 }
 
 @keyframes float {
