@@ -120,15 +120,16 @@ export function WidgetTestEmbed() {
     nudge.appendChild(nudgeClose);
     document.body.appendChild(nudge);
 
-    let nudgeTimer: number | null = null;
+    // Timer for notification nudge
+    let nudgeTimer: number | undefined;
     const NUDGE_KEY = "scholaris_nudge_dismissed_session";
 
     function hideNudge() {
       nudge.style.opacity = "0";
       nudge.style.transform = "translateY(10px)";
       setTimeout(() => { nudge.style.display = "none"; }, 300);
-      if (nudgeTimer) window.clearTimeout(nudgeTimer);
-      nudgeTimer = null;
+      if (nudgeTimer !== undefined) window.clearTimeout(nudgeTimer);
+      nudgeTimer = undefined;
     }
 
     function showNudge() {
@@ -142,7 +143,7 @@ export function WidgetTestEmbed() {
 
     function scheduleNudge() {
       if (sessionStorage.getItem(NUDGE_KEY) === "1") return;
-      if (nudgeTimer) return;
+      if (nudgeTimer !== undefined) return;
       nudgeTimer = window.setTimeout(() => {
         if (!isExpanded) showNudge();
       }, 20000);
@@ -256,7 +257,7 @@ export function WidgetTestEmbed() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("message", onMessage);
       overlay.removeEventListener("click", onOverlayClick);
-      if (nudgeTimer) window.clearTimeout(nudgeTimer);
+      if (nudgeTimer !== undefined) window.clearTimeout(nudgeTimer);
       nudge.remove();
       container.remove();
     };
