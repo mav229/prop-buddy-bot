@@ -2,82 +2,93 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
 
 @layer base {
   :root {
-    /* Monochrome Noir Theme - Sleek Black & White */
-    --background: 0 0% 4%;
-    --foreground: 0 0% 95%;
+    /* Apple-Inspired Blue & White Theme */
+    --background: 220 20% 97%;
+    --foreground: 220 20% 10%;
 
-    --card: 0 0% 7%;
-    --card-foreground: 0 0% 95%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 10%;
 
-    --popover: 0 0% 9%;
-    --popover-foreground: 0 0% 95%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 10%;
 
-    /* Pure White Primary */
-    --primary: 0 0% 95%;
-    --primary-foreground: 0 0% 4%;
+    /* Apple Blue Primary */
+    --primary: 211 100% 50%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Subtle Gray Secondary */
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 95%;
+    /* Soft Gray Secondary */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 20% 25%;
 
-    --muted: 0 0% 10%;
-    --muted-foreground: 0 0% 55%;
+    --muted: 220 14% 92%;
+    --muted-foreground: 220 10% 45%;
 
-    /* Soft White Accent */
-    --accent: 0 0% 85%;
-    --accent-foreground: 0 0% 4%;
+    /* Light Blue Accent */
+    --accent: 211 100% 95%;
+    --accent-foreground: 211 100% 35%;
 
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 15%;
-    --input: 0 0% 15%;
-    --ring: 0 0% 95%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 211 100% 50%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
     /* Custom tokens */
-    --glow-primary: 0 0% 95%;
-    --glow-accent: 0 0% 75%;
-    --surface-glass: 0 0% 8%;
-    --text-bright: 0 0% 98%;
+    --glow-primary: 211 100% 50%;
+    --glow-accent: 211 100% 70%;
+    --surface-glass: 0 0% 100%;
+    --text-bright: 220 20% 10%;
     --success: 142 76% 46%;
     --warning: 38 92% 50%;
 
-    --sidebar-background: 0 0% 5%;
-    --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 0 0% 95%;
-    --sidebar-primary-foreground: 0 0% 4%;
-    --sidebar-accent: 0 0% 12%;
-    --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 0 0% 12%;
-    --sidebar-ring: 0 0% 95%;
+    --sidebar-background: 220 20% 98%;
+    --sidebar-foreground: 220 20% 10%;
+    --sidebar-primary: 211 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 220 20% 25%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 211 100% 50%;
+
+    /* Widget-specific tokens */
+    --widget-bg: 0 0% 100%;
+    --widget-header: 211 100% 50%;
+    --widget-bubble-user: 211 100% 50%;
+    --widget-bubble-assistant: 220 14% 96%;
   }
 
   .dark {
-    --background: 0 0% 4%;
+    --background: 220 20% 6%;
     --foreground: 0 0% 95%;
-    --card: 0 0% 7%;
+    --card: 220 20% 9%;
     --card-foreground: 0 0% 95%;
-    --popover: 0 0% 9%;
+    --popover: 220 20% 9%;
     --popover-foreground: 0 0% 95%;
-    --primary: 0 0% 95%;
-    --primary-foreground: 0 0% 4%;
-    --secondary: 0 0% 12%;
+    --primary: 211 100% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 15%;
     --secondary-foreground: 0 0% 95%;
-    --muted: 0 0% 10%;
-    --muted-foreground: 0 0% 55%;
-    --accent: 0 0% 85%;
-    --accent-foreground: 0 0% 4%;
+    --muted: 220 14% 12%;
+    --muted-foreground: 220 10% 55%;
+    --accent: 211 100% 20%;
+    --accent-foreground: 211 100% 85%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 15%;
-    --input: 0 0% 15%;
-    --ring: 0 0% 95%;
+    --border: 220 13% 18%;
+    --input: 220 13% 18%;
+    --ring: 211 100% 55%;
+
+    --widget-bg: 220 20% 8%;
+    --widget-header: 211 100% 45%;
+    --widget-bubble-user: 211 100% 45%;
+    --widget-bubble-assistant: 220 14% 15%;
   }
 }
 
@@ -96,39 +107,37 @@
   body {
     margin: 0;
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, sans-serif;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Outfit', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
   }
 }
 
 @layer components {
   .glass-panel {
-    @apply bg-card backdrop-blur-xl border border-border rounded-xl;
+    @apply bg-card/80 backdrop-blur-xl border border-border/50 rounded-2xl shadow-sm;
   }
 
   .glass-panel-subtle {
-    @apply bg-card/50 backdrop-blur-md border border-border/50 rounded-lg;
+    @apply bg-card/50 backdrop-blur-md border border-border/30 rounded-xl;
   }
 
   .glow-primary {
-    box-shadow: 0 0 30px -5px hsl(var(--primary) / 0.3),
-                0 0 60px -10px hsl(var(--primary) / 0.2);
+    box-shadow: 0 4px 24px -4px hsl(var(--primary) / 0.25),
+                0 8px 48px -8px hsl(var(--primary) / 0.15);
   }
 
   .glow-accent {
-    box-shadow: 0 0 30px -5px hsl(var(--accent) / 0.3),
-                0 0 60px -10px hsl(var(--accent) / 0.2);
+    box-shadow: 0 4px 24px -4px hsl(var(--accent) / 0.3),
+                0 8px 48px -8px hsl(var(--accent) / 0.2);
   }
 
   .text-gradient-primary {
-    @apply bg-gradient-to-r from-primary via-primary/80 to-accent bg-clip-text text-transparent;
-  }
-
-  .text-gradient-gold {
-    @apply bg-gradient-to-r from-accent via-yellow-400 to-accent bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-primary via-blue-500 to-blue-400 bg-clip-text text-transparent;
   }
 
   .animate-float {
@@ -140,19 +149,45 @@
   }
 
   .animate-fade-in {
-    animation: fade-in 0.5s ease-out forwards;
+    animation: fade-in 0.4s ease-out forwards;
   }
 
   .animate-slide-up {
-    animation: slide-up 0.6s ease-out forwards;
+    animation: slide-up 0.5s ease-out forwards;
   }
 
+  /* Apple-style chat bubbles */
   .chat-bubble-user {
-    @apply bg-primary/20 border border-primary/30 text-foreground rounded-2xl rounded-br-md;
+    @apply bg-primary text-primary-foreground rounded-[20px] rounded-br-md shadow-sm;
   }
 
   .chat-bubble-assistant {
-    @apply bg-secondary border border-border text-foreground rounded-2xl rounded-bl-md;
+    @apply bg-secondary text-secondary-foreground rounded-[20px] rounded-bl-md shadow-sm;
+  }
+
+  /* Skeleton loading */
+  .skeleton {
+    @apply bg-gradient-to-r from-muted via-muted/60 to-muted bg-[length:200%_100%] animate-shimmer rounded-lg;
+  }
+
+  /* Apple-style button */
+  .apple-button {
+    @apply bg-primary text-primary-foreground font-medium rounded-full px-6 py-2.5 
+           shadow-sm hover:shadow-md transition-all duration-200 
+           hover:brightness-105 active:scale-[0.98];
+  }
+
+  /* Widget container */
+  .widget-container {
+    @apply bg-[hsl(var(--widget-bg))] rounded-[28px] shadow-2xl 
+           border border-border/20 overflow-hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15),
+                0 12px 24px -8px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Widget header */
+  .widget-header {
+    @apply bg-gradient-to-r from-primary to-blue-500 px-5 py-4;
   }
 }
 
@@ -188,9 +223,11 @@
 @keyframes fade-in {
   from {
     opacity: 0;
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -202,5 +239,14 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
   }
 }
