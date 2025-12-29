@@ -4,7 +4,6 @@ import { useChat } from "@/hooks/useChat";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { ChatSkeleton } from "./ChatSkeleton";
-import { Button } from "@/components/ui/button";
 import scholarisLogo from "@/assets/scholaris-logo.png";
 
 interface EmbeddableChatProps {
@@ -80,7 +79,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         type="button"
         aria-label="Open Scholaris AI chat widget"
         onClick={() => setIsMinimized(false)}
-        className={`${bubbleClass} cursor-pointer touch-manipulation select-none rounded-full overflow-hidden bg-gradient-to-br from-primary to-blue-600 shadow-xl transition-all duration-300 hover:scale-105 hover:shadow-2xl active:scale-95 flex items-center justify-center group`}
+        className={`${bubbleClass} cursor-pointer touch-manipulation select-none rounded-full overflow-hidden bg-gradient-to-br from-[#007AFF] to-[#0056CC] shadow-xl transition-all duration-300 hover:scale-105 hover:shadow-2xl active:scale-95 flex items-center justify-center group`}
       >
         <img
           src={scholarisLogo}
@@ -104,7 +103,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
           : "h-screen bg-background"
       }`}
     >
-      {/* Header - Clean Apple style */}
+      {/* Header - Clean Apple style blue */}
       <header className="flex-shrink-0 widget-header">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -116,7 +115,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
               />
             </div>
             <div>
-              <h1 className="text-[17px] font-semibold text-white tracking-tight">
+              <h1 className="text-[17px] font-semibold text-white tracking-tight" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, SF Pro Display, system-ui, sans-serif' }}>
                 Scholaris AI
               </h1>
               <div className="flex items-center gap-1.5">
@@ -127,48 +126,47 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
           </div>
 
           <div className="flex items-center gap-0.5">
-            <Button
-              variant="ghost"
-              size="icon"
+            <button
               onClick={clearChat}
               title="New chat"
-              className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/15 rounded-full transition-colors"
+              className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/15 rounded-full transition-colors flex items-center justify-center"
             >
               <RefreshCw className="w-[18px] h-[18px]" />
-            </Button>
+            </button>
             {isWidget && (
-              <Button
-                variant="ghost"
-                size="icon"
+              <button
                 onClick={() => setIsMinimized(true)}
                 title="Close"
-                className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/15 rounded-full transition-colors"
+                className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/15 rounded-full transition-colors flex items-center justify-center"
               >
                 <X className="w-[18px] h-[18px]" />
-              </Button>
+              </button>
             )}
           </div>
         </div>
       </header>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-5 scrollbar-hide bg-gradient-to-b from-background to-secondary/30">
+      {/* Messages - Light background for widget */}
+      <div 
+        className="flex-1 overflow-y-auto px-4 py-5 scrollbar-hide"
+        style={{ background: 'linear-gradient(to bottom, hsl(220 20% 97%), hsl(220 14% 94%))' }}
+      >
         <div className="space-y-4">
           {!isReady ? (
             <ChatSkeleton />
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-center animate-fade-in">
-              <div className="w-20 h-20 rounded-full overflow-hidden bg-gradient-to-br from-primary/20 to-blue-100 p-1 shadow-lg shadow-primary/10 mb-5">
+              <div className="w-20 h-20 rounded-full overflow-hidden bg-gradient-to-br from-[#007AFF]/20 to-blue-100 p-1 shadow-lg shadow-blue-500/10 mb-5">
                 <img
                   src={scholarisLogo}
                   alt="Scholaris"
                   className="w-full h-full rounded-full object-cover"
                 />
               </div>
-              <h2 className="text-xl font-semibold text-foreground mb-2 tracking-tight">
+              <h2 className="text-xl font-semibold text-gray-900 mb-2 tracking-tight" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, SF Pro Display, system-ui, sans-serif' }}>
                 Hey! I'm Scholaris 👋
               </h2>
-              <p className="text-muted-foreground text-[15px] max-w-[280px] mb-6 leading-relaxed">
+              <p className="text-gray-500 text-[15px] max-w-[280px] mb-6 leading-relaxed">
                 Your AI assistant for PropScholar. Ask me anything about evaluations, payouts, or trading.
               </p>
               <div className="grid grid-cols-1 gap-2.5 w-full max-w-[300px]">
@@ -180,10 +178,10 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                   <button
                     key={suggestion}
                     onClick={() => sendMessage(suggestion)}
-                    className="px-4 py-3 text-[14px] text-left rounded-2xl bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium transition-all duration-200 border border-border/50 hover:border-primary/30 hover:shadow-sm active:scale-[0.98] flex items-center gap-3"
+                    className="widget-suggestion px-4 py-3 text-[14px] text-left font-medium flex items-center gap-3 active:scale-[0.98]"
                   >
-                    <MessageCircle className="w-4 h-4 text-primary flex-shrink-0" />
-                    {suggestion}
+                    <MessageCircle className="w-4 h-4 text-[#007AFF] flex-shrink-0" />
+                    <span className="text-gray-700">{suggestion}</span>
                   </button>
                 ))}
               </div>
@@ -200,13 +198,14 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                     index === messages.length - 1 &&
                     message.role === "assistant"
                   }
+                  isWidget={true}
                 />
               ))}
             </>
           )}
 
           {error && (
-            <div className="bg-destructive/10 border border-destructive/20 text-destructive rounded-2xl px-4 py-3 text-sm font-medium">
+            <div className="bg-red-50 border border-red-200 text-red-600 rounded-2xl px-4 py-3 text-sm font-medium">
               {error}
             </div>
           )}
@@ -216,9 +215,9 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       </div>
 
       {/* Input */}
-      <div className="flex-shrink-0 px-4 pb-4 pt-3 bg-background border-t border-border/50">
-        <ChatInput onSend={sendMessage} isLoading={isLoading} />
-        <p className="text-[11px] text-muted-foreground text-center mt-2.5 font-medium">
+      <div className="flex-shrink-0 px-4 pb-4 pt-3 widget-input">
+        <ChatInput onSend={sendMessage} isLoading={isLoading} isWidget={true} />
+        <p className="text-[11px] text-gray-400 text-center mt-2.5 font-medium">
           Powered by Scholaris AI
         </p>
       </div>

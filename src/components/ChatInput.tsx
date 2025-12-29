@@ -1,14 +1,16 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
   isLoading: boolean;
   disabled?: boolean;
+  isWidget?: boolean;
 }
 
-export const ChatInput = ({ onSend, isLoading, disabled }: ChatInputProps) => {
+export const ChatInput = ({ onSend, isLoading, disabled, isWidget = false }: ChatInputProps) => {
   const [input, setInput] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -36,7 +38,12 @@ export const ChatInput = ({ onSend, isLoading, disabled }: ChatInputProps) => {
 
   return (
     <form onSubmit={handleSubmit} className="relative">
-      <div className="glass-panel p-2 flex items-end gap-2">
+      <div className={cn(
+        "p-2 flex items-end gap-2 rounded-2xl",
+        isWidget 
+          ? "bg-white border border-gray-200 shadow-sm" 
+          : "glass-panel"
+      )}>
         <textarea
           ref={textareaRef}
           value={input}
@@ -45,14 +52,24 @@ export const ChatInput = ({ onSend, isLoading, disabled }: ChatInputProps) => {
           placeholder="Ask PropScholar AI a question..."
           disabled={isLoading || disabled}
           rows={1}
-          className="flex-1 bg-transparent border-0 resize-none focus:ring-0 focus:outline-none text-foreground placeholder:text-muted-foreground px-3 py-2 max-h-36 scrollbar-hide"
+          className={cn(
+            "flex-1 bg-transparent border-0 resize-none focus:ring-0 focus:outline-none px-3 py-2 max-h-36 scrollbar-hide",
+            isWidget 
+              ? "text-gray-900 placeholder:text-gray-400" 
+              : "text-foreground placeholder:text-muted-foreground"
+          )}
         />
         <Button
           type="submit"
           size="icon"
-          variant="premium"
           disabled={!input.trim() || isLoading || disabled}
-          className="flex-shrink-0"
+          className={cn(
+            "flex-shrink-0 rounded-xl",
+            isWidget 
+              ? "bg-[#007AFF] hover:bg-[#0056CC] text-white shadow-sm" 
+              : ""
+          )}
+          variant={isWidget ? undefined : "premium"}
         >
           {isLoading ? (
             <Loader2 className="w-4 h-4 animate-spin" />
