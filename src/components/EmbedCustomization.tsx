@@ -40,51 +40,114 @@ export const EmbedCustomization = () => {
     try { allowedOrigin = new URL(host).origin; } catch (e) { allowedOrigin = ''; }
 
     var bubbleSize = 80;
-    var expandedW = parseInt('${config.width}', 10) || 384;
-    var expandedH = parseInt('${config.height}', 10) || 600;
+    var requestedW = parseInt('${config.width}', 10) || 384;
+    var requestedH = parseInt('${config.height}', 10) || 600;
+
+    // Mobile-friendly sizing (cap to viewport)
+    function calcExpandedW() {
+      var maxW = Math.max(280, Math.floor(window.innerWidth * 0.92));
+      return Math.min(requestedW, maxW);
+    }
+    function calcExpandedH() {
+      var maxH = Math.max(360, Math.floor(window.innerHeight * 0.82));
+      return Math.min(requestedH, maxH);
+    }
+
+    var container = document.createElement('div');
+    container.style.position = 'fixed';
+    container.style.right = 'calc(16px + env(safe-area-inset-right))';
+    container.style.bottom = 'calc(16px + env(safe-area-inset-bottom))';
+    container.style.width = bubbleSize + 'px';
+    container.style.height = bubbleSize + 'px';
+    container.style.zIndex = '2147483647';
 
     var iframe = document.createElement('iframe');
     iframe.src = host + '/widget';
     iframe.allow = 'clipboard-write';
     iframe.title = 'Scholaris chat widget';
 
-    iframe.style.position = 'fixed';
-    iframe.style.right = '16px';
-    iframe.style.bottom = '16px';
-    iframe.style.width = bubbleSize + 'px';
-    iframe.style.height = bubbleSize + 'px';
+    iframe.style.width = '100%';
+    iframe.style.height = '100%';
     iframe.style.border = 'none';
-    iframe.style.zIndex = '2147483647';
+    iframe.style.display = 'block';
     iframe.style.overflow = 'hidden';
     iframe.style.borderRadius = '999px';
     iframe.style.background = 'transparent';
-    iframe.style.pointerEvents = 'auto';
-    iframe.style.display = 'block';
+    // While minimized, we capture taps with an overlay button for maximum reliability.
+    iframe.style.pointerEvents = 'none';
     iframe.style.boxShadow = '0 25px 50px -12px rgba(0,0,0,0.35)';
-    iframe.style.transition = 'width 220ms ease, height 220ms ease, border-radius 220ms ease, box-shadow 220ms ease';
+    iframe.style.transition = 'border-radius 220ms ease, box-shadow 220ms ease';
 
-    document.body.appendChild(iframe);
+    var overlay = document.createElement('button');
+    overlay.type = 'button';
+    overlay.setAttribute('aria-label', 'Open chat');
+    overlay.style.position = 'absolute';
+    overlay.style.inset = '0';
+    overlay.style.border = 'none';
+    overlay.style.padding = '0';
+    overlay.style.margin = '0';
+    overlay.style.background = 'transparent';
+    overlay.style.cursor = 'pointer';
+    overlay.style.borderRadius = '999px';
+    overlay.style.pointerEvents = 'auto';
+    overlay.style.touchAction = 'manipulation';
 
-    function setExpanded(isExpanded) {
+    container.appendChild(iframe);
+    container.appendChild(overlay);
+    document.body.appendChild(container);
+
+    var isExpanded = false;
+
+    function postToWidget(action) {
+      try {
+        var target = allowedOrigin || '*';
+        iframe.contentWindow && iframe.contentWindow.postMessage({ type: 'scholaris:host', action: action }, target);
+      } catch (e) {}
+    }
+
+    function applyExpandedStyles(expand) {
+      isExpanded = !!expand;
+
       if (isExpanded) {
-        iframe.style.width = expandedW + 'px';
-        iframe.style.height = expandedH + 'px';
+        var w = calcExpandedW();
+        var h = calcExpandedH();
+        container.style.width = w + 'px';
+        container.style.height = h + 'px';
         iframe.style.borderRadius = '16px';
         iframe.style.boxShadow = '0 25px 60px -18px rgba(0,0,0,0.5)';
+        iframe.style.pointerEvents = 'auto';
+        overlay.style.display = 'none';
+        postToWidget('expand');
       } else {
-        iframe.style.width = bubbleSize + 'px';
-        iframe.style.height = bubbleSize + 'px';
+        container.style.width = bubbleSize + 'px';
+        container.style.height = bubbleSize + 'px';
         iframe.style.borderRadius = '999px';
         iframe.style.boxShadow = '0 25px 50px -12px rgba(0,0,0,0.35)';
+        iframe.style.pointerEvents = 'none';
+        overlay.style.display = 'block';
+        postToWidget('minimize');
       }
     }
+
+    overlay.addEventListener('click', function() {
+      applyExpandedStyles(true);
+    });
+
+    window.addEventListener('resize', function() {
+      if (!isExpanded) return;
+      // Keep expanded widget within the viewport on orientation changes.
+      applyExpandedStyles(true);
+    });
 
     window.addEventListener('message', function(e) {
       if (!e || !e.data || e.data.type !== 'scholaris:widget') return;
       if (allowedOrigin && e.origin && e.origin !== allowedOrigin) return;
-      if (e.data.action === 'expanded') setExpanded(true);
-      if (e.data.action === 'minimized') setExpanded(false);
+      if (e.data.action === 'expanded') applyExpandedStyles(true);
+      if (e.data.action === 'minimized') applyExpandedStyles(false);
     });
+
+    // initial
+    applyExpandedStyles(false);
   })();
 </script>`;
 
