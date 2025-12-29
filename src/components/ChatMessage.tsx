@@ -68,20 +68,20 @@ export const ChatMessage = ({ role, content, isStreaming, isWidget = false, time
       >
         <div
           className={cn(
-            "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center overflow-hidden shadow-sm",
+            "flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center overflow-hidden",
             isWidget
               ? isUser
-                ? "bg-gradient-to-br from-[#007AFF] to-[#0056CC]"
-                : "bg-gradient-to-br from-gray-100 to-gray-200"
+                ? "bg-gradient-to-br from-[#007AFF] to-[#0056CC] shadow-sm"
+                : "bg-transparent"
               : isUser
-                ? "bg-gradient-to-br from-primary to-accent"
-                : "bg-gradient-to-br from-secondary to-muted"
+                ? "bg-gradient-to-br from-primary to-accent shadow-sm"
+                : "bg-transparent"
           )}
         >
           {isUser ? (
             <User className={cn("w-4 h-4", isWidget ? "text-white" : "text-primary-foreground")} />
           ) : (
-            <img src={scholarisLogo} alt="Scholaris" className="w-full h-full object-cover" />
+            <img src={scholarisLogo} alt="Scholaris" className="w-full h-full object-cover rounded-xl" />
           )}
         </div>
 
