@@ -130,45 +130,25 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
           : "h-screen bg-background"
       }`}
     >
-      {/* Header - Dark blue gradient like FundedNext */}
-      <header className="flex-shrink-0 px-5 pt-5 pb-6 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1e3a5f 0%, #0f1c2e 50%, #0a1628 100%)' }}>
-        {/* Subtle gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-purple-500/5" />
-        
-        <div className="relative z-10">
-          {/* Top row - Logo and close */}
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-blue-400/20 to-blue-600/20 backdrop-blur-sm shadow-lg shadow-blue-500/20">
-                <img
-                  src={propscholarLogo}
-                  alt="PropScholar"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            </div>
-
-            {isWidget && (
-              <button
-                onClick={handleClose}
-                title="Close"
-                className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors flex items-center justify-center close-button"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            )}
-          </div>
-
-          {/* Greeting text */}
-          <div>
-            <h1 className="text-2xl font-semibold text-blue-200 mb-1" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, SF Pro Display, system-ui, sans-serif' }}>
-              Hello Trader! 👋
-            </h1>
-            <p className="text-xl font-semibold text-white" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, SF Pro Display, system-ui, sans-serif' }}>
-              How can I help?
-            </p>
-          </div>
+      {/* Header - Minimal with logo and close */}
+      <header className="flex-shrink-0 px-4 py-3 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #1e3a5f 0%, #0f1c2e 50%, #0a1628 100%)' }}>
+        <div className="w-10 h-10 rounded-xl overflow-hidden bg-gradient-to-br from-blue-400/20 to-blue-600/20 backdrop-blur-sm shadow-lg shadow-blue-500/20">
+          <img
+            src={propscholarLogo}
+            alt="PropScholar"
+            className="w-full h-full object-cover"
+          />
         </div>
+
+        {isWidget && (
+          <button
+            onClick={handleClose}
+            title="Close"
+            className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors flex items-center justify-center close-button"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
       </header>
 
       {/* Content Area */}
@@ -242,7 +222,10 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
               </div>
               <div className="flex-1">
                 <h3 className="text-[15px] font-semibold text-gray-900">Scholaris AI</h3>
-                <p className="text-[13px] text-gray-500">The team can also help</p>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-green-500 shadow-sm shadow-green-500/50" />
+                  <p className="text-[13px] text-gray-500">Online</p>
+                </div>
               </div>
               <button className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
                 <MoreHorizontal className="w-5 h-5" />
