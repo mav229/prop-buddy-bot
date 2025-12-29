@@ -195,8 +195,13 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
           <div>
             <div className="flex items-start justify-between mb-4">
               <div 
-                className="w-12 h-12 rounded-2xl overflow-hidden bg-white p-1.5"
-                style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
+                className="w-12 h-12 rounded-2xl overflow-hidden"
+                style={{ 
+                  background: 'linear-gradient(145deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
+                  backdropFilter: 'blur(8px)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  padding: '6px'
+                }}
               >
                 <img src={headerLogo} alt="Logo" className="w-full h-full object-contain" />
               </div>
@@ -217,7 +222,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       </header>
 
       {/* Content Area */}
-      <div className="flex-1 overflow-y-auto bg-white">
+      <div className="flex-1 overflow-y-auto bg-white scrollbar-premium">
         
         {/* HOME TAB */}
         {activeTab === "home" && (
