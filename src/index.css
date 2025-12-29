@@ -275,32 +275,9 @@
   transform: scale(0.96);
 }
 
-/* Subtle blue halo (kept inside iframe without scrollbars) */
+/* No glow ring - clean launcher */
 .launcher-glow-ring {
-  position: absolute;
-  inset: -4px;
-  border-radius: 9999px;
-  pointer-events: none;
-  z-index: 0;
-  box-shadow:
-    0 0 16px 3px hsl(var(--primary) / 0.28),
-    0 0 28px 8px hsl(var(--primary) / 0.12);
-}
-
-/* Notification bubble */
-.notification-bubble {
-  animation: bubble-appear 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-@keyframes bubble-appear {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  display: none;
 }
 
 /* Panel animations */
@@ -321,13 +298,19 @@
 }
 
 @keyframes panel-close {
-  from { opacity: 1; }
-  to { opacity: 0; }
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
 }
 
 .panel-close {
-  animation: panel-close 0.12s ease-out forwards;
-  will-change: opacity;
+  animation: panel-close 0.22s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  will-change: opacity, transform;
 }
 
 /* Premium button interactions */
