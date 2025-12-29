@@ -16,9 +16,11 @@ export const EmbedCustomization = () => {
     position: "bottom-right",
     width: "384",
     height: "600",
+    customDomain: "",
   });
 
-  const baseUrl = window.location.origin;
+  // Use custom domain if set, otherwise fall back to current origin
+  const baseUrl = config.customDomain.trim() || window.location.origin;
 
   const iframeCode = `<iframe 
   src="${baseUrl}/embed" 
@@ -84,6 +86,19 @@ export const EmbedCustomization = () => {
             <CardDescription>Configure your widget appearance</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="customDomain">Your Website URL</Label>
+              <Input
+                id="customDomain"
+                placeholder="https://yourdomain.com"
+                value={config.customDomain}
+                onChange={(e) => setConfig({ ...config, customDomain: e.target.value })}
+                className="bg-background/50"
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter your published website URL (e.g., https://yourdomain.com)
+              </p>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="botName">Bot Name</Label>
               <Input
