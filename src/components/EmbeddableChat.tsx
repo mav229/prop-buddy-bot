@@ -213,28 +213,30 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       ) : (
         /* Full greeting header when no messages */
         <header 
-          className="flex-shrink-0 px-5 pt-5 pb-8 relative overflow-hidden header-transition"
+          className="flex-shrink-0 px-5 pt-5 pb-6 relative overflow-hidden header-transition"
         >
-          {/* Decorative orbs for depth */}
+          {/* Subtle decorative orbs */}
           <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white/5 blur-2xl" />
-          <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full bg-blue-300/10 blur-xl" />
+          <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full bg-blue-200/10 blur-xl" />
           
           <div className="relative z-10">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-5">
               {config.showLogo && (
                 <div 
-                  className="overflow-hidden backdrop-blur-sm shadow-xl ring-2 ring-white/20 logo-float"
+                  className="overflow-hidden shadow-lg logo-float"
                   style={{ 
                     width: `${config.logoSize}px`, 
                     height: `${config.logoSize}px`,
                     borderRadius: `${config.logoBorderRadius}px`,
-                    background: 'rgba(255,255,255,0.1)'
+                    background: 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(219,234,254,0.9) 100%)',
+                    padding: '6px',
+                    border: '1px solid rgba(255,255,255,0.4)'
                   }}
                 >
                   <img
                     src={headerLogo}
                     alt="Logo"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                   />
                 </div>
               )}
@@ -366,19 +368,21 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
               ) : messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center content-fade">
                   <div 
-                    className="overflow-hidden shadow-xl mb-4 logo-float"
+                    className="overflow-hidden shadow-lg mb-4 logo-float"
                     style={{ 
                       width: '64px', 
                       height: '64px',
-                      borderRadius: `${config.logoBorderRadius}px`,
-                      background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
-                      padding: '2px'
+                      borderRadius: '16px',
+                      background: 'linear-gradient(145deg, #e3f2fd 0%, #bbdefb 100%)',
+                      padding: '8px',
+                      border: '1px solid rgba(59, 130, 246, 0.15)'
                     }}
                   >
                     <img
                       src={headerLogo}
                       alt="Logo"
-                      className="w-full h-full object-cover rounded-full"
+                      className="w-full h-full object-contain"
+                      style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }}
                     />
                   </div>
                   <p className="text-[14px] max-w-[260px] text-gray-500">
