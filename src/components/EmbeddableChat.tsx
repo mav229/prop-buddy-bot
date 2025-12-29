@@ -1,19 +1,23 @@
 import { useRef, useEffect, useState } from "react";
-import { RefreshCw, X, MessageCircle } from "lucide-react";
+import { X, MessageCircle, Send, Search, Home, HelpCircle, ExternalLink } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { ChatSkeleton } from "./ChatSkeleton";
 import scholarisLogo from "@/assets/scholaris-logo.png";
+import propscholarLogo from "@/assets/propscholar-logo.jpg";
 
 interface EmbeddableChatProps {
   isWidget?: boolean;
 }
 
+type TabType = "home" | "messages" | "help";
+
 export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const { messages, isLoading, error, sendMessage, clearChat } = useChat();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>("home");
 
   // Animation states - simplified for smooth transitions
   const [isMinimized, setIsMinimized] = useState<boolean>(isWidget);
@@ -81,6 +85,12 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     }
   }, [isMinimized, isWidget, inIframe]);
 
+  // Switch to messages tab when a message is sent
+  const handleSendMessage = (msg: string) => {
+    sendMessage(msg);
+    setActiveTab("messages");
+  };
+
   // Widget mode - minimized bubble
   if (isWidget && isMinimized) {
     const bubbleClass = inIframe
@@ -90,14 +100,14 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     return (
       <button
         type="button"
-        aria-label="Open Scholaris AI chat widget"
+        aria-label="Open PropScholar chat widget"
         onClick={handleOpen}
         className={`${bubbleClass} cursor-pointer touch-manipulation select-none rounded-full overflow-hidden border-0 outline-none ring-0 flex items-center justify-center launcher-button`}
       >
         <div className="launcher-ambient-glow" />
         <img
           src={scholarisLogo}
-          alt="Scholaris AI"
+          alt="PropScholar"
           className="w-full h-full rounded-full object-cover relative z-10 active:scale-95 transition-transform duration-100"
           draggable={false}
         />
@@ -115,78 +125,97 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       className={`flex flex-col ${
         isWidget
           ? widgetFloatingFrame
-            ? `fixed bottom-4 right-4 w-[380px] h-[580px] widget-container z-[9999] ${panelAnimation}`
+            ? `fixed bottom-4 right-4 w-[380px] h-[600px] widget-container z-[9999] ${panelAnimation}`
             : `w-full h-full widget-container ${panelAnimation}`
           : "h-screen bg-background"
       }`}
     >
-      {/* Header - Clean Apple style blue */}
-      <header className="flex-shrink-0 widget-header">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-full overflow-hidden bg-white/20 backdrop-blur-sm p-0.5 shadow-lg">
-              <img
-                src={scholarisLogo}
-                alt="Scholaris"
-                className="w-full h-full rounded-full object-cover"
-              />
-            </div>
-            <div>
-              <h1 className="text-[17px] font-semibold text-white tracking-tight" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, SF Pro Display, system-ui, sans-serif' }}>
-                Scholaris AI
-              </h1>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-green-400 shadow-sm shadow-green-400/50" />
-                <p className="text-[13px] text-white/80 font-medium">Online</p>
+      {/* Header - Dark blue gradient like FundedNext */}
+      <header className="flex-shrink-0 px-5 pt-5 pb-6 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1e3a5f 0%, #0f1c2e 50%, #0a1628 100%)' }}>
+        {/* Subtle gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-purple-500/5" />
+        
+        <div className="relative z-10">
+          {/* Top row - Logo and close */}
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-blue-400/20 to-blue-600/20 backdrop-blur-sm shadow-lg shadow-blue-500/20">
+                <img
+                  src={propscholarLogo}
+                  alt="PropScholar"
+                  className="w-full h-full object-cover"
+                />
               </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-0.5">
-            <button
-              onClick={clearChat}
-              title="New chat"
-              className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/15 rounded-full transition-colors flex items-center justify-center"
-            >
-              <RefreshCw className="w-[18px] h-[18px]" />
-            </button>
+            {/* Avatar circles like reference */}
+            <div className="flex items-center -space-x-2">
+              <div className="w-9 h-9 rounded-full border-2 border-[#1e3a5f] overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600">
+                <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-bold">PS</div>
+              </div>
+              <div className="w-9 h-9 rounded-full border-2 border-[#1e3a5f] overflow-hidden bg-gradient-to-br from-purple-400 to-purple-600">
+                <div className="w-full h-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white text-xs font-bold">AI</div>
+              </div>
+              <div className="w-9 h-9 rounded-full border-2 border-[#1e3a5f] overflow-hidden bg-gradient-to-br from-cyan-400 to-cyan-600">
+                <div className="w-full h-full bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center text-white text-xs font-bold">24</div>
+              </div>
+            </div>
+
             {isWidget && (
               <button
                 onClick={handleClose}
                 title="Close"
-                className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/15 rounded-full transition-colors flex items-center justify-center close-button"
+                className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors flex items-center justify-center close-button"
               >
-                <X className="w-[18px] h-[18px]" />
+                <X className="w-5 h-5" />
               </button>
             )}
+          </div>
+
+          {/* Greeting text */}
+          <div>
+            <h1 className="text-2xl font-semibold text-blue-200 mb-1" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, SF Pro Display, system-ui, sans-serif' }}>
+              Hello Trader! 👋
+            </h1>
+            <p className="text-xl font-semibold text-white" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, SF Pro Display, system-ui, sans-serif' }}>
+              How can I help?
+            </p>
           </div>
         </div>
       </header>
 
-      {/* Messages - Light background for widget */}
+      {/* Content Area */}
       <div 
-        className="flex-1 overflow-y-auto px-4 py-5 scrollbar-hide"
-        style={{ background: 'linear-gradient(to bottom, hsl(220 20% 97%), hsl(220 14% 94%))' }}
+        className="flex-1 overflow-y-auto scrollbar-hide bg-gray-50"
       >
-        <div className="space-y-4">
-          {!isReady ? (
-            <ChatSkeleton />
-          ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-center animate-fade-in">
-              <div className="w-20 h-20 rounded-full overflow-hidden bg-gradient-to-br from-[#007AFF]/20 to-blue-100 p-1 shadow-lg shadow-blue-500/10 mb-5">
-                <img
-                  src={scholarisLogo}
-                  alt="Scholaris"
-                  className="w-full h-full rounded-full object-cover"
-                />
+        {activeTab === "home" && (
+          <div className="p-4 space-y-3 animate-fade-in">
+            {/* Action Cards */}
+            <button
+              onClick={() => window.open('https://propscholar.com', '_blank')}
+              className="w-full bg-white rounded-xl px-4 py-3.5 flex items-center justify-between shadow-sm border border-gray-100 hover:shadow-md transition-shadow active:scale-[0.99]"
+            >
+              <span className="text-[15px] font-semibold text-gray-900">TRADER'S INTERVIEW</span>
+              <ExternalLink className="w-5 h-5 text-blue-500" />
+            </button>
+
+            <button
+              onClick={() => setActiveTab("messages")}
+              className="w-full bg-white rounded-xl px-4 py-3.5 flex items-center justify-between shadow-sm border border-gray-100 hover:shadow-md transition-shadow active:scale-[0.99]"
+            >
+              <span className="text-[15px] font-semibold text-gray-900">Send us a message</span>
+              <Send className="w-5 h-5 text-blue-500" />
+            </button>
+
+            {/* Search/Help Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3">
+                <span className="text-[15px] font-medium text-gray-700">Search for help</span>
+                <Search className="w-5 h-5 text-gray-400 ml-auto" />
               </div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2 tracking-tight" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, SF Pro Display, system-ui, sans-serif' }}>
-                Hey! I'm Scholaris 👋
-              </h2>
-              <p className="text-gray-500 text-[15px] max-w-[280px] mb-6 leading-relaxed">
-                Your AI assistant for PropScholar. Ask me anything about evaluations, payouts, or trading.
-              </p>
-              <div className="grid grid-cols-1 gap-2.5 w-full max-w-[300px]">
+              
+              {/* Help suggestions */}
+              <div className="divide-y divide-gray-50">
                 {[
                   "How PropScholar works?",
                   "What are the drawdown rules?",
@@ -195,47 +224,134 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                 ].map((suggestion) => (
                   <button
                     key={suggestion}
-                    onClick={() => sendMessage(suggestion)}
-                    className="widget-suggestion px-4 py-3 text-[14px] text-left font-medium flex items-center gap-3 active:scale-[0.98]"
+                    onClick={() => handleSendMessage(suggestion)}
+                    className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors text-left active:bg-gray-100"
                   >
-                    <MessageCircle className="w-4 h-4 text-[#007AFF] flex-shrink-0" />
-                    <span className="text-gray-700">{suggestion}</span>
+                    <span className="text-[14px] text-gray-600">{suggestion}</span>
+                    <span className="text-gray-300">›</span>
                   </button>
                 ))}
               </div>
             </div>
-          ) : (
-            <>
-              {messages.map((message, index) => (
-                <ChatMessage
-                  key={message.id}
-                  role={message.role}
-                  content={message.content}
-                  isStreaming={
-                    isLoading &&
-                    index === messages.length - 1 &&
-                    message.role === "assistant"
-                  }
-                  isWidget={true}
-                />
-              ))}
-            </>
-          )}
+          </div>
+        )}
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 rounded-2xl px-4 py-3 text-sm font-medium">
-              {error}
+        {activeTab === "messages" && (
+          <div className="flex flex-col h-full">
+            <div className="flex-1 px-4 py-4 space-y-4">
+              {!isReady ? (
+                <ChatSkeleton />
+              ) : messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center animate-fade-in">
+                  <div className="w-16 h-16 rounded-xl overflow-hidden bg-gradient-to-br from-blue-500/20 to-blue-600/20 shadow-lg shadow-blue-500/10 mb-4">
+                    <img
+                      src={propscholarLogo}
+                      alt="PropScholar"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <p className="text-gray-500 text-[14px] max-w-[260px]">
+                    Ask me anything about PropScholar trading, evaluations, or payouts.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {messages.map((message, index) => (
+                    <ChatMessage
+                      key={message.id}
+                      role={message.role}
+                      content={message.content}
+                      isStreaming={
+                        isLoading &&
+                        index === messages.length - 1 &&
+                        message.role === "assistant"
+                      }
+                      isWidget={true}
+                    />
+                  ))}
+                </>
+              )}
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm font-medium">
+                  {error}
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
             </div>
-          )}
+          </div>
+        )}
 
-          <div ref={messagesEndRef} />
-        </div>
+        {activeTab === "help" && (
+          <div className="p-4 animate-fade-in">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-100">
+                <span className="text-[15px] font-semibold text-gray-900">Frequently Asked</span>
+              </div>
+              <div className="divide-y divide-gray-50">
+                {[
+                  "How PropScholar works?",
+                  "What are the drawdown rules?",
+                  "How do payouts work?",
+                  "Tell me about evaluations",
+                  "Account verification process",
+                  "Profit split information",
+                ].map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    onClick={() => handleSendMessage(suggestion)}
+                    className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors text-left active:bg-gray-100"
+                  >
+                    <span className="text-[14px] text-gray-600">{suggestion}</span>
+                    <span className="text-gray-300">›</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Input */}
-      <div className="flex-shrink-0 px-4 pb-4 pt-3 widget-input">
-        <ChatInput onSend={sendMessage} isLoading={isLoading} isWidget={true} />
-        <p className="text-[11px] text-gray-400 text-center mt-2.5 font-medium">
+      {/* Input Area - only show on messages tab */}
+      {activeTab === "messages" && (
+        <div className="flex-shrink-0 px-4 pb-2 pt-2 bg-gray-50 border-t border-gray-100">
+          <ChatInput onSend={handleSendMessage} isLoading={isLoading} isWidget={true} />
+        </div>
+      )}
+
+      {/* Bottom Navigation Tabs */}
+      <div className="flex-shrink-0 bg-white border-t border-gray-200 px-4 py-2 safe-area-bottom">
+        <div className="flex items-center justify-around">
+          <button
+            onClick={() => setActiveTab("home")}
+            className={`flex flex-col items-center gap-1 px-6 py-2 rounded-lg transition-colors ${
+              activeTab === "home" ? "text-blue-600" : "text-gray-400 hover:text-gray-600"
+            }`}
+          >
+            <Home className="w-5 h-5" />
+            <span className="text-xs font-medium">Home</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("messages")}
+            className={`flex flex-col items-center gap-1 px-6 py-2 rounded-lg transition-colors ${
+              activeTab === "messages" ? "text-blue-600" : "text-gray-400 hover:text-gray-600"
+            }`}
+          >
+            <MessageCircle className="w-5 h-5" />
+            <span className="text-xs font-medium">Messages</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("help")}
+            className={`flex flex-col items-center gap-1 px-6 py-2 rounded-lg transition-colors ${
+              activeTab === "help" ? "text-blue-600" : "text-gray-400 hover:text-gray-600"
+            }`}
+          >
+            <HelpCircle className="w-5 h-5" />
+            <span className="text-xs font-medium">Help</span>
+          </button>
+        </div>
+        <p className="text-[10px] text-gray-400 text-center mt-1 font-medium">
           Powered by PropScholar
         </p>
       </div>
