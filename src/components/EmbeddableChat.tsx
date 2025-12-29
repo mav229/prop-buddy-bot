@@ -275,7 +275,12 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         className="flex-1 overflow-y-auto scrollbar-hide"
       >
         {activeTab === "home" && (
-          <div className="p-4 space-y-3 content-fade">
+          <div 
+            className="p-4 space-y-3 content-fade"
+            style={{ 
+              background: 'linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.6) 30%, rgba(255,255,255,0.95) 100%)' 
+            }}
+          >
             {/* Discord Card */}
             {config.showDiscordCard && (
               <button
@@ -347,31 +352,36 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
           </div>
         )}
 
-        {activeTab === "messages" && (
-          <div className="flex flex-col h-full">
+      {activeTab === "messages" && (
+          <div 
+            className="flex flex-col h-full"
+            style={{ background: '#ffffff' }}
+          >
             <div 
               className="flex-1 px-4 py-4 space-y-4 overflow-y-auto scrollbar-hide"
+              style={{ background: '#ffffff' }}
             >
               {!isReady ? (
                 <ChatSkeleton />
               ) : messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center content-fade">
                   <div 
-                    className="overflow-hidden shadow-xl mb-4 logo-float ring-2 ring-white/30"
+                    className="overflow-hidden shadow-xl mb-4 logo-float"
                     style={{ 
                       width: '64px', 
                       height: '64px',
                       borderRadius: `${config.logoBorderRadius}px`,
-                      background: 'rgba(255,255,255,0.2)'
+                      background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
+                      padding: '2px'
                     }}
                   >
                     <img
                       src={headerLogo}
                       alt="Logo"
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover rounded-full"
                     />
                   </div>
-                  <p className="text-[14px] max-w-[260px] text-white/80">
+                  <p className="text-[14px] max-w-[260px] text-gray-500">
                     Ask me anything about PropScholar trading, evaluations, or payouts.
                   </p>
                 </div>
@@ -414,7 +424,12 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         )}
 
         {activeTab === "help" && (
-          <div className="p-4 content-fade space-y-3">
+          <div 
+            className="p-4 content-fade space-y-3"
+            style={{ 
+              background: `linear-gradient(180deg, ${config.headerGradientMiddle}20 0%, #ffffff 40%)` 
+            }}
+          >
             {/* Support Ticket Card */}
             {config.showSupportCard && (
               <a
@@ -469,7 +484,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       {activeTab === "messages" && (
         <div 
           className="flex-shrink-0 px-4 pb-2 pt-2 border-t input-premium"
-          style={{ backgroundColor: config.backgroundColor, borderColor: `${config.mutedTextColor}20` }}
+          style={{ backgroundColor: '#ffffff', borderColor: 'rgba(0,0,0,0.08)' }}
         >
           <ChatInput onSend={handleSendMessage} isLoading={isLoading} isWidget={true} />
         </div>
