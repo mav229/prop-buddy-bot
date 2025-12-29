@@ -15,24 +15,34 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
 
-  // In widget mode we start minimized (bubble) and expand on click.
+  // Animation states
   const [isMinimized, setIsMinimized] = useState<boolean>(isWidget);
   const [isClosing, setIsClosing] = useState(false);
-  const [panelVisible, setPanelVisible] = useState(false);
+  const [isOpening, setIsOpening] = useState(false);
+  const [showButton, setShowButton] = useState(true);
+  const [buttonRestoring, setButtonRestoring] = useState(false);
 
-  // Handle open animation
-  useEffect(() => {
-    if (!isMinimized && isWidget) {
-      setPanelVisible(true);
-    }
-  }, [isMinimized, isWidget]);
+  // Handle open with press acknowledgement
+  const handleOpen = () => {
+    setIsOpening(true);
+    // Brief delay for press acknowledgement (90ms)
+    setTimeout(() => {
+      setShowButton(false);
+      setIsMinimized(false);
+      setTimeout(() => setIsOpening(false), 320);
+    }, 60);
+  };
 
+  // Handle close with proper sequencing
   const handleClose = () => {
     setIsClosing(true);
+    // Content exit: 140ms, Panel collapse: 250ms, Button restore: 120ms
     setTimeout(() => {
       setIsClosing(false);
       setIsMinimized(true);
-      setPanelVisible(false);
+      setButtonRestoring(true);
+      setShowButton(true);
+      setTimeout(() => setButtonRestoring(false), 120);
     }, 380);
   };
 
@@ -87,7 +97,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   }, [isMinimized, isWidget, inIframe]);
 
   // Widget mode - minimized bubble
-  if (isWidget && isMinimized && !panelVisible) {
+  if (isWidget && isMinimized && showButton) {
     const bubbleClass = inIframe
       ? "w-full h-full"
       : "fixed bottom-4 right-4 w-14 h-14 sm:w-16 sm:h-16 z-[9999]";
@@ -96,15 +106,14 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       <button
         type="button"
         aria-label="Open Scholaris AI chat widget"
-        onClick={() => setIsMinimized(false)}
-        className={`${bubbleClass} cursor-pointer touch-manipulation select-none rounded-full overflow-hidden border-0 outline-none ring-0 flex items-center justify-center group launcher-icon`}
-        style={{ boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)' }}
+        onClick={handleOpen}
+        className={`${bubbleClass} cursor-pointer touch-manipulation select-none rounded-full overflow-hidden border-0 outline-none ring-0 flex items-center justify-center launcher-button ${buttonRestoring ? 'launcher-restore' : ''} ${isOpening ? 'launcher-pressed' : ''}`}
       >
-        <div className="launcher-glow absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 group-active:opacity-0" />
+        <div className="launcher-ambient-glow" />
         <img
           src={scholarisLogo}
           alt="Scholaris AI"
-          className="w-full h-full rounded-full object-cover relative z-10 transition-transform duration-100 group-active:scale-[0.96]"
+          className="w-full h-full rounded-full object-cover relative z-10"
           draggable={false}
         />
       </button>
@@ -160,7 +169,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
               <button
                 onClick={handleClose}
                 title="Close"
-                className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/15 rounded-full transition-colors flex items-center justify-center"
+                className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/15 rounded-full transition-colors flex items-center justify-center close-button"
               >
                 <X className="w-[18px] h-[18px]" />
               </button>
