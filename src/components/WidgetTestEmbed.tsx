@@ -146,7 +146,7 @@ export function WidgetTestEmbed() {
       if (nudgeTimer !== undefined) return;
       nudgeTimer = window.setTimeout(() => {
         if (!isExpanded) showNudge();
-      }, 20000);
+      }, 5000); // 5 seconds for testing, change to 20000 for production
     }
 
     nudge.addEventListener("click", () => {
