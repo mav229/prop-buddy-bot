@@ -1,5 +1,5 @@
-import { useRef, useEffect, useState } from "react";
-import { X, MessageCircle, Send, Search, Home, HelpCircle, ExternalLink, ChevronLeft, MoreHorizontal } from "lucide-react";
+import { useRef, useEffect, useState, useCallback } from "react";
+import { X, MessageCircle, Send, Search, Home, HelpCircle, ExternalLink, ChevronLeft, ShoppingBag } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
@@ -14,6 +14,9 @@ interface EmbeddableChatProps {
 
 type TabType = "home" | "messages" | "help";
 
+// Soft chime sound (base64 encoded short tone)
+const OPEN_SOUND_URL = "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYZNAz7CAAAAAAD/+9DEAAAH8ANntAAAA3AI7PcaAAAEAKQeaYoMBg+D4fBAEHggCAIHB9YPvB8HwfD4f5QEP/h+oGP/+sHwQBAMf/Lgg7///5c/ygIf+XD4IHH/1hAGD4f/+gABgCMN//yhSA//7vxB///KAgCAYB///+D4P/1A+H///0HAsD///+qBz/qH//qH/+D///9UDH///+oHP/U/5QEHw///0Hw////9QPgg+H///5QOfq////lg+Dj//qB9/////////////8AAAATEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//tQxBsAAADSAAAAAAAAANIAAAAATEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=";
+
 export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const { messages, isLoading, error, sendMessage, clearChat } = useChat();
   const { config } = useWidgetConfig();
@@ -21,15 +24,30 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const [isReady, setIsReady] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>("home");
 
-  // Animation states - simplified for smooth transitions
+  // Animation states
   const [isMinimized, setIsMinimized] = useState<boolean>(isWidget);
   const [isClosing, setIsClosing] = useState(false);
+  
+  // Notification state
+  const [showNotification, setShowNotification] = useState(false);
+  const notificationTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Use config logos or fallback to defaults
   const headerLogo = config.logoUrl || propscholarLogo;
   const launcherLogo = config.launcherLogoUrl || scholarisLogo;
 
+  // Play soft open sound
+  const playOpenSound = useCallback(() => {
+    try {
+      const audio = new Audio(OPEN_SOUND_URL);
+      audio.volume = 0.3;
+      audio.play().catch(() => {});
+    } catch {}
+  }, []);
+
   const handleOpen = () => {
+    playOpenSound();
+    setShowNotification(false);
     setIsMinimized(false);
   };
 
@@ -38,7 +56,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     setTimeout(() => {
       setIsClosing(false);
       setIsMinimized(true);
-    }, 180);
+    }, 150);
   };
 
   const inIframe = (() => {
@@ -54,6 +72,23 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     const timer = setTimeout(() => setIsReady(true), 600);
     return () => clearTimeout(timer);
   }, []);
+
+  // Show notification after 20 seconds if widget is minimized
+  useEffect(() => {
+    if (!isWidget) return;
+    
+    notificationTimerRef.current = setTimeout(() => {
+      if (isMinimized) {
+        setShowNotification(true);
+      }
+    }, 20000);
+
+    return () => {
+      if (notificationTimerRef.current) {
+        clearTimeout(notificationTimerRef.current);
+      }
+    };
+  }, [isWidget, isMinimized]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -104,23 +139,43 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   if (isWidget && isMinimized) {
     const bubbleClass = inIframe
       ? "w-full h-full"
-      : "fixed bottom-4 right-4 w-14 h-14 sm:w-16 sm:h-16 z-[9999]";
+      : "fixed bottom-4 right-4 z-[9999]";
 
     return (
-      <button
-        type="button"
-        aria-label="Open chat widget"
-        onClick={handleOpen}
-        className={`${bubbleClass} cursor-pointer touch-manipulation select-none rounded-full overflow-hidden border-0 outline-none ring-0 flex items-center justify-center launcher-button`}
-      >
-        <div className="launcher-ambient-glow" />
-        <img
-          src={launcherLogo}
-          alt="Chat"
-          className="w-full h-full rounded-full object-cover relative z-10 active:scale-95 transition-transform duration-100"
-          draggable={false}
-        />
-      </button>
+      <div className={`${bubbleClass} flex flex-col items-end gap-3`}>
+        {/* Notification bubble */}
+        {showNotification && (
+          <div 
+            className="notification-bubble bg-white rounded-2xl shadow-lg px-4 py-3 max-w-[200px] mr-1"
+            style={{ boxShadow: '0 4px 20px rgba(0, 0, 0, 0.12)' }}
+          >
+            <p className="text-sm text-gray-700 font-medium">Hi there! 👋</p>
+            <p className="text-xs text-gray-500 mt-0.5">I can help you with any questions.</p>
+            <button 
+              onClick={() => setShowNotification(false)}
+              className="absolute -top-1 -right-1 w-5 h-5 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-400 text-xs"
+            >
+              ×
+            </button>
+          </div>
+        )}
+        
+        {/* Launcher button */}
+        <button
+          type="button"
+          aria-label="Open chat widget"
+          onClick={handleOpen}
+          className="w-14 h-14 sm:w-16 sm:h-16 cursor-pointer touch-manipulation select-none rounded-full overflow-hidden border-0 outline-none ring-0 flex items-center justify-center launcher-button relative"
+        >
+          <div className="launcher-ambient-glow" />
+          <img
+            src={launcherLogo}
+            alt="Chat"
+            className="w-full h-full rounded-full object-cover relative z-10 active:scale-95 transition-transform duration-100"
+            draggable={false}
+          />
+        </button>
+      </div>
     );
   }
 
@@ -226,6 +281,19 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         {/* HOME TAB */}
         {activeTab === "home" && (
           <div className="p-4 space-y-3">
+            {/* Shop Now Card */}
+            <button
+              onClick={() => window.open('https://www.propscholar.com/shop', '_blank')}
+              className="w-full p-4 flex items-center justify-between rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98]"
+              style={{ 
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0'
+              }}
+            >
+              <span className="text-[15px] font-semibold text-gray-800">Shop Now</span>
+              <ShoppingBag className="w-5 h-5 text-blue-500" />
+            </button>
+
             {/* Discord Card */}
             {config.showDiscordCard && (
               <button
