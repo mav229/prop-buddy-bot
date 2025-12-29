@@ -67,7 +67,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     // When previewed as a full page (/widget), render a floating bubble bottom-right.
     const bubbleClass = inIframe
       ? "w-full h-full"
-      : "fixed bottom-4 right-4 w-20 h-20 z-50";
+      : "fixed bottom-4 right-4 w-14 h-14 sm:w-16 sm:h-16 z-[9999]";
 
     return (
       <button
@@ -93,7 +93,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       className={`flex flex-col bg-background ${
         isWidget
           ? widgetFloatingFrame
-            ? "fixed bottom-4 right-4 w-[384px] h-[600px] rounded-2xl shadow-2xl border border-border/50 overflow-hidden z-50"
+            ? "fixed bottom-4 right-4 w-[384px] h-[600px] rounded-2xl shadow-2xl border border-border/50 overflow-hidden z-[9999]"
             : "w-full h-full rounded-2xl shadow-2xl border border-border/50 overflow-hidden"
           : "h-screen"
       }`}

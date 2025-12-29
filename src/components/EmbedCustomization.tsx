@@ -53,6 +53,14 @@ export const EmbedCustomization = () => {
       return Math.min(requestedH, maxH);
     }
 
+    var backdrop = document.createElement('div');
+    backdrop.style.position = 'fixed';
+    backdrop.style.inset = '0';
+    backdrop.style.zIndex = '2147483646';
+    backdrop.style.background = 'rgba(0,0,0,0.18)';
+    backdrop.style.backdropFilter = 'blur(2px)';
+    backdrop.style.display = 'none';
+
     var container = document.createElement('div');
     container.style.position = 'fixed';
     container.style.right = 'calc(16px + env(safe-area-inset-right))';
@@ -60,6 +68,7 @@ export const EmbedCustomization = () => {
     container.style.width = bubbleSize + 'px';
     container.style.height = bubbleSize + 'px';
     container.style.zIndex = '2147483647';
+    container.style.transition = 'width 240ms ease, height 240ms ease, left 240ms ease, right 240ms ease, bottom 240ms ease';
 
     var iframe = document.createElement('iframe');
     iframe.src = host + '/widget';
@@ -94,6 +103,7 @@ export const EmbedCustomization = () => {
 
     container.appendChild(iframe);
     container.appendChild(overlay);
+    document.body.appendChild(backdrop);
     document.body.appendChild(container);
 
     var isExpanded = false;
@@ -111,14 +121,36 @@ export const EmbedCustomization = () => {
       if (isExpanded) {
         var w = calcExpandedW();
         var h = calcExpandedH();
-        container.style.width = w + 'px';
-        container.style.height = h + 'px';
-        iframe.style.borderRadius = '16px';
+
+        backdrop.style.display = 'block';
+
+        var isSmall = window.innerWidth < 520;
+        if (isSmall) {
+          container.style.left = '0';
+          container.style.right = '0';
+          container.style.bottom = '0';
+          container.style.width = '100vw';
+          container.style.height = '100dvh';
+          iframe.style.borderRadius = '0px';
+        } else {
+          container.style.left = 'auto';
+          container.style.right = 'calc(16px + env(safe-area-inset-right))';
+          container.style.bottom = 'calc(16px + env(safe-area-inset-bottom))';
+          container.style.width = w + 'px';
+          container.style.height = h + 'px';
+          iframe.style.borderRadius = '16px';
+        }
+
         iframe.style.boxShadow = '0 25px 60px -18px rgba(0,0,0,0.5)';
         iframe.style.pointerEvents = 'auto';
         overlay.style.display = 'none';
         postToWidget('expand');
       } else {
+        backdrop.style.display = 'none';
+
+        container.style.left = 'auto';
+        container.style.right = 'calc(16px + env(safe-area-inset-right))';
+        container.style.bottom = 'calc(16px + env(safe-area-inset-bottom))';
         container.style.width = bubbleSize + 'px';
         container.style.height = bubbleSize + 'px';
         iframe.style.borderRadius = '999px';
@@ -129,8 +161,16 @@ export const EmbedCustomization = () => {
       }
     }
 
-    overlay.addEventListener('click', function() {
-      applyExpandedStyles(true);
+    overlay.addEventListener('click', function() { applyExpandedStyles(true); });
+    backdrop.addEventListener('click', function() { applyExpandedStyles(false); });
+
+    window.addEventListener('keydown', function(e) {
+      if (e && e.key === 'Escape') applyExpandedStyles(false);
+    });
+
+    iframe.addEventListener('load', function() {
+      // Re-sync state after iframe finishes loading
+      postToWidget(isExpanded ? 'expand' : 'minimize');
     });
 
     window.addEventListener('resize', function() {
