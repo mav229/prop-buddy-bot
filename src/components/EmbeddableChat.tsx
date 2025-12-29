@@ -130,26 +130,75 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
           : "h-screen bg-background"
       }`}
     >
-      {/* Header - Minimal with logo and close */}
-      <header className="flex-shrink-0 px-4 py-3 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #1e3a5f 0%, #0f1c2e 50%, #0a1628 100%)' }}>
-        <div className="w-10 h-10 rounded-xl overflow-hidden bg-gradient-to-br from-blue-400/20 to-blue-600/20 backdrop-blur-sm shadow-lg shadow-blue-500/20">
-          <img
-            src={propscholarLogo}
-            alt="PropScholar"
-            className="w-full h-full object-cover"
-          />
-        </div>
-
-        {isWidget && (
+      {/* Header - Conditional based on chat state */}
+      {activeTab === "messages" && messages.length > 0 ? (
+        /* Compact chat header when messages exist */
+        <header className="flex-shrink-0 px-4 py-3 flex items-center gap-3 bg-white border-b border-gray-100 header-transition">
           <button
-            onClick={handleClose}
-            title="Close"
-            className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors flex items-center justify-center close-button"
+            onClick={() => setActiveTab("home")}
+            className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
           >
-            <X className="w-5 h-5" />
+            <ChevronLeft className="w-5 h-5" />
           </button>
-        )}
-      </header>
+          <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center shadow-sm">
+            <img
+              src={scholarisLogo}
+              alt="Scholaris AI"
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-[15px] font-semibold text-gray-900">Scholaris AI</h3>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-green-500 shadow-sm shadow-green-500/50" />
+              <p className="text-[13px] text-gray-500">Online</p>
+            </div>
+          </div>
+          <button className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+            <MoreHorizontal className="w-5 h-5" />
+          </button>
+          {isWidget && (
+            <button
+              onClick={handleClose}
+              title="Close"
+              className="h-8 w-8 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center close-button"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </header>
+      ) : (
+        /* Full greeting header when no messages */
+        <header className="flex-shrink-0 px-5 pt-5 pb-6 relative overflow-hidden header-transition" style={{ background: 'linear-gradient(135deg, #1e3a5f 0%, #0f1c2e 50%, #0a1628 100%)' }}>
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-purple-500/5" />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-5">
+              <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-blue-400/20 to-blue-600/20 backdrop-blur-sm shadow-lg shadow-blue-500/20">
+                <img
+                  src={propscholarLogo}
+                  alt="PropScholar"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              {isWidget && (
+                <button
+                  onClick={handleClose}
+                  title="Close"
+                  className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors flex items-center justify-center close-button"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+            <h1 className="text-2xl font-semibold text-blue-200 mb-1" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, SF Pro Display, system-ui, sans-serif' }}>
+              Hello Trader! 👋
+            </h1>
+            <p className="text-xl font-semibold text-white" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, SF Pro Display, system-ui, sans-serif' }}>
+              How can I help?
+            </p>
+          </div>
+        </header>
+      )}
 
       {/* Content Area */}
       <div 
@@ -205,33 +254,6 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
 
         {activeTab === "messages" && (
           <div className="flex flex-col h-full">
-            {/* Chat Header - Scholaris AI */}
-            <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-100">
-              <button
-                onClick={() => setActiveTab("home")}
-                className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center shadow-sm">
-                <img
-                  src={scholarisLogo}
-                  alt="Scholaris AI"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-[15px] font-semibold text-gray-900">Scholaris AI</h3>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-green-500 shadow-sm shadow-green-500/50" />
-                  <p className="text-[13px] text-gray-500">Online</p>
-                </div>
-              </div>
-              <button className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
-                <MoreHorizontal className="w-5 h-5" />
-              </button>
-            </div>
-
             <div className="flex-1 px-4 py-4 space-y-4 overflow-y-auto scrollbar-hide" style={{ background: 'linear-gradient(to bottom, hsl(220 20% 97%), hsl(220 14% 96%))' }}>
               {!isReady ? (
                 <ChatSkeleton />
