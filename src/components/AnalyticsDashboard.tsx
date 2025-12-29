@@ -304,11 +304,16 @@ export const AnalyticsDashboard = () => {
                   ))}
                 </Pie>
                 <Tooltip
+                  wrapperStyle={{ zIndex: 60 }}
                   contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
+                    backgroundColor: "hsl(var(--popover))",
                     border: "1px solid hsl(var(--border))",
                     borderRadius: "12px",
+                    color: "hsl(var(--popover-foreground))",
+                    boxShadow: "0 10px 40px -10px rgba(0,0,0,0.55)",
                   }}
+                  labelStyle={{ color: "hsl(var(--popover-foreground))" }}
+                  itemStyle={{ color: "hsl(var(--popover-foreground))" }}
                 />
               </PieChart>
             </ResponsiveContainer>
