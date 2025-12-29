@@ -141,162 +141,99 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       className={`flex flex-col ${animationClass} ${
         isWidget
           ? widgetFloatingFrame
-            ? `fixed bottom-4 right-4 widget-container z-[9999] ${panelAnimation}`
-            : `w-full h-full widget-container ${panelAnimation}`
+            ? `fixed bottom-4 right-4 z-[9999] ${panelAnimation}`
+            : `w-full h-full ${panelAnimation}`
           : "h-screen bg-background"
       }`}
       style={{
         ...(widgetFloatingFrame ? { width: `${config.widgetWidth}px`, height: `${config.widgetHeight}px` } : {}),
-        background: flowingGradient,
+        background: '#ffffff',
+        borderRadius: '24px',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
+        overflow: 'hidden'
       }}
     >
-      {/* Header - Conditional based on chat state */}
-      {activeTab === "messages" && messages.length > 0 ? (
-        /* Compact chat header when messages exist */
-        <header 
-          className="flex-shrink-0 px-4 py-3 flex items-center gap-3 backdrop-blur-sm header-transition"
-          style={{ 
-            background: `linear-gradient(180deg, ${config.headerGradientStart}ee, ${config.headerGradientMiddle}cc)`,
-            borderBottom: `1px solid rgba(255,255,255,0.1)`
-          }}
-        >
-          <button
-            onClick={() => setActiveTab("home")}
-            className="w-8 h-8 flex items-center justify-center rounded-full transition-colors hover:bg-white/10"
-            style={{ color: 'rgba(255,255,255,0.8)' }}
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <div 
-            className="overflow-hidden flex items-center justify-center shadow-lg ring-2 ring-white/20"
-            style={{ 
-              width: `${config.logoSize * 0.83}px`, 
-              height: `${config.logoSize * 0.83}px`,
-              borderRadius: `${config.logoBorderRadius}px`
-            }}
-          >
-            <img
-              src={launcherLogo}
-              alt={config.botName}
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <div className="flex-1">
-            <h3 className="text-[15px] font-semibold text-white">{config.botName}</h3>
-            {config.showOnlineIndicator && (
-              <div className="flex items-center gap-1.5">
-                <span 
-                  className="w-2 h-2 rounded-full online-pulse" 
-                  style={{ backgroundColor: config.onlineIndicatorColor }}
-                />
-                <p className="text-[13px] text-white/70">{config.botSubtitle}</p>
-              </div>
-            )}
-          </div>
-          <button 
-            className="w-8 h-8 flex items-center justify-center rounded-full transition-colors hover:bg-white/10"
-            style={{ color: 'rgba(255,255,255,0.7)' }}
-          >
-            <MoreHorizontal className="w-5 h-5" />
-          </button>
-          {isWidget && (
+      {/* Header */}
+      <header 
+        className="flex-shrink-0 relative"
+        style={{ 
+          background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%)',
+          padding: activeTab === "messages" && messages.length > 0 ? '12px 16px' : '20px',
+        }}
+      >
+        {activeTab === "messages" && messages.length > 0 ? (
+          /* Compact header */
+          <div className="flex items-center gap-3">
             <button
-              onClick={handleClose}
-              title="Close"
-              className="h-8 w-8 rounded-full transition-colors flex items-center justify-center hover:bg-white/10 close-button"
-              style={{ color: 'rgba(255,255,255,0.7)' }}
+              onClick={() => setActiveTab("home")}
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
             >
-              <X className="w-5 h-5" />
+              <ChevronLeft className="w-5 h-5 text-white" />
             </button>
-          )}
-        </header>
-      ) : (
-        /* Full greeting header when no messages */
-        <header 
-          className="flex-shrink-0 px-5 pt-5 pb-6 relative overflow-hidden header-transition"
-        >
-          {/* Subtle decorative orbs */}
-          <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white/5 blur-2xl" />
-          <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full bg-blue-200/10 blur-xl" />
-          
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-5">
-              {config.showLogo && (
-                <div 
-                  className="overflow-hidden shadow-lg logo-float"
-                  style={{ 
-                    width: `${config.logoSize}px`, 
-                    height: `${config.logoSize}px`,
-                    borderRadius: `${config.logoBorderRadius}px`,
-                    background: 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(219,234,254,0.9) 100%)',
-                    padding: '6px',
-                    border: '1px solid rgba(255,255,255,0.4)'
-                  }}
-                >
-                  <img
-                    src={headerLogo}
-                    alt="Logo"
-                    className="w-full h-full object-contain"
-                  />
+            <div 
+              className="w-9 h-9 rounded-xl overflow-hidden bg-white/20 p-1"
+            >
+              <img src={launcherLogo} alt={config.botName} className="w-full h-full object-cover rounded-lg" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-[15px] font-semibold text-white">{config.botName}</h3>
+              {config.showOnlineIndicator && (
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                  <span className="text-[12px] text-white/70">Online</span>
                 </div>
               )}
+            </div>
+            {isWidget && (
+              <button onClick={handleClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
+                <X className="w-5 h-5 text-white/80" />
+              </button>
+            )}
+          </div>
+        ) : (
+          /* Full header */
+          <div>
+            <div className="flex items-start justify-between mb-4">
+              <div 
+                className="w-12 h-12 rounded-2xl overflow-hidden bg-white p-1.5"
+                style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
+              >
+                <img src={headerLogo} alt="Logo" className="w-full h-full object-contain" />
+              </div>
               {isWidget && (
-                <button
-                  onClick={handleClose}
-                  title="Close"
-                  className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors flex items-center justify-center close-button"
-                >
-                  <X className="w-5 h-5" />
+                <button onClick={handleClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
+                  <X className="w-5 h-5 text-white/80" />
                 </button>
               )}
             </div>
-            <h1 
-              className="text-2xl font-semibold mb-1" 
-              style={{ 
-                color: config.greetingTextColor,
-                fontFamily: '-apple-system, BlinkMacSystemFont, SF Pro Display, system-ui, sans-serif' 
-              }}
-            >
+            <h1 className="text-[22px] font-semibold text-white mb-0.5">
               {config.greetingText} {config.greetingEmoji}
             </h1>
-            <p 
-              className="text-xl font-semibold" 
-              style={{ 
-                color: config.greetingSubtextColor,
-                fontFamily: '-apple-system, BlinkMacSystemFont, SF Pro Display, system-ui, sans-serif' 
-              }}
-            >
+            <p className="text-[18px] font-medium text-white/80">
               {config.greetingSubtext}
             </p>
           </div>
-        </header>
-      )}
+        )}
+      </header>
 
       {/* Content Area */}
-      <div 
-        className="flex-1 overflow-y-auto scrollbar-hide"
-      >
+      <div className="flex-1 overflow-y-auto bg-white">
+        
+        {/* HOME TAB */}
         {activeTab === "home" && (
-          <div 
-            className="p-4 space-y-3 content-fade"
-            style={{ 
-              background: 'linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.6) 30%, rgba(255,255,255,0.95) 100%)' 
-            }}
-          >
+          <div className="p-4 space-y-3">
             {/* Discord Card */}
             {config.showDiscordCard && (
               <button
                 onClick={() => window.open(config.discordLink, '_blank')}
-                className="w-full px-4 py-3.5 flex items-center justify-between shadow-lg backdrop-blur-md premium-card stagger-item stagger-1"
+                className="w-full p-4 flex items-center justify-between rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98]"
                 style={{ 
-                  background: 'rgba(255,255,255,0.95)',
-                  borderRadius: `${config.cardBorderRadius}px`,
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  boxShadow: '0 4px 24px rgba(0,0,0,0.08)'
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0'
                 }}
               >
-                <span className="text-[15px] font-semibold" style={{ color: config.textColor }}>{config.discordCardText}</span>
-                <ExternalLink className="w-5 h-5" style={{ color: config.primaryColor }} />
+                <span className="text-[15px] font-semibold text-gray-800">{config.discordCardText}</span>
+                <ExternalLink className="w-5 h-5 text-blue-500" />
               </button>
             )}
 
@@ -304,48 +241,33 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
             {config.showMessageCard && (
               <button
                 onClick={() => setActiveTab("messages")}
-                className="w-full px-4 py-3.5 flex items-center justify-between shadow-lg backdrop-blur-md premium-card stagger-item stagger-2"
+                className="w-full p-4 flex items-center justify-between rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98]"
                 style={{ 
-                  background: 'rgba(255,255,255,0.95)',
-                  borderRadius: `${config.cardBorderRadius}px`,
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  boxShadow: '0 4px 24px rgba(0,0,0,0.08)'
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                  boxShadow: '0 4px 14px rgba(59, 130, 246, 0.35)'
                 }}
               >
-                <span className="text-[15px] font-semibold" style={{ color: config.textColor }}>{config.messageCardText}</span>
-                <Send className="w-5 h-5" style={{ color: config.primaryColor }} />
+                <span className="text-[15px] font-semibold text-white">{config.messageCardText}</span>
+                <Send className="w-5 h-5 text-white" />
               </button>
             )}
 
-            {/* Search/Help Section */}
+            {/* FAQ Section */}
             {config.showHelpSearch && (
-              <div 
-                className="shadow-lg backdrop-blur-md overflow-hidden stagger-item stagger-3"
-                style={{ 
-                  background: 'rgba(255,255,255,0.95)',
-                  borderRadius: `${config.cardBorderRadius}px`,
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  boxShadow: '0 4px 24px rgba(0,0,0,0.08)'
-                }}
-              >
-                <div 
-                  className="px-4 py-3 border-b flex items-center gap-3"
-                  style={{ borderColor: 'rgba(0,0,0,0.06)' }}
-                >
-                  <span className="text-[15px] font-medium" style={{ color: config.textColor }}>{config.helpSearchText}</span>
-                  <Search className="w-5 h-5 ml-auto" style={{ color: config.mutedTextColor }} />
+              <div className="rounded-2xl overflow-hidden" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                <div className="px-4 py-3 flex items-center justify-between border-b border-gray-100">
+                  <span className="text-[15px] font-semibold text-gray-800">Frequently Asked</span>
+                  <Search className="w-4 h-4 text-gray-400" />
                 </div>
-                
-                {/* Help suggestions */}
-                <div className="divide-y" style={{ borderColor: 'rgba(0,0,0,0.04)' }}>
-                  {config.suggestedQuestions.map((suggestion, index) => (
+                <div>
+                  {config.suggestedQuestions.map((suggestion) => (
                     <button
                       key={suggestion}
                       onClick={() => handleSendMessage(suggestion)}
-                      className="w-full px-4 py-3 flex items-center justify-between text-left help-item"
+                      className="w-full px-4 py-3.5 flex items-center justify-between text-left border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors"
                     >
-                      <span className="text-[14px]" style={{ color: config.mutedTextColor }}>{suggestion}</span>
-                      <span style={{ color: `${config.mutedTextColor}60` }}>›</span>
+                      <span className="text-[14px] text-gray-600">{suggestion}</span>
+                      <span className="text-gray-300 text-lg">›</span>
                     </button>
                   ))}
                 </div>
@@ -354,128 +276,84 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
           </div>
         )}
 
-      {activeTab === "messages" && (
-          <div 
-            className="flex flex-col h-full"
-            style={{ background: '#ffffff' }}
-          >
-            <div 
-              className="flex-1 px-4 py-4 space-y-4 overflow-y-auto scrollbar-hide"
-              style={{ background: '#ffffff' }}
-            >
+        {/* MESSAGES TAB */}
+        {activeTab === "messages" && (
+          <div className="flex flex-col h-full bg-white">
+            <div className="flex-1 px-4 py-4 space-y-4 overflow-y-auto scrollbar-hide">
               {!isReady ? (
                 <ChatSkeleton />
               ) : messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center content-fade">
+                <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center">
                   <div 
-                    className="overflow-hidden shadow-lg mb-4 logo-float"
-                    style={{ 
-                      width: '64px', 
-                      height: '64px',
-                      borderRadius: '16px',
-                      background: 'linear-gradient(145deg, #e3f2fd 0%, #bbdefb 100%)',
-                      padding: '8px',
-                      border: '1px solid rgba(59, 130, 246, 0.15)'
-                    }}
+                    className="w-16 h-16 rounded-2xl overflow-hidden bg-blue-50 p-2 mb-4"
+                    style={{ border: '1px solid #dbeafe' }}
                   >
-                    <img
-                      src={headerLogo}
-                      alt="Logo"
-                      className="w-full h-full object-contain"
-                      style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }}
-                    />
+                    <img src={headerLogo} alt="Logo" className="w-full h-full object-contain" />
                   </div>
-                  <p className="text-[14px] max-w-[260px] text-gray-500">
+                  <p className="text-[14px] text-gray-500 max-w-[240px]">
                     Ask me anything about PropScholar trading, evaluations, or payouts.
                   </p>
                 </div>
               ) : (
                 <>
                   {messages.map((message, index) => (
-                    <div key={message.id} className="message-bubble">
-                      <ChatMessage
-                        role={message.role}
-                        content={message.content}
-                        isStreaming={
-                          isLoading &&
-                          index === messages.length - 1 &&
-                          message.role === "assistant"
-                        }
-                        isWidget={true}
-                      />
-                    </div>
+                    <ChatMessage
+                      key={message.id}
+                      role={message.role}
+                      content={message.content}
+                      isStreaming={isLoading && index === messages.length - 1 && message.role === "assistant"}
+                      isWidget={true}
+                    />
                   ))}
                 </>
               )}
-
               {error && (
-                <div 
-                  className="border text-sm font-medium px-4 py-3"
-                  style={{ 
-                    backgroundColor: '#fef2f2', 
-                    borderColor: '#fecaca', 
-                    color: '#dc2626',
-                    borderRadius: `${config.cardBorderRadius}px`
-                  }}
-                >
+                <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl">
                   {error}
                 </div>
               )}
-
               <div ref={messagesEndRef} />
             </div>
           </div>
         )}
 
+        {/* HELP TAB */}
         {activeTab === "help" && (
-          <div 
-            className="p-4 content-fade space-y-3"
-            style={{ 
-              background: `linear-gradient(180deg, ${config.headerGradientMiddle}20 0%, #ffffff 40%)` 
-            }}
-          >
-            {/* Support Ticket Card */}
+          <div className="p-4 space-y-3">
+            {/* Support Card */}
             {config.showSupportCard && (
               <a
                 href={`mailto:${config.supportEmail}`}
-                className="w-full px-4 py-4 flex items-center justify-between shadow-lg premium-card stagger-item stagger-1 block"
+                className="block w-full p-4 rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98]"
                 style={{ 
-                  background: supportCardGradient,
-                  borderRadius: `${config.cardBorderRadius}px`,
-                  boxShadow: `0 10px 15px -3px ${config.supportCardGradientStart}30`
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                  boxShadow: '0 4px 14px rgba(59, 130, 246, 0.35)'
                 }}
               >
-                <div>
-                  <span className="text-[15px] font-semibold text-white block">Open Support Ticket</span>
-                  <span className="text-[13px] text-white/80">{config.supportEmail}</span>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[15px] font-semibold text-white block">Open Support Ticket</span>
+                    <span className="text-[13px] text-white/70">{config.supportEmail}</span>
+                  </div>
+                  <Send className="w-5 h-5 text-white" />
                 </div>
-                <Send className="w-5 h-5 text-white" />
               </a>
             )}
 
-            <div 
-              className="shadow-sm border overflow-hidden stagger-item stagger-2"
-              style={{ 
-                backgroundColor: config.cardBackgroundColor,
-                borderRadius: `${config.cardBorderRadius}px`,
-                borderColor: `${config.mutedTextColor}20`
-              }}
-            >
-              <div 
-                className="px-4 py-3 border-b"
-                style={{ borderColor: `${config.mutedTextColor}15` }}
-              >
-                <span className="text-[15px] font-semibold" style={{ color: config.textColor }}>Frequently Asked</span>
+            {/* FAQ */}
+            <div className="rounded-2xl overflow-hidden" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+              <div className="px-4 py-3 border-b border-gray-100">
+                <span className="text-[15px] font-semibold text-gray-800">Frequently Asked</span>
               </div>
-              <div className="divide-y" style={{ borderColor: `${config.mutedTextColor}10` }}>
+              <div>
                 {config.suggestedQuestions.map((suggestion) => (
                   <button
                     key={suggestion}
                     onClick={() => handleSendMessage(suggestion)}
-                    className="w-full px-4 py-3 flex items-center justify-between text-left help-item"
+                    className="w-full px-4 py-3.5 flex items-center justify-between text-left border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors"
                   >
-                    <span className="text-[14px]" style={{ color: config.mutedTextColor }}>{suggestion}</span>
-                    <span style={{ color: `${config.mutedTextColor}60` }}>›</span>
+                    <span className="text-[14px] text-gray-600">{suggestion}</span>
+                    <span className="text-gray-300 text-lg">›</span>
                   </button>
                 ))}
               </div>
@@ -484,52 +362,46 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         )}
       </div>
 
-      {/* Input Area - only show on messages tab */}
+      {/* Input Area */}
       {activeTab === "messages" && (
-        <div 
-          className="flex-shrink-0 px-4 pb-2 pt-2 border-t input-premium"
-          style={{ backgroundColor: '#ffffff', borderColor: 'rgba(0,0,0,0.08)' }}
-        >
+        <div className="flex-shrink-0 px-4 pb-3 pt-2 border-t bg-white" style={{ borderColor: '#e5e7eb' }}>
           <ChatInput onSend={handleSendMessage} isLoading={isLoading} isWidget={true} />
         </div>
       )}
 
       {/* Bottom Navigation Tabs */}
       <div 
-        className="flex-shrink-0 border-t px-4 py-2 safe-area-bottom"
-        style={{ backgroundColor: config.cardBackgroundColor, borderColor: `${config.mutedTextColor}20` }}
+        className="flex-shrink-0 border-t px-4 py-2"
+        style={{ backgroundColor: '#ffffff', borderColor: '#e5e7eb' }}
       >
         <div className="flex items-center justify-around">
           <button
             onClick={() => setActiveTab("home")}
-            className={`flex flex-col items-center gap-1 px-6 py-2 rounded-lg tab-button ${activeTab === "home" ? "active" : ""}`}
-            style={{ color: activeTab === "home" ? config.activeTabColor : config.inactiveTabColor }}
+            className="flex flex-col items-center gap-1 px-6 py-2 rounded-lg transition-colors"
+            style={{ color: activeTab === "home" ? '#3b82f6' : '#9ca3af' }}
           >
             <Home className="w-5 h-5" />
             <span className="text-xs font-medium">Home</span>
           </button>
           <button
             onClick={() => setActiveTab("messages")}
-            className={`flex flex-col items-center gap-1 px-6 py-2 rounded-lg tab-button ${activeTab === "messages" ? "active" : ""}`}
-            style={{ color: activeTab === "messages" ? config.activeTabColor : config.inactiveTabColor }}
+            className="flex flex-col items-center gap-1 px-6 py-2 rounded-lg transition-colors"
+            style={{ color: activeTab === "messages" ? '#3b82f6' : '#9ca3af' }}
           >
             <MessageCircle className="w-5 h-5" />
             <span className="text-xs font-medium">Messages</span>
           </button>
           <button
             onClick={() => setActiveTab("help")}
-            className={`flex flex-col items-center gap-1 px-6 py-2 rounded-lg tab-button ${activeTab === "help" ? "active" : ""}`}
-            style={{ color: activeTab === "help" ? config.activeTabColor : config.inactiveTabColor }}
+            className="flex flex-col items-center gap-1 px-6 py-2 rounded-lg transition-colors"
+            style={{ color: activeTab === "help" ? '#3b82f6' : '#9ca3af' }}
           >
             <HelpCircle className="w-5 h-5" />
             <span className="text-xs font-medium">Help</span>
           </button>
         </div>
         {config.showFooter && (
-          <p 
-            className="text-[10px] text-center mt-1 font-medium"
-            style={{ color: config.mutedTextColor }}
-          >
+          <p className="text-[10px] text-center mt-1 font-medium text-gray-400">
             {config.footerText}
           </p>
         )}
