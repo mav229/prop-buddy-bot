@@ -233,30 +233,42 @@
   }
 }
 
-/* ===== PREMIUM FINTECH LAUNCHER ANIMATIONS ===== */
+/* ===== PREMIUM FINTECH SUPPORT PANEL ANIMATIONS ===== */
+/* Tone: Calm. Authoritative. Zero gimmicks. */
 
-/* Launcher icon glow on hover */
-.launcher-glow {
-  background: radial-gradient(circle, rgba(0, 122, 255, 0.4) 0%, transparent 70%);
-  transition: opacity 0.2s ease-out;
+/* === 0. IDLE STATE === */
+/* Floating button with soft ambient glow */
+.launcher-button {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  transition: transform 90ms linear;
 }
 
-.launcher-icon:active .launcher-glow {
-  background: radial-gradient(circle, rgba(0, 122, 255, 0.2) 0%, transparent 60%);
+.launcher-ambient-glow {
+  position: absolute;
+  inset: -4px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(0, 122, 255, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
 }
 
-/* === PANEL OPEN ANIMATION === */
-/* Morph & elevate from icon position */
+/* === 1. PRESS ACKNOWLEDGEMENT === */
+/* Duration: 90ms, scale 1 → 0.96 → 1, glow intensifies */
+.launcher-pressed {
+  transform: scale(0.96);
+}
+
+.launcher-pressed .launcher-ambient-glow {
+  background: radial-gradient(circle, rgba(0, 122, 255, 0.25) 0%, transparent 60%);
+}
+
+/* === 3. PANEL OPEN === */
+/* Duration: 280-320ms, emerges from button origin */
 @keyframes panel-open-anim {
   0% {
     opacity: 0;
-    transform: scale(0.4) translateY(280px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  }
-  60% {
-    opacity: 1;
-    transform: scale(1) translateY(-10px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+    transform: scale(0.98) translateY(18px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
   }
   100% {
     opacity: 1;
@@ -266,67 +278,39 @@
 }
 
 .panel-open {
-  animation: panel-open-anim 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: panel-open-anim 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-/* === PANEL CLOSE ANIMATION === */
-/* Refined collapse - subtle scale, smooth fade, slides down gently */
-@keyframes panel-close-anim {
-  0% {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.14);
-  }
-  30% {
-    opacity: 0.9;
-    transform: scale(0.98) translateY(8px);
-    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.1);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(0.92) translateY(24px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-  }
+/* === 4. CONTENT REVEAL === */
+/* Staggered opacity only, no transforms */
+/* Start after panel 80% visible (~240ms), total ~160ms */
+@keyframes content-reveal {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 
-.panel-close {
-  animation: panel-close-anim 0.22s cubic-bezier(0.4, 0, 0.6, 1) forwards;
-}
-
-/* === CONTENT STAGGER - OPEN === */
-/* Header appears first */
-@keyframes content-fade-in {
-  0% {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
+/* Header first */
 .content-open-first {
   opacity: 0;
-  animation: content-fade-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  animation-delay: 0.12s;
+  animation: content-reveal 0.12s ease-out forwards;
+  animation-delay: 0.24s;
 }
 
-/* Message area appears second */
+/* Message area second */
 .content-open-middle {
   opacity: 0;
-  animation: content-fade-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  animation-delay: 0.2s;
+  animation: content-reveal 0.12s ease-out forwards;
+  animation-delay: 0.30s;
 }
 
-/* Input field appears last with subtle glow */
+/* Input last */
 .content-open-last {
   opacity: 0;
-  animation: content-fade-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  animation-delay: 0.28s;
+  animation: content-reveal 0.12s ease-out forwards;
+  animation-delay: 0.36s;
 }
 
-/* Input underline glow effect */
+/* Input underline glow */
 .input-glow-line {
   position: absolute;
   bottom: 0;
@@ -334,9 +318,9 @@
   transform: translateX(-50%) scaleX(0);
   width: 60%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(0, 122, 255, 0.4), transparent);
-  animation: input-glow 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  animation-delay: 0.36s;
+  background: linear-gradient(90deg, transparent, rgba(0, 122, 255, 0.35), transparent);
+  animation: input-glow 0.2s ease-out forwards;
+  animation-delay: 0.4s;
 }
 
 @keyframes input-glow {
@@ -350,33 +334,106 @@
   }
 }
 
-/* === CONTENT STAGGER - CLOSE === */
-/* Input fades first */
-@keyframes content-fade-out {
-  0% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(6px);
-  }
+/* === 6. CLOSE TRIGGER === */
+/* Micro scale feedback on close button */
+.close-button:active {
+  transform: scale(0.96);
+  transition: transform 80ms linear;
 }
 
+/* === 7. CONTENT EXIT === */
+/* Duration: 140ms total, opacity only, reverse order */
+@keyframes content-exit {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Input fades first */
 .content-close-first {
-  animation: content-fade-out 0.12s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: content-exit 0.1s ease-in forwards;
 }
 
 /* Message area follows */
 .content-close-middle {
-  animation: content-fade-out 0.12s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  animation-delay: 0.06s;
+  animation: content-exit 0.1s ease-in forwards;
+  animation-delay: 0.04s;
 }
 
 /* Header fades last */
 .content-close-last {
-  animation: content-fade-out 0.12s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  animation-delay: 0.12s;
+  animation: content-exit 0.1s ease-in forwards;
+  animation-delay: 0.08s;
+}
+
+/* === 8. PANEL COLLAPSE === */
+/* Duration: 240-260ms */
+@keyframes panel-close-anim {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.14);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.98) translateY(14px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  }
+}
+
+.panel-close {
+  animation: panel-close-anim 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation-delay: 0.14s; /* After content exit */
+}
+
+/* === 9. BUTTON RESTORE === */
+/* Duration: 120ms, fade in with glow contraction */
+@keyframes launcher-restore-anim {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.launcher-restore {
+  animation: launcher-restore-anim 0.12s ease-out forwards;
+}
+
+.launcher-restore .launcher-ambient-glow {
+  animation: glow-contract 0.12s ease-out forwards;
+}
+
+@keyframes glow-contract {
+  0% {
+    opacity: 0.5;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* === REDUCED MOTION === */
+@media (prefers-reduced-motion: reduce) {
+  .panel-open,
+  .panel-close,
+  .content-open-first,
+  .content-open-middle,
+  .content-open-last,
+  .content-close-first,
+  .content-close-middle,
+  .content-close-last,
+  .launcher-restore,
+  .launcher-pressed {
+    animation: none !important;
+    transition: opacity 0.15s ease !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 
 @keyframes float {
