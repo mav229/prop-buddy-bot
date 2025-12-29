@@ -99,8 +99,8 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       className={`flex flex-col ${
         isWidget
           ? widgetFloatingFrame
-            ? "fixed bottom-4 right-4 w-[380px] h-[580px] widget-container z-[9999] animate-chat-open"
-            : "w-full h-full widget-container animate-chat-open"
+            ? "fixed bottom-4 right-4 w-[380px] h-[580px] widget-container z-[9999] animate-[chat-open_0.4s_cubic-bezier(0.34,1.56,0.64,1)_forwards]"
+            : "w-full h-full widget-container animate-[chat-open_0.4s_cubic-bezier(0.34,1.56,0.64,1)_forwards]"
           : "h-screen bg-background"
       }`}
     >
