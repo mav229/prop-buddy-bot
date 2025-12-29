@@ -72,21 +72,24 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   if (isWidget && isMinimized) {
     const bubbleClass = inIframe
       ? "w-full h-full"
-      : "fixed bottom-4 right-4 w-14 h-14 sm:w-16 sm:h-16 z-[9999]";
+      : "fixed bottom-4 right-4 w-16 h-16 sm:w-[72px] sm:h-[72px] z-[9999]";
 
     return (
       <button
         type="button"
         aria-label="Open Scholaris AI chat widget"
         onClick={() => setIsMinimized(false)}
-        className={`${bubbleClass} cursor-pointer touch-manipulation select-none rounded-full overflow-hidden bg-gradient-to-br from-[#007AFF] to-[#0056CC] shadow-xl transition-all duration-300 hover:scale-105 hover:shadow-2xl active:scale-95 flex items-center justify-center group`}
+        className={`${bubbleClass} widget-bubble cursor-pointer touch-manipulation select-none`}
       >
-        <img
-          src={scholarisLogo}
-          alt="Scholaris AI"
-          className="w-[65%] h-[65%] rounded-full object-cover transition-transform duration-300 group-hover:scale-110"
-          draggable={false}
-        />
+        <div className="widget-bubble-inner">
+          <img
+            src={scholarisLogo}
+            alt="Scholaris AI"
+            className="widget-bubble-logo"
+            draggable={false}
+          />
+          <span className="widget-bubble-text">PropScholar</span>
+        </div>
       </button>
     );
   }
