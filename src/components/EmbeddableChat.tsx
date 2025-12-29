@@ -15,35 +15,20 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
 
-  // Animation states
+  // Animation states - simplified for smooth transitions
   const [isMinimized, setIsMinimized] = useState<boolean>(isWidget);
   const [isClosing, setIsClosing] = useState(false);
-  const [isOpening, setIsOpening] = useState(false);
-  const [showButton, setShowButton] = useState(true);
-  const [buttonRestoring, setButtonRestoring] = useState(false);
 
-  // Handle open with press acknowledgement
   const handleOpen = () => {
-    setIsOpening(true);
-    // Brief delay for press acknowledgement (90ms)
-    setTimeout(() => {
-      setShowButton(false);
-      setIsMinimized(false);
-      setTimeout(() => setIsOpening(false), 320);
-    }, 60);
+    setIsMinimized(false);
   };
 
-  // Handle close with proper sequencing
   const handleClose = () => {
     setIsClosing(true);
-    // Content exit: 140ms, Panel collapse: 250ms, Button restore: 120ms
     setTimeout(() => {
       setIsClosing(false);
       setIsMinimized(true);
-      setButtonRestoring(true);
-      setShowButton(true);
-      setTimeout(() => setButtonRestoring(false), 120);
-    }, 380);
+    }, 280);
   };
 
   const inIframe = (() => {
@@ -97,7 +82,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   }, [isMinimized, isWidget, inIframe]);
 
   // Widget mode - minimized bubble
-  if (isWidget && isMinimized && showButton) {
+  if (isWidget && isMinimized) {
     const bubbleClass = inIframe
       ? "w-full h-full"
       : "fixed bottom-4 right-4 w-14 h-14 sm:w-16 sm:h-16 z-[9999]";
@@ -107,13 +92,13 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         type="button"
         aria-label="Open Scholaris AI chat widget"
         onClick={handleOpen}
-        className={`${bubbleClass} cursor-pointer touch-manipulation select-none rounded-full overflow-hidden border-0 outline-none ring-0 flex items-center justify-center launcher-button ${buttonRestoring ? 'launcher-restore' : ''} ${isOpening ? 'launcher-pressed' : ''}`}
+        className={`${bubbleClass} cursor-pointer touch-manipulation select-none rounded-full overflow-hidden border-0 outline-none ring-0 flex items-center justify-center launcher-button`}
       >
         <div className="launcher-ambient-glow" />
         <img
           src={scholarisLogo}
           alt="Scholaris AI"
-          className="w-full h-full rounded-full object-cover relative z-10"
+          className="w-full h-full rounded-full object-cover relative z-10 active:scale-95 transition-transform duration-100"
           draggable={false}
         />
       </button>
@@ -136,7 +121,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       }`}
     >
       {/* Header - Clean Apple style blue */}
-      <header className={`flex-shrink-0 widget-header ${isWidget ? (isClosing ? 'content-close-last' : 'content-open-first') : ''}`}>
+      <header className="flex-shrink-0 widget-header">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-full overflow-hidden bg-white/20 backdrop-blur-sm p-0.5 shadow-lg">
@@ -180,7 +165,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
 
       {/* Messages - Light background for widget */}
       <div 
-        className={`flex-1 overflow-y-auto px-4 py-5 scrollbar-hide ${isWidget ? (isClosing ? 'content-close-middle' : 'content-open-middle') : ''}`}
+        className="flex-1 overflow-y-auto px-4 py-5 scrollbar-hide"
         style={{ background: 'linear-gradient(to bottom, hsl(220 20% 97%), hsl(220 14% 94%))' }}
       >
         <div className="space-y-4">
@@ -247,8 +232,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       </div>
 
       {/* Input */}
-      <div className={`flex-shrink-0 px-4 pb-4 pt-3 widget-input ${isWidget ? (isClosing ? 'content-close-first' : 'content-open-last') : ''}`}>
-        <div className="input-glow-line" />
+      <div className="flex-shrink-0 px-4 pb-4 pt-3 widget-input">
         <ChatInput onSend={sendMessage} isLoading={isLoading} isWidget={true} />
         <p className="text-[11px] text-gray-400 text-center mt-2.5 font-medium">
           Powered by Scholaris AI

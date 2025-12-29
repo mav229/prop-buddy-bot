@@ -233,188 +233,60 @@
   }
 }
 
-/* ===== PREMIUM FINTECH SUPPORT PANEL ANIMATIONS ===== */
-/* Tone: Calm. Authoritative. Zero gimmicks. */
+/* ===== SMOOTH FINTECH PANEL ANIMATIONS ===== */
 
-/* === 0. IDLE STATE === */
-/* Floating button with soft ambient glow */
+/* Launcher button idle */
 .launcher-button {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  transition: transform 90ms linear;
+  will-change: transform;
 }
 
 .launcher-ambient-glow {
   position: absolute;
   inset: -4px;
   border-radius: 9999px;
-  background: radial-gradient(circle, rgba(0, 122, 255, 0.08) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(0, 122, 255, 0.1) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
 
-/* === 1. PRESS ACKNOWLEDGEMENT === */
-/* Duration: 90ms, scale 1 → 0.96 → 1, glow intensifies */
-.launcher-pressed {
-  transform: scale(0.96);
-}
-
-.launcher-pressed .launcher-ambient-glow {
-  background: radial-gradient(circle, rgba(0, 122, 255, 0.25) 0%, transparent 60%);
-}
-
-/* === 3. PANEL OPEN === */
-/* Duration: 280-320ms, emerges from button origin */
-@keyframes panel-open-anim {
-  0% {
+/* Panel open animation - simple, smooth, GPU-accelerated */
+@keyframes panel-open {
+  from {
     opacity: 0;
-    transform: scale(0.98) translateY(18px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    transform: translateY(12px) scale(0.98);
   }
-  100% {
+  to {
     opacity: 1;
-    transform: scale(1) translateY(0);
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.14);
+    transform: translateY(0) scale(1);
   }
 }
 
 .panel-open {
-  animation: panel-open-anim 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: panel-open 0.28s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  will-change: opacity, transform;
 }
 
-/* === 4. CONTENT REVEAL === */
-/* Staggered opacity only, no transforms */
-/* Start after panel 80% visible (~240ms), total ~160ms */
-@keyframes content-reveal {
-  0% { opacity: 0; }
-  100% { opacity: 1; }
-}
-
-/* Header first */
-.content-open-first {
-  opacity: 0;
-  animation: content-reveal 0.12s ease-out forwards;
-  animation-delay: 0.24s;
-}
-
-/* Message area second */
-.content-open-middle {
-  opacity: 0;
-  animation: content-reveal 0.12s ease-out forwards;
-  animation-delay: 0.30s;
-}
-
-/* Input last */
-.content-open-last {
-  opacity: 0;
-  animation: content-reveal 0.12s ease-out forwards;
-  animation-delay: 0.36s;
-}
-
-/* Input underline glow */
-.input-glow-line {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%) scaleX(0);
-  width: 60%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(0, 122, 255, 0.35), transparent);
-  animation: input-glow 0.2s ease-out forwards;
-  animation-delay: 0.4s;
-}
-
-@keyframes input-glow {
-  0% {
-    transform: translateX(-50%) scaleX(0);
-    opacity: 0;
-  }
-  100% {
-    transform: translateX(-50%) scaleX(1);
+/* Panel close animation - smooth collapse */
+@keyframes panel-close {
+  from {
     opacity: 1;
+    transform: translateY(0) scale(1);
   }
-}
-
-/* === 6. CLOSE TRIGGER === */
-/* Micro scale feedback on close button */
-.close-button:active {
-  transform: scale(0.96);
-  transition: transform 80ms linear;
-}
-
-/* === 7. CONTENT EXIT === */
-/* Duration: 140ms total, opacity only, reverse order */
-@keyframes content-exit {
-  0% { opacity: 1; }
-  100% { opacity: 0; }
-}
-
-/* Input fades first */
-.content-close-first {
-  animation: content-exit 0.1s ease-in forwards;
-}
-
-/* Message area follows */
-.content-close-middle {
-  animation: content-exit 0.1s ease-in forwards;
-  animation-delay: 0.04s;
-}
-
-/* Header fades last */
-.content-close-last {
-  animation: content-exit 0.1s ease-in forwards;
-  animation-delay: 0.08s;
-}
-
-/* === 8. PANEL COLLAPSE === */
-/* Duration: 240-260ms */
-@keyframes panel-close-anim {
-  0% {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.14);
-  }
-  100% {
+  to {
     opacity: 0;
-    transform: scale(0.98) translateY(14px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    transform: translateY(12px) scale(0.98);
   }
 }
 
 .panel-close {
-  animation: panel-close-anim 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  animation-delay: 0.14s; /* After content exit */
+  animation: panel-close 0.22s cubic-bezier(0.32, 0, 0.67, 0) forwards;
+  will-change: opacity, transform;
 }
 
-/* === 9. BUTTON RESTORE === */
-/* Duration: 120ms, fade in with glow contraction */
-@keyframes launcher-restore-anim {
-  0% {
-    opacity: 0;
-    transform: scale(0.92);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.launcher-restore {
-  animation: launcher-restore-anim 0.12s ease-out forwards;
-}
-
-.launcher-restore .launcher-ambient-glow {
-  animation: glow-contract 0.12s ease-out forwards;
-}
-
-@keyframes glow-contract {
-  0% {
-    opacity: 0.5;
-    transform: scale(1.2);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
+/* Close button feedback */
+.close-button:active {
+  transform: scale(0.94);
 }
 
 /* === REDUCED MOTION === */
