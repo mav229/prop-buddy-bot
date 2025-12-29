@@ -1,5 +1,12 @@
 /**
  * Discord Gateway Bot - Responds only when @mentioned
+ * Version: 2.1.0 - Memory & Personality Update
+ * Last Updated: 2025-12-29
+ * 
+ * Features:
+ * - Per-user memory (20 messages)
+ * - Reply-to message context
+ * - Friendly, professional personality
  * 
  * Deploy this on Railway, Render, or Fly.io
  * Requires: Deno runtime
