@@ -124,6 +124,8 @@ async function getOrCreateUserProfile(
   username: string,
   displayName?: string
 ): Promise<DiscordUserProfile | null> {
+  console.log(`[UserProfile] Getting/creating profile for ${username} (${discordUserId})`);
+  
   try {
     // Try to get existing profile
     const { data: existing, error: fetchError } = await supabase
@@ -133,11 +135,12 @@ async function getOrCreateUserProfile(
       .maybeSingle();
 
     if (fetchError) {
-      console.error("Error fetching user profile:", fetchError);
+      console.error("[UserProfile] Error fetching user profile:", JSON.stringify(fetchError));
       return null;
     }
 
     if (existing) {
+      console.log(`[UserProfile] Found existing profile, updating...`);
       // Update last_seen and increment message_count
       const { data: updated, error: updateError } = await supabase
         .from("discord_users")
@@ -152,15 +155,16 @@ async function getOrCreateUserProfile(
         .single();
 
       if (updateError) {
-        console.error("Error updating user profile:", updateError);
+        console.error("[UserProfile] Error updating user profile:", JSON.stringify(updateError));
         return existing;
       }
 
-      console.log(`Updated profile for ${username} (${discordUserId}), message count: ${updated.message_count}`);
+      console.log(`[UserProfile] Updated profile for ${username}, message count: ${updated.message_count}`);
       return updated;
     }
 
     // Create new profile
+    console.log(`[UserProfile] No existing profile found, creating new one...`);
     const { data: newProfile, error: insertError } = await supabase
       .from("discord_users")
       .insert({
@@ -173,14 +177,14 @@ async function getOrCreateUserProfile(
       .single();
 
     if (insertError) {
-      console.error("Error creating user profile:", insertError);
+      console.error("[UserProfile] Error creating user profile:", JSON.stringify(insertError));
       return null;
     }
 
-    console.log(`Created new profile for ${username} (${discordUserId})`);
+    console.log(`[UserProfile] Created new profile for ${username} (${discordUserId})`);
     return newProfile;
   } catch (e) {
-    console.error("Error in getOrCreateUserProfile:", e);
+    console.error("[UserProfile] Exception in getOrCreateUserProfile:", e);
     return null;
   }
 }
