@@ -39,9 +39,9 @@ export const ChatInput = ({ onSend, isLoading, disabled, isWidget = false }: Cha
   return (
     <form onSubmit={handleSubmit} className="relative">
       <div className={cn(
-        "p-2 flex items-end gap-2 rounded-2xl",
+        "p-1.5 flex items-end gap-2 rounded-2xl input-premium",
         isWidget 
-          ? "bg-white border border-gray-200 shadow-sm" 
+          ? "bg-[#F5F5F7] border border-[rgba(0,0,0,0.06)]" 
           : "glass-panel"
       )}>
         <textarea
@@ -49,24 +49,25 @@ export const ChatInput = ({ onSend, isLoading, disabled, isWidget = false }: Cha
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask PropScholar AI a question..."
+          placeholder="Message..."
           disabled={isLoading || disabled}
           rows={1}
           className={cn(
-            "flex-1 bg-transparent border-0 resize-none focus:ring-0 focus:outline-none px-3 py-2 max-h-36 scrollbar-hide",
+            "flex-1 bg-transparent border-0 resize-none focus:ring-0 focus:outline-none px-3 py-2.5 max-h-36 scrollbar-hide text-[14px]",
             isWidget 
-              ? "text-gray-900 placeholder:text-gray-400" 
+              ? "text-[#1D1D1F] placeholder:text-[#8E8E93]" 
               : "text-foreground placeholder:text-muted-foreground"
           )}
+          style={{ letterSpacing: '-0.01em' }}
         />
         <Button
           type="submit"
           size="icon"
           disabled={!input.trim() || isLoading || disabled}
           className={cn(
-            "flex-shrink-0 rounded-xl",
+            "flex-shrink-0 w-8 h-8 rounded-xl transition-all duration-200",
             isWidget 
-              ? "bg-[#007AFF] hover:bg-[#0056CC] text-white shadow-sm" 
+              ? "bg-[#007AFF] hover:bg-[#0056D4] text-white disabled:bg-[#007AFF]/50" 
               : ""
           )}
           variant={isWidget ? undefined : "premium"}
