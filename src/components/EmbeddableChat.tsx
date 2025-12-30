@@ -16,6 +16,7 @@ interface EmbeddableChatProps {
 type TabType = "home" | "messages" | "help";
 
 export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
+  // All hooks must be called first, before any conditional logic
   const { messages, isLoading, error, sendMessage } = useChat();
   const { config } = useWidgetConfig();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -23,23 +24,29 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const [activeTab, setActiveTab] = useState<TabType>("home");
   const [isMinimized, setIsMinimized] = useState<boolean>(isWidget);
   const [isClosing, setIsClosing] = useState(false);
+  const [inIframe, setInIframe] = useState(false);
+
+  // Check if in iframe on mount
+  useEffect(() => {
+    try {
+      setInIframe(window.self !== window.top);
+    } catch {
+      setInIframe(true);
+    }
+  }, []);
 
   const headerLogo = config.logoUrl || propscholarLogo;
   const launcherLogo = config.launcherLogoUrl || scholarisLogo;
 
-  const handleOpen = () => setIsMinimized(false);
+  const handleOpen = useCallback(() => setIsMinimized(false), []);
   
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setIsClosing(true);
     setTimeout(() => {
       setIsClosing(false);
       setIsMinimized(true);
     }, 300);
-  };
-
-  const inIframe = (() => {
-    try { return window.self !== window.top; } catch { return true; }
-  })();
+  }, []);
 
   useEffect(() => {
     if (!isWidget) return;
