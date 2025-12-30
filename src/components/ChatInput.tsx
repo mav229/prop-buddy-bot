@@ -17,7 +17,7 @@ export const ChatInput = ({ onSend, isLoading, disabled, isWidget = false }: Cha
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 150)}px`;
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
     }
   }, [input]);
 
@@ -39,8 +39,8 @@ export const ChatInput = ({ onSend, isLoading, disabled, isWidget = false }: Cha
   return (
     <form onSubmit={handleSubmit} className="relative">
       <div className={cn(
-        "p-1.5 flex items-end gap-2 rounded-xl input-premium",
-        isWidget ? "bg-[#F5F5F5] border border-[#E8E8E8]" : "glass-panel"
+        "p-1.5 flex items-end gap-2 rounded-xl transition-shadow input-glass",
+        isWidget ? "bg-gray-50 border border-gray-100" : "glass-panel"
       )}>
         <textarea
           ref={textareaRef}
@@ -51,8 +51,8 @@ export const ChatInput = ({ onSend, isLoading, disabled, isWidget = false }: Cha
           disabled={isLoading || disabled}
           rows={1}
           className={cn(
-            "flex-1 bg-transparent border-0 resize-none focus:ring-0 focus:outline-none px-3 py-2.5 max-h-36 scrollbar-hide text-[14px] widget-text-light",
-            isWidget ? "text-[#1a1a1a] placeholder:text-[#999]" : "text-foreground placeholder:text-muted-foreground"
+            "flex-1 bg-transparent border-0 resize-none focus:ring-0 focus:outline-none px-3 py-2.5 max-h-28 scrollbar-hide text-[14px] text-thin",
+            isWidget ? "text-gray-800 placeholder:text-gray-400" : "text-foreground placeholder:text-muted-foreground"
           )}
         />
         <Button
@@ -60,16 +60,12 @@ export const ChatInput = ({ onSend, isLoading, disabled, isWidget = false }: Cha
           size="icon"
           disabled={!input.trim() || isLoading || disabled}
           className={cn(
-            "flex-shrink-0 w-8 h-8 rounded-lg transition-all duration-200",
-            isWidget ? "bg-[#6366f1] hover:bg-[#5558e3] text-white disabled:bg-[#6366f1]/40" : ""
+            "flex-shrink-0 w-8 h-8 rounded-lg",
+            isWidget ? "bg-indigo-500 hover:bg-indigo-600 text-white disabled:bg-indigo-300" : ""
           )}
           variant={isWidget ? undefined : "premium"}
         >
-          {isLoading ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Send className="w-4 h-4" />
-          )}
+          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
         </Button>
       </div>
     </form>
