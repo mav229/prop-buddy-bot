@@ -140,9 +140,18 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     const onMessage = (e: MessageEvent) => {
       if (!e?.data || typeof e.data !== "object") return;
       const data = e.data as { type?: string; action?: string };
-      if (data.type !== "scholaris:host") return;
-      if (data.action === "expand") setIsMinimized(false);
-      if (data.action === "minimize") setIsMinimized(true);
+
+      // New embed script protocol
+      if (data.type === "scholaris:host") {
+        if (data.action === "expand") setIsMinimized(false);
+        if (data.action === "minimize") setIsMinimized(true);
+        return;
+      }
+
+      // Back-compat for older snippets that used { type: "toggleWidget" }
+      if (data.type === "toggleWidget") {
+        setIsMinimized((v) => !v);
+      }
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
@@ -150,7 +159,12 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
 
   useEffect(() => {
     if (!isWidget || !inIframe) return;
-    try { window.parent?.postMessage({ type: "scholaris:widget", action: isMinimized ? "minimized" : "expanded" }, "*"); } catch {}
+    try {
+      const action = isMinimized ? "minimized" : "expanded";
+      window.parent?.postMessage({ type: "scholaris:widget", action }, "*");
+      // Back-compat for older host snippets
+      window.parent?.postMessage({ type: "widgetStateChange", expanded: !isMinimized }, "*");
+    } catch {}
   }, [isMinimized, isWidget, inIframe]);
 
   const handleSendMessage = (msg: string) => {

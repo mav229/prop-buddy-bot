@@ -95,6 +95,12 @@ export const EmbedCustomization = () => {
     var container = document.createElement('div');
     container.id = 'scholaris-widget-container';
     container.setAttribute('data-scholaris-widget', 'container');
+
+    function setImp(el, prop, value) {
+      try { el.style.setProperty(prop, value, 'important'); }
+      catch (e) { try { el.style[prop] = value; } catch (e2) {} }
+    }
+
     container.style.position = 'fixed';
     container.style.right = 'calc(16px + env(safe-area-inset-right))';
     container.style.bottom = 'calc(16px + env(safe-area-inset-bottom))';
@@ -102,11 +108,15 @@ export const EmbedCustomization = () => {
     container.style.height = bubbleSize + 'px';
     container.style.zIndex = '2147483647';
     container.style.transition = 'width 240ms ease, height 240ms ease, left 240ms ease, right 240ms ease, bottom 240ms ease';
-    container.style.background = 'transparent';
-    container.style.border = 'none';
-    container.style.boxShadow = 'none';
-    container.style.padding = '0';
-    container.style.overflow = 'visible';
+
+    // Force transparent container (some sites override with CSS !important)
+    setImp(container, 'background', 'transparent');
+    setImp(container, 'background-color', 'transparent');
+    setImp(container, 'border', 'none');
+    setImp(container, 'box-shadow', 'none');
+    setImp(container, 'padding', '0');
+    setImp(container, 'overflow', 'visible');
+    setImp(container, 'pointer-events', 'auto');
 
     var iframe = document.createElement('iframe');
     // Cache-bust to ensure your website always loads the latest published widget
@@ -124,6 +134,15 @@ export const EmbedCustomization = () => {
     iframe.style.pointerEvents = 'none';
     iframe.style.boxShadow = 'none';
     iframe.style.transition = 'border-radius 220ms ease, box-shadow 220ms ease';
+    iframe.style.position = 'relative';
+
+    // Force key iframe styles (prevents host CSS from breaking click + transparency)
+    setImp(iframe, 'background', 'transparent');
+    setImp(iframe, 'background-color', 'transparent');
+    setImp(iframe, 'border', 'none');
+    setImp(iframe, 'border-radius', '32px');
+    setImp(iframe, 'pointer-events', 'none');
+    setImp(iframe, 'z-index', '1');
 
     var overlay = document.createElement('button');
     overlay.type = 'button';
@@ -138,6 +157,15 @@ export const EmbedCustomization = () => {
     overlay.style.borderRadius = '32px';
     overlay.style.pointerEvents = 'auto';
     overlay.style.touchAction = 'manipulation';
+
+    // Keep overlay above iframe even if the site changes iframe pointer-events
+    setImp(overlay, 'background', 'transparent');
+    setImp(overlay, 'border', 'none');
+    setImp(overlay, 'border-radius', '32px');
+    setImp(overlay, 'pointer-events', 'auto');
+    setImp(overlay, 'z-index', '2');
+    setImp(overlay, 'appearance', 'none');
+    setImp(overlay, '-webkit-appearance', 'none');
 
     container.appendChild(iframe);
     container.appendChild(overlay);
@@ -263,18 +291,18 @@ export const EmbedCustomization = () => {
           container.style.bottom = '0';
           container.style.width = '100vw';
           container.style.height = '100dvh';
-          iframe.style.borderRadius = '0px';
+          setImp(iframe, 'border-radius', '0px');
         } else {
           container.style.left = 'auto';
           container.style.right = 'calc(16px + env(safe-area-inset-right))';
           container.style.bottom = 'calc(16px + env(safe-area-inset-bottom))';
           container.style.width = w + 'px';
           container.style.height = h + 'px';
-          iframe.style.borderRadius = '16px';
+          setImp(iframe, 'border-radius', '32px');
         }
 
-        iframe.style.boxShadow = 'none';
-        iframe.style.pointerEvents = 'auto';
+        setImp(iframe, 'box-shadow', 'none');
+        setImp(iframe, 'pointer-events', 'auto');
         overlay.style.display = 'none';
         postToWidget('expand');
       } else {
@@ -283,12 +311,13 @@ export const EmbedCustomization = () => {
         container.style.bottom = 'calc(16px + env(safe-area-inset-bottom))';
         container.style.width = bubbleSize + 'px';
         container.style.height = bubbleSize + 'px';
-        container.style.background = 'transparent';
-        iframe.style.borderRadius = '32px';
-        iframe.style.boxShadow = 'none';
-        iframe.style.pointerEvents = 'none';
+        setImp(container, 'background', 'transparent');
+        setImp(container, 'background-color', 'transparent');
+        setImp(iframe, 'border-radius', '32px');
+        setImp(iframe, 'box-shadow', 'none');
+        setImp(iframe, 'pointer-events', 'none');
         overlay.style.display = 'block';
-        overlay.style.borderRadius = '32px';
+        setImp(overlay, 'border-radius', '32px');
         postToWidget('minimize');
         scheduleNudge();
       }
