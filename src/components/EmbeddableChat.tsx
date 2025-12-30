@@ -18,10 +18,12 @@ function BlurImage({ src, alt, className }: { src: string; alt: string; classNam
       <img
         src={src}
         alt={alt}
-        className={cn(
-          "w-full h-full object-cover transition-opacity duration-200",
-          loaded ? "opacity-100" : "opacity-0"
-        )}
+        
+          className={cn(
+            "w-full h-full object-cover",
+            loaded ? "opacity-100" : "opacity-0"
+          )}
+
         onLoad={() => setLoaded(true)}
         draggable={false}
       />
@@ -157,7 +159,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       >
         <button
           onClick={handleOpen}
-          className="launcher-btn launcher-fade-in"
+          className="launcher-btn"
           style={{ pointerEvents: "auto" }}
         >
           <BlurImage src={launcherLogo} alt="Chat" className="launcher-logo" />

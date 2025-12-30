@@ -50,8 +50,7 @@ export function WidgetTestEmbed() {
     container.style.width = `${bubbleSize}px`;
     container.style.height = `${bubbleSize}px`;
     container.style.zIndex = "2147483647";
-    container.style.transition =
-      "width 240ms ease, height 240ms ease, left 240ms ease, right 240ms ease, bottom 240ms ease";
+    container.style.transition = "none";
 
     const iframe = document.createElement("iframe");
     iframe.src = `${host}/widget`;
@@ -68,7 +67,7 @@ export function WidgetTestEmbed() {
     iframe.style.background = "transparent";
     iframe.style.pointerEvents = "none";
     iframe.style.boxShadow = "0 25px 50px -12px rgba(0,0,0,0.35)";
-    iframe.style.transition = "border-radius 220ms ease, box-shadow 220ms ease";
+    iframe.style.transition = "none";
 
     // While minimized, we capture taps with an overlay for maximum reliability.
     const overlay = document.createElement("button");
