@@ -318,6 +318,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                     content={m.content}
                     isStreaming={isLoading && m.id === messages[messages.length - 1]?.id && m.role === "assistant"}
                     isWidget={true}
+                    timestamp={m.timestamp}
                   />
                 ))
               )}
