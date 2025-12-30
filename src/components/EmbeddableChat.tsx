@@ -147,22 +147,15 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const lastAssistantMessage = messages.filter(m => m.role === "assistant").slice(-1)[0];
   const lastUserMessage = messages.filter(m => m.role === "user").slice(-1)[0];
 
-  // Minimized launcher - clean, no container
+  // Minimized launcher - simple PNG only
   if (isWidget && isMinimized) {
     return (
       <div 
-        className={cn(
-          inIframe ? "w-full h-full" : "fixed bottom-6 right-4 z-[9999]", 
-          "flex items-end justify-end"
-        )}
-        style={{ background: "transparent", pointerEvents: "none" }}
+        className={inIframe ? "w-full h-full flex items-end justify-end" : "fixed bottom-4 right-4 z-[9999]"}
+        style={{ background: "transparent" }}
       >
-        <button
-          onClick={handleOpen}
-          className="launcher-btn launcher-fade-in"
-          style={{ pointerEvents: "auto" }}
-        >
-          <BlurImage src={launcherLogo} alt="Chat" className="launcher-logo" />
+        <button onClick={handleOpen} className="launcher-btn">
+          <img src={launcherLogo} alt="Chat" />
         </button>
       </div>
     );
