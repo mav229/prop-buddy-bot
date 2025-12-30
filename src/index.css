@@ -401,41 +401,41 @@
   }
 }
 
-/* Panel animations - liquid smooth */
+/* Panel animations - premium liquid fade */
 @keyframes panel-open {
   0% {
     opacity: 0;
-    transform: translateY(20px) scale(0.92);
-    filter: blur(4px);
+    transform: translateY(24px) scale(0.92);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateY(4px) scale(0.98);
   }
   100% {
     opacity: 1;
     transform: translateY(0) scale(1);
-    filter: blur(0);
   }
 }
 
 .panel-open {
-  animation: panel-open 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  will-change: opacity, transform, filter;
+  animation: panel-open 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
 }
 
 @keyframes panel-close {
   0% {
     opacity: 1;
     transform: translateY(0) scale(1);
-    filter: blur(0);
   }
   100% {
     opacity: 0;
-    transform: translateY(16px) scale(0.94);
-    filter: blur(2px);
+    transform: translateY(20px) scale(0.94);
   }
 }
 
 .panel-close {
-  animation: panel-close 0.25s cubic-bezier(0.4, 0, 1, 1) forwards;
-  will-change: opacity, transform, filter;
+  animation: panel-close 0.28s cubic-bezier(0.4, 0, 1, 1) forwards;
+  will-change: opacity, transform;
 }
 
 /* Close button - refined interaction */
@@ -444,7 +444,7 @@
 }
 
 .close-button:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .close-button:active {
@@ -454,13 +454,13 @@
 
 /* Header transitions - smooth morph */
 .header-transition {
-  animation: header-reveal 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: header-reveal 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes header-reveal {
   from {
     opacity: 0;
-    transform: translateY(-6px);
+    transform: translateY(-8px);
   }
   to {
     opacity: 1;
