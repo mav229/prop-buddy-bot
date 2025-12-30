@@ -39,9 +39,24 @@ export const EmbedCustomization = () => {
   const widgetCode = `<!-- Scholaris Chat Widget -->
 <script>
   (function() {
+    // Prevent duplicates if the script is accidentally included twice
+    var GLOBAL_KEY = '__scholaris_widget_loaded__';
+    try {
+      if (window[GLOBAL_KEY]) return;
+      window[GLOBAL_KEY] = true;
+    } catch (e) {}
+
+    // Remove any previously injected widget (helps replace older versions)
+    try {
+      var oldContainer = document.querySelector('[data-scholaris-widget="container"]');
+      if (oldContainer && oldContainer.parentNode) oldContainer.parentNode.removeChild(oldContainer);
+      var oldNudge = document.querySelector('[data-scholaris-nudge="true"]');
+      if (oldNudge && oldNudge.parentNode) oldNudge.parentNode.removeChild(oldNudge);
+    } catch (e) {}
+
     var host = '${hostUrl}';
     var blockedUrls = ${blockedUrlsJson};
-    
+
     // Check if current URL matches any blocked pattern
     var currentUrl = window.location.href;
     var currentPath = window.location.pathname;
@@ -52,7 +67,7 @@ export const EmbedCustomization = () => {
         return; // Exit without loading widget
       }
     }
-    
+
     var allowedOrigin = '';
     try { allowedOrigin = new URL(host).origin; } catch (e) { allowedOrigin = ''; }
 
@@ -70,6 +85,7 @@ export const EmbedCustomization = () => {
     }
 
     var container = document.createElement('div');
+    container.setAttribute('data-scholaris-widget', 'container');
     container.style.position = 'fixed';
     container.style.right = 'calc(16px + env(safe-area-inset-right))';
     container.style.bottom = 'calc(16px + env(safe-area-inset-bottom))';
@@ -79,7 +95,8 @@ export const EmbedCustomization = () => {
     container.style.transition = 'width 240ms ease, height 240ms ease, left 240ms ease, right 240ms ease, bottom 240ms ease';
 
     var iframe = document.createElement('iframe');
-    iframe.src = host + '/widget';
+    // Cache-bust to ensure your website always loads the latest published widget
+    iframe.src = host + '/widget?v=' + encodeURIComponent(String(Date.now()));
     iframe.allow = 'clipboard-write';
     iframe.title = 'Scholaris chat widget';
 
@@ -190,7 +207,7 @@ export const EmbedCustomization = () => {
     });
 
     var isExpanded = false;
-    
+
     // Preload soft chime sound for widget open
     var chimeSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
     chimeSound.volume = 0;
