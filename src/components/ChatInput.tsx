@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -13,6 +14,7 @@ interface ChatInputProps {
 export const ChatInput = ({ onSend, isLoading, disabled, isWidget = false }: ChatInputProps) => {
   const [input, setInput] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { config } = useWidgetConfig();
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -36,12 +38,29 @@ export const ChatInput = ({ onSend, isLoading, disabled, isWidget = false }: Cha
     }
   };
 
+  const inputContainerStyle = isWidget ? {
+    backgroundColor: config.chatInputBgColor,
+    borderColor: config.chatInputBorderColor,
+  } : undefined;
+
+  const textareaStyle = isWidget ? {
+    color: config.chatInputTextColor,
+  } : undefined;
+
+  const buttonStyle = isWidget ? {
+    backgroundColor: config.sendButtonBgColor,
+    color: config.sendButtonIconColor,
+  } : undefined;
+
   return (
     <form onSubmit={handleSubmit} className="relative">
-      <div className={cn(
-        "p-1.5 flex items-end gap-2 rounded-xl transition-shadow input-glass",
-        isWidget ? "bg-gray-50 border border-gray-100" : "glass-panel"
-      )}>
+      <div 
+        className={cn(
+          "p-1.5 flex items-end gap-2 rounded-xl transition-shadow input-glass",
+          isWidget ? "border" : "glass-panel"
+        )}
+        style={inputContainerStyle}
+      >
         <textarea
           ref={textareaRef}
           value={input}
@@ -52,8 +71,9 @@ export const ChatInput = ({ onSend, isLoading, disabled, isWidget = false }: Cha
           rows={1}
           className={cn(
             "flex-1 bg-transparent border-0 resize-none focus:ring-0 focus:outline-none px-3 py-2.5 max-h-28 scrollbar-hide text-[14px] text-thin",
-            isWidget ? "text-gray-800 placeholder:text-gray-400" : "text-foreground placeholder:text-muted-foreground"
+            !isWidget && "text-foreground placeholder:text-muted-foreground"
           )}
+          style={textareaStyle}
         />
         <Button
           type="submit"
@@ -61,8 +81,9 @@ export const ChatInput = ({ onSend, isLoading, disabled, isWidget = false }: Cha
           disabled={!input.trim() || isLoading || disabled}
           className={cn(
             "flex-shrink-0 w-8 h-8 rounded-lg",
-            isWidget ? "bg-indigo-500 hover:bg-indigo-600 text-white disabled:bg-indigo-300" : ""
+            isWidget && "hover:opacity-90 disabled:opacity-50"
           )}
+          style={buttonStyle}
           variant={isWidget ? undefined : "premium"}
         >
           {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

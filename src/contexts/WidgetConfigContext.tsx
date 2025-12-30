@@ -77,6 +77,19 @@ export interface WidgetConfig {
   showNotificationPopup: boolean;
   notificationPopupDelay: number;
   notificationPopupText: string;
+  
+  // Chat Messages
+  userMessageBgColor: string;
+  userMessageTextColor: string;
+  userMessageBorderRadius: number;
+  aiMessageBgColor: string;
+  aiMessageTextColor: string;
+  aiMessageBorderRadius: number;
+  chatInputBgColor: string;
+  chatInputTextColor: string;
+  chatInputBorderColor: string;
+  sendButtonBgColor: string;
+  sendButtonIconColor: string;
 }
 
 const defaultConfig: WidgetConfig = {
@@ -161,6 +174,19 @@ const defaultConfig: WidgetConfig = {
   showNotificationPopup: true,
   notificationPopupDelay: 20,
   notificationPopupText: "Hi there! 👋 I can help you with any questions!",
+  
+  // Chat Messages
+  userMessageBgColor: "#6366f1",
+  userMessageTextColor: "#ffffff",
+  userMessageBorderRadius: 16,
+  aiMessageBgColor: "#f3f4f6",
+  aiMessageTextColor: "#374151",
+  aiMessageBorderRadius: 16,
+  chatInputBgColor: "#ffffff",
+  chatInputTextColor: "#111827",
+  chatInputBorderColor: "#e5e7eb",
+  sendButtonBgColor: "#6366f1",
+  sendButtonIconColor: "#ffffff",
 };
 
 interface WidgetConfigContextType {

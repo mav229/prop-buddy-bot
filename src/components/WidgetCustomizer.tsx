@@ -634,6 +634,82 @@ export const WidgetCustomizer = () => {
                     </div>
                   </div>
                 </Section>
+
+                <Section title="Chat Messages" icon={MessageSquare}>
+                  <div className="space-y-4">
+                    <p className="text-xs text-muted-foreground font-medium">User Messages</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <ColorPicker
+                        label="Background"
+                        value={config.userMessageBgColor}
+                        onChange={(v) => updateConfig({ userMessageBgColor: v })}
+                      />
+                      <ColorPicker
+                        label="Text Color"
+                        value={config.userMessageTextColor}
+                        onChange={(v) => updateConfig({ userMessageTextColor: v })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Border Radius: {config.userMessageBorderRadius}px</Label>
+                      <Slider
+                        value={[config.userMessageBorderRadius]}
+                        onValueChange={([v]) => updateConfig({ userMessageBorderRadius: v })}
+                        min={0}
+                        max={24}
+                        step={2}
+                      />
+                    </div>
+
+                    <p className="text-xs text-muted-foreground font-medium pt-2">AI Messages</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <ColorPicker
+                        label="Background"
+                        value={config.aiMessageBgColor}
+                        onChange={(v) => updateConfig({ aiMessageBgColor: v })}
+                      />
+                      <ColorPicker
+                        label="Text Color"
+                        value={config.aiMessageTextColor}
+                        onChange={(v) => updateConfig({ aiMessageTextColor: v })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Border Radius: {config.aiMessageBorderRadius}px</Label>
+                      <Slider
+                        value={[config.aiMessageBorderRadius]}
+                        onValueChange={([v]) => updateConfig({ aiMessageBorderRadius: v })}
+                        min={0}
+                        max={24}
+                        step={2}
+                      />
+                    </div>
+
+                    <p className="text-xs text-muted-foreground font-medium pt-2">Chat Input</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <ColorPicker
+                        label="Input Background"
+                        value={config.chatInputBgColor}
+                        onChange={(v) => updateConfig({ chatInputBgColor: v })}
+                      />
+                      <ColorPicker
+                        label="Input Text"
+                        value={config.chatInputTextColor}
+                        onChange={(v) => updateConfig({ chatInputTextColor: v })}
+                      />
+                      <ColorPicker
+                        label="Input Border"
+                        value={config.chatInputBorderColor}
+                        onChange={(v) => updateConfig({ chatInputBorderColor: v })}
+                      />
+                      <ColorPicker
+                        label="Send Button"
+                        value={config.sendButtonBgColor}
+                        onChange={(v) => updateConfig({ sendButtonBgColor: v })}
+                      />
+                    </div>
+                  </div>
+                </Section>
               </TabsContent>
             </Tabs>
           </CardContent>
