@@ -263,8 +263,8 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                     onClick={() => setActiveTab("messages")}
                     className="w-full px-4 py-3 flex items-center justify-between rounded-xl card-hover stagger-item stagger-3"
                     style={{ 
-                      background: "linear-gradient(135deg, rgba(102,126,234,0.9) 0%, rgba(118,75,162,0.9) 100%)",
-                      boxShadow: "0 6px 20px -6px rgba(102, 126, 234, 0.4)"
+                      background: `linear-gradient(135deg, ${config.messageCardGradientStart} 0%, ${config.messageCardGradientEnd} 100%)`,
+                      boxShadow: `0 6px 20px -6px ${config.messageCardGradientStart}66`
                     }}
                   >
                     <span className="text-thin text-[13px] text-white">{config.messageCardText}</span>
@@ -333,8 +333,8 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                 href={`mailto:${config.supportEmail}`}
                 className="block w-full px-4 py-3 rounded-xl card-hover stagger-item stagger-1"
                 style={{ 
-                  background: "linear-gradient(135deg, rgba(102,126,234,0.9) 0%, rgba(118,75,162,0.9) 100%)",
-                  boxShadow: "0 6px 20px -6px rgba(102, 126, 234, 0.4)"
+                  background: `linear-gradient(135deg, ${config.supportCardGradientStart} 0%, ${config.supportCardGradientEnd} 100%)`,
+                  boxShadow: `0 6px 20px -6px ${config.supportCardGradientStart}66`
                 }}
               >
                 <div className="flex items-center justify-between">

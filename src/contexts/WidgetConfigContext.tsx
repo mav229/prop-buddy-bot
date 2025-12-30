@@ -46,6 +46,8 @@ export interface WidgetConfig {
   discordCardText: string;
   showMessageCard: boolean;
   messageCardText: string;
+  messageCardGradientStart: string;
+  messageCardGradientEnd: string;
   
   // Help Section
   showHelpSearch: boolean;
@@ -139,6 +141,8 @@ const defaultConfig: WidgetConfig = {
   discordCardText: "Join Discord",
   showMessageCard: true,
   messageCardText: "Send us a message",
+  messageCardGradientStart: "#667eea",
+  messageCardGradientEnd: "#764ba2",
   
   // Help Section
   showHelpSearch: true,
