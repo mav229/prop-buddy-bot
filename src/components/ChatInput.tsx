@@ -28,6 +28,10 @@ export const ChatInput = ({ onSend, isLoading, disabled, isWidget = false }: Cha
     if (input.trim() && !isLoading && !disabled) {
       onSend(input);
       setInput("");
+      // Refocus the textarea after sending
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 0);
     }
   };
 
