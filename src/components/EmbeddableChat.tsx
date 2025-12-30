@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from "react";
-import { X, MessageCircle, Send, Search, Home, HelpCircle, ExternalLink, ChevronRight, ShoppingBag, Clock } from "lucide-react";
+import { X, MessageCircle, Send, Search, Home, HelpCircle, ExternalLink, ChevronRight, ShoppingBag, Clock, AlertTriangle, RefreshCw } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
@@ -40,7 +40,7 @@ type TabType = "home" | "messages" | "help";
 
 export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   // All hooks must be called first, before any conditional logic
-  const { messages, isLoading, error, sendMessage } = useChat();
+  const { messages, isLoading, error, sendMessage, clearChat, isRateLimited } = useChat();
   const { config } = useWidgetConfig();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
@@ -369,6 +369,24 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                 </>
               )}
               {error && <div className="text-ultra-thin text-[11px] px-3 py-2 rounded-lg bg-red-50/80 text-red-500">{error}</div>}
+              
+              {isRateLimited && (
+                <div className="px-3 py-3 rounded-xl bg-amber-50/90 border border-amber-200/50 content-fade">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-thin text-[11px] text-amber-700 mb-2">Session limit reached. Start a new chat to continue.</p>
+                      <button 
+                        onClick={clearChat}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] text-amber-600 bg-amber-100/80 hover:bg-amber-200/80 transition-colors"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        New Chat
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div ref={messagesEndRef} />
             </div>
           </div>
@@ -418,7 +436,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       {/* INPUT */}
       {activeTab === "messages" && (
         <div className="flex-shrink-0 px-3 pb-2 pt-1.5" style={{ background: config.chatInputBgColor, borderTop: `1px solid ${config.chatInputBorderColor}` }}>
-          <ChatInput onSend={handleSendMessage} isLoading={isLoading} isWidget={true} />
+          <ChatInput onSend={handleSendMessage} isLoading={isLoading} isWidget={true} disabled={isRateLimited} />
         </div>
       )}
 
