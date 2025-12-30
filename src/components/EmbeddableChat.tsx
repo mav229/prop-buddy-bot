@@ -159,7 +159,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       >
         <button
           onClick={handleOpen}
-          className="launcher-btn"
+          className="launcher-btn launcher-fade-in"
           style={{ pointerEvents: "auto" }}
         >
           <BlurImage src={launcherLogo} alt="Chat" className="launcher-logo" />
