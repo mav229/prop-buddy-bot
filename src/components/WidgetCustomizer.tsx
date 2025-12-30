@@ -2,7 +2,7 @@ import { useState, forwardRef } from "react";
 import { 
   Palette, Type, Layout, Image, Sparkles, MessageSquare, 
   RotateCcw, Save, Eye, Plus, Trash2, GripVertical,
-  ChevronDown, ChevronRight
+  ChevronDown, ChevronRight, Ban, Link
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -80,6 +80,7 @@ const Section = ({ title, icon: Icon, children, defaultOpen = true }: SectionPro
 export const WidgetCustomizer = () => {
   const { config, updateConfig, resetConfig, saveConfig } = useWidgetConfig();
   const [newQuestion, setNewQuestion] = useState("");
+  const [newBlockedUrl, setNewBlockedUrl] = useState("");
 
   const addQuestion = () => {
     if (newQuestion.trim()) {
@@ -96,6 +97,23 @@ export const WidgetCustomizer = () => {
       suggestedQuestions: config.suggestedQuestions.filter((_, i) => i !== index)
     });
     toast.success("Question removed");
+  };
+
+  const addBlockedUrl = () => {
+    if (newBlockedUrl.trim()) {
+      updateConfig({
+        blockedUrls: [...(config.blockedUrls || []), newBlockedUrl.trim()]
+      });
+      setNewBlockedUrl("");
+      toast.success("URL added to blocklist");
+    }
+  };
+
+  const removeBlockedUrl = (index: number) => {
+    updateConfig({
+      blockedUrls: (config.blockedUrls || []).filter((_, i) => i !== index)
+    });
+    toast.success("URL removed from blocklist");
   };
 
   const handleReset = () => {
@@ -644,6 +662,49 @@ export const WidgetCustomizer = () => {
                       checked={config.enableAnimations}
                       onCheckedChange={(v) => updateConfig({ enableAnimations: v })}
                     />
+                  </div>
+                </Section>
+
+                <Section title="URL Blocklist" icon={Ban}>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Add URLs where the widget should NOT appear. Use partial matches (e.g., "/checkout" will block all checkout pages).
+                  </p>
+                  <div className="space-y-3">
+                    {(config.blockedUrls || []).map((url, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <Link className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                        <Input
+                          value={url}
+                          onChange={(e) => {
+                            const updated = [...(config.blockedUrls || [])];
+                            updated[i] = e.target.value;
+                            updateConfig({ blockedUrls: updated });
+                          }}
+                          className="flex-1 bg-background/50 text-sm font-mono"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeBlockedUrl(i)}
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={newBlockedUrl}
+                        onChange={(e) => setNewBlockedUrl(e.target.value)}
+                        placeholder="/checkout, /admin, example.com..."
+                        className="flex-1 bg-background/50 text-sm font-mono"
+                        onKeyDown={(e) => e.key === "Enter" && addBlockedUrl()}
+                      />
+                      <Button size="sm" onClick={addBlockedUrl} className="gap-1">
+                        <Plus className="w-4 h-4" />
+                        Add
+                      </Button>
+                    </div>
                   </div>
                 </Section>
 

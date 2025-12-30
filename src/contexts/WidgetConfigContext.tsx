@@ -99,6 +99,9 @@ export interface WidgetConfig {
   chatInputBorderColor: string;
   sendButtonBgColor: string;
   sendButtonIconColor: string;
+  
+  // URL Blocklist
+  blockedUrls: string[];
 }
 
 const defaultConfig: WidgetConfig = {
@@ -204,6 +207,9 @@ const defaultConfig: WidgetConfig = {
   chatInputBorderColor: "#e5e7eb",
   sendButtonBgColor: "#6366f1",
   sendButtonIconColor: "#ffffff",
+  
+  // URL Blocklist
+  blockedUrls: [],
 };
 
 interface WidgetConfigContextType {

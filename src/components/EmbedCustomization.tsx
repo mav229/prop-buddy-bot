@@ -34,10 +34,25 @@ export const EmbedCustomization = () => {
   style="border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);"
   ></iframe>`;
 
+  const blockedUrlsJson = JSON.stringify(widgetConfig.blockedUrls || []);
+
   const widgetCode = `<!-- Scholaris Chat Widget -->
 <script>
   (function() {
     var host = '${hostUrl}';
+    var blockedUrls = ${blockedUrlsJson};
+    
+    // Check if current URL matches any blocked pattern
+    var currentUrl = window.location.href;
+    var currentPath = window.location.pathname;
+    for (var i = 0; i < blockedUrls.length; i++) {
+      var pattern = blockedUrls[i];
+      if (currentUrl.indexOf(pattern) !== -1 || currentPath.indexOf(pattern) !== -1) {
+        console.log('Scholaris widget blocked on this page:', pattern);
+        return; // Exit without loading widget
+      }
+    }
+    
     var allowedOrigin = '';
     try { allowedOrigin = new URL(host).origin; } catch (e) { allowedOrigin = ''; }
 
