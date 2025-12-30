@@ -398,10 +398,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
             <p 
               className="text-ultra-thin text-[10px] text-center"
               style={{ 
-                background: "linear-gradient(90deg, #667eea, #764ba2)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
+                color: config.footerTextColor,
                 opacity: 0.7
               }}
             >

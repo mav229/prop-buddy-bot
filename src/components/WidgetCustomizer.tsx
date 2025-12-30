@@ -409,6 +409,11 @@ export const WidgetCustomizer = () => {
                       className="bg-background/50"
                     />
                   </div>
+                  <ColorPicker
+                    label="Footer Text Color"
+                    value={config.footerTextColor}
+                    onChange={(v) => updateConfig({ footerTextColor: v })}
+                  />
                 </Section>
               </TabsContent>
 
