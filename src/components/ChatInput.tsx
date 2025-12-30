@@ -36,7 +36,7 @@ export const ChatInput = ({ onSend, isLoading, disabled, isWidget = false }: Cha
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey && !isLoading && !disabled) {
       e.preventDefault();
       handleSubmit(e);
     }
@@ -71,7 +71,7 @@ export const ChatInput = ({ onSend, isLoading, disabled, isWidget = false }: Cha
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Message..."
-          disabled={isLoading || disabled}
+          disabled={disabled}
           rows={1}
           className={cn(
             "flex-1 bg-transparent border-0 resize-none focus:ring-0 focus:outline-none px-3 py-2.5 max-h-28 scrollbar-hide text-[14px] text-thin",
