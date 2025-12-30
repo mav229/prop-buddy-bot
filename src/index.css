@@ -222,10 +222,12 @@
 .launcher-btn img {
   width: 100%;
   height: 100%;
-  border-radius: 50%;
+  border-radius: 0;
   object-fit: contain;
   display: block;
-  background: transparent;
+  background: none;
+  border: none;
+  box-shadow: none;
 }
 
 /* Card hover (smooth GPU accelerated) */

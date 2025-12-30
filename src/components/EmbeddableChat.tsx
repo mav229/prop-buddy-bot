@@ -7,7 +7,7 @@ import { ChatSkeleton, CardSkeleton } from "./ChatSkeleton";
 import { TypingIndicator } from "./TypingIndicator";
 import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
 import scholarisLogo from "@/assets/scholaris-logo.png";
-import scholarisLauncher from "@/assets/scholaris-launcher-transparent.png";
+import scholarisLauncher from "@/assets/scholaris-launcher.png";
 import propscholarLogo from "@/assets/propscholar-logo.jpg";
 import { cn } from "@/lib/utils";
 
