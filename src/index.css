@@ -202,35 +202,107 @@
   30% { opacity: 1; transform: scale(1); }
 }
 
-/* Launcher */
+/* ===== PREMIUM LAUNCHER ===== */
+
+.launcher-container {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Launcher button */
 .launcher-btn {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+  position: relative;
+  z-index: 10;
+  width: 52px;
+  height: 52px;
+  border-radius: 9999px;
+  overflow: hidden;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 
+    0 4px 20px rgba(102, 126, 234, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+  animation: launcher-float 4s ease-in-out infinite;
 }
 
 .launcher-btn:hover {
-  transform: scale(1.08);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+  transform: scale(1.1);
+  box-shadow: 
+    0 8px 32px rgba(102, 126, 234, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.2) inset;
 }
 
 .launcher-btn:active {
   transform: scale(0.95);
 }
 
-/* Glow ring */
-.glow-ring {
+/* Centered logo */
+.launcher-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Subtle floating animation */
+@keyframes launcher-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.launcher-btn:hover {
+  animation: none;
+}
+
+/* Outer glow ring with wave pulse */
+.launcher-ring {
   position: absolute;
-  inset: -4px;
+  inset: -6px;
   border-radius: 9999px;
-  border: 1.5px solid rgba(102, 126, 234, 0.5);
-  box-shadow: 0 0 16px 4px rgba(102, 126, 234, 0.3), 0 0 32px 8px rgba(102, 126, 234, 0.15);
-  animation: glow-pulse 3s ease-in-out infinite;
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  animation: ring-wave 3s ease-in-out infinite;
   pointer-events: none;
 }
 
-@keyframes glow-pulse {
-  0%, 100% { opacity: 0.7; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.02); }
+@keyframes ring-wave {
+  0%, 100% { 
+    opacity: 0.6; 
+    transform: scale(1);
+    border-color: rgba(102, 126, 234, 0.3);
+  }
+  50% { 
+    opacity: 1; 
+    transform: scale(1.05);
+    border-color: rgba(102, 126, 234, 0.5);
+  }
+}
+
+/* Ambient glow */
+.launcher-glow {
+  position: absolute;
+  inset: -12px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(102, 126, 234, 0.2) 0%, transparent 70%);
+  animation: glow-breathe 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes glow-breathe {
+  0%, 100% { 
+    opacity: 0.5; 
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.8; 
+    transform: scale(1.1);
+  }
 }
 
 /* Card hover */
