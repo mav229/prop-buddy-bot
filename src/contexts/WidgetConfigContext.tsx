@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface WidgetConfig {
   // Header
@@ -201,46 +202,88 @@ interface WidgetConfigContextType {
 const WidgetConfigContext = createContext<WidgetConfigContextType | undefined>(undefined);
 
 const STORAGE_KEY = "widget-config";
+const DB_ROW_ID = "default";
 
 export const WidgetConfigProvider = ({ children }: { children: ReactNode }) => {
-  const [config, setConfig] = useState<WidgetConfig>(() => {
+  const [config, setConfig] = useState<WidgetConfig>(defaultConfig);
+  const [loaded, setLoaded] = useState(false);
+  const saveTimer = useRef<number | undefined>(undefined);
+
+  // Load config from backend on mount (public read, no auth required)
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("widget_config" as any)
+          .select("config")
+          .eq("id", DB_ROW_ID)
+          .maybeSingle() as { data: { config: any } | null; error: any };
+
+        if (!error && data && data.config && typeof data.config === "object") {
+          setConfig((prev) => ({ ...prev, ...(data.config as Partial<WidgetConfig>) }));
+        } else {
+          // Fallback to localStorage for backwards compat
+          const stored = localStorage.getItem(STORAGE_KEY);
+          if (stored) {
+            setConfig((prev) => ({ ...prev, ...JSON.parse(stored) }));
+          }
+        }
+      } catch {
+        // Fallback to localStorage
+        try {
+          const stored = localStorage.getItem(STORAGE_KEY);
+          if (stored) {
+            setConfig((prev) => ({ ...prev, ...JSON.parse(stored) }));
+          }
+        } catch {}
+      }
+      setLoaded(true);
+    };
+    load();
+  }, []);
+
+  // Persist to backend (debounced). Backend accepts only from admins; if it fails we still keep localStorage
+  const persistToBackend = async (cfg: WidgetConfig) => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        return { ...defaultConfig, ...JSON.parse(stored) };
+      const { error } = await supabase
+        .from("widget_config" as any)
+        .upsert({ id: DB_ROW_ID, config: cfg as any } as any, { onConflict: "id" });
+      if (error) {
+        console.warn("Failed to persist widget config to backend:", error.message);
       }
     } catch (e) {
-      console.error("Failed to load widget config:", e);
+      console.warn("Error persisting widget config:", e);
     }
-    return defaultConfig;
-  });
+    // Always persist to localStorage as fallback
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+    } catch {}
+  };
 
   const updateConfig = (updates: Partial<WidgetConfig>) => {
-    setConfig((prev) => ({ ...prev, ...updates }));
+    setConfig((prev) => {
+      const next = { ...prev, ...updates };
+      // Debounced persist
+      if (saveTimer.current) window.clearTimeout(saveTimer.current);
+      saveTimer.current = window.setTimeout(() => {
+        persistToBackend(next);
+      }, 600);
+      return next;
+    });
   };
 
   const resetConfig = () => {
     setConfig(defaultConfig);
     localStorage.removeItem(STORAGE_KEY);
+    persistToBackend(defaultConfig);
   };
 
   const saveConfig = () => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-    } catch (e) {
-      console.error("Failed to save widget config:", e);
-    }
+    if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    persistToBackend(config);
   };
 
-  // Auto-save on config changes
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      saveConfig();
-    }, 500);
-    return () => clearTimeout(timeout);
-  }, [config]);
-
-  // Listen for config updates from parent window (for iframe widgets)
+  // Listen for config updates from parent window (for iframe widgets receiving real-time pushes)
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
       if (!e?.data || typeof e.data !== "object") return;
