@@ -119,6 +119,23 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     setActiveTab("messages");
   };
 
+  // Strip markdown from text for preview display
+  const stripMarkdown = (text: string) => {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '$1') // bold
+      .replace(/\*(.*?)\*/g, '$1') // italic
+      .replace(/__(.*?)__/g, '$1') // bold alt
+      .replace(/_(.*?)_/g, '$1') // italic alt
+      .replace(/~~(.*?)~~/g, '$1') // strikethrough
+      .replace(/`(.*?)`/g, '$1') // inline code
+      .replace(/\[(.*?)\]\(.*?\)/g, '$1') // links
+      .replace(/#{1,6}\s/g, '') // headers
+      .replace(/>\s/g, '') // blockquotes
+      .replace(/[-*+]\s/g, '') // list items
+      .replace(/\n/g, ' ') // newlines to spaces
+      .trim();
+  };
+
   // Get last message for recent conversation preview
   const lastAssistantMessage = messages.filter(m => m.role === "assistant").slice(-1)[0];
   const lastUserMessage = messages.filter(m => m.role === "user").slice(-1)[0];
@@ -238,7 +255,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-thin text-[12px] text-gray-700 line-clamp-2">
-                          {lastAssistantMessage?.content?.slice(0, 80) || lastUserMessage?.content?.slice(0, 80)}...
+                          {stripMarkdown(lastAssistantMessage?.content || lastUserMessage?.content || "").slice(0, 80)}...
                         </p>
                         <span className="text-ultra-thin text-[10px] text-gray-400">Tap to continue</span>
                       </div>
