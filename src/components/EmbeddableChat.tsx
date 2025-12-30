@@ -4,6 +4,7 @@ import { useChat } from "@/hooks/useChat";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { ChatSkeleton, CardSkeleton } from "./ChatSkeleton";
+import { TypingIndicator } from "./TypingIndicator";
 import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
 import scholarisLogo from "@/assets/scholaris-logo.png";
 import propscholarLogo from "@/assets/propscholar-logo.jpg";
@@ -317,15 +318,30 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                   </p>
                 </div>
               ) : (
-                messages.map((m) => (
-                  <ChatMessage
-                    key={m.id}
-                    role={m.role}
-                    content={m.content}
-                    isStreaming={isLoading && m.id === messages[messages.length - 1]?.id && m.role === "assistant"}
-                    isWidget={true}
-                  />
-                ))
+                <>
+                  {messages.map((m) => (
+                    <ChatMessage
+                      key={m.id}
+                      role={m.role}
+                      content={m.content}
+                      isStreaming={isLoading && m.id === messages[messages.length - 1]?.id && m.role === "assistant"}
+                      isWidget={true}
+                    />
+                  ))}
+                  {isLoading && messages[messages.length - 1]?.role === "user" && (
+                    <div className="flex items-start gap-2 content-fade">
+                      <div 
+                        className="w-7 h-7 rounded-lg overflow-hidden flex-shrink-0" 
+                        style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}
+                      >
+                        <BlurImage src={launcherLogo} alt="" />
+                      </div>
+                      <div className="glass-surface-subtle rounded-xl px-2 py-1.5">
+                        <TypingIndicator />
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
               {error && <div className="text-ultra-thin text-[11px] px-3 py-2 rounded-lg bg-red-50/80 text-red-500">{error}</div>}
               <div ref={messagesEndRef} />
