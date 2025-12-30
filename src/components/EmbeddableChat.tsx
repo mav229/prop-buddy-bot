@@ -7,6 +7,7 @@ import { ChatSkeleton, CardSkeleton } from "./ChatSkeleton";
 import { TypingIndicator } from "./TypingIndicator";
 import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
 import scholarisLogo from "@/assets/scholaris-logo.png";
+import scholarisLauncher from "@/assets/scholaris-launcher-transparent.png";
 import propscholarLogo from "@/assets/propscholar-logo.jpg";
 import { cn } from "@/lib/utils";
 
@@ -58,7 +59,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   }, []);
 
   const headerLogo = config.logoUrl || propscholarLogo;
-  const launcherLogo = config.launcherLogoUrl || scholarisLogo;
+  const launcherLogo = config.launcherLogoUrl || scholarisLauncher;
 
   const handleOpen = useCallback(() => {
     // Play soft chime sound with fade-in for smoother experience
@@ -86,9 +87,20 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
 
   useEffect(() => {
     if (!isWidget) return;
+
+    // Keep the widget iframe background fully transparent (launcher should be PNG only)
+    const prevHtmlBg = document.documentElement.style.backgroundColor;
+    const prevBodyBg = document.body.style.backgroundColor;
+
+    document.documentElement.style.backgroundColor = "transparent";
+    document.body.style.backgroundColor = "transparent";
+
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
+
     return () => {
+      document.documentElement.style.backgroundColor = prevHtmlBg;
+      document.body.style.backgroundColor = prevBodyBg;
       document.documentElement.style.overflow = "";
       document.body.style.overflow = "";
     };
