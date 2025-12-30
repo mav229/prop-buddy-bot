@@ -60,7 +60,13 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const headerLogo = config.logoUrl || propscholarLogo;
   const launcherLogo = config.launcherLogoUrl || scholarisLogo;
 
-  const handleOpen = useCallback(() => setIsMinimized(false), []);
+  const handleOpen = useCallback(() => {
+    // Play soft chime sound
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+    audio.volume = 0.3;
+    audio.play().catch(() => {}); // Ignore autoplay restrictions
+    setIsMinimized(false);
+  }, []);
   
   const handleClose = useCallback(() => {
     setIsClosing(true);
