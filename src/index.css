@@ -147,49 +147,29 @@
   pointer-events: none;
 }
 
-/* Content fade (GPU accelerated) */
-@keyframes content-fade {
-  from { 
-    opacity: 0; 
-    transform: translate3d(0, 8px, 0); 
-  }
-  to { 
-    opacity: 1; 
-    transform: translate3d(0, 0, 0); 
-  }
-}
-
+/* Content animations - removed (no translate/spring/liquid motion) */
 .content-fade {
-  animation: content-fade 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  will-change: transform, opacity;
+  opacity: 1;
+  transform: none;
+  animation: none;
 }
 
-/* Staggered items */
-.stagger-item { 
-  opacity: 0; 
-  animation: content-fade 0.36s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  will-change: transform, opacity;
-}
-.stagger-1 { animation-delay: 0.04s; }
-.stagger-2 { animation-delay: 0.08s; }
-.stagger-3 { animation-delay: 0.12s; }
-.stagger-4 { animation-delay: 0.16s; }
-
-/* Message bubble (GPU accelerated) */
-@keyframes message-in {
-  from { 
-    opacity: 0; 
-    transform: translate3d(0, 6px, 0); 
-  }
-  to { 
-    opacity: 1; 
-    transform: translate3d(0, 0, 0); 
-  }
+/* Staggered items - removed */
+.stagger-item {
+  opacity: 1;
+  animation: none;
 }
 
+.stagger-1,
+.stagger-2,
+.stagger-3,
+.stagger-4 {
+  animation-delay: 0s;
+}
+
+/* Message entry - removed */
 .message-in {
-  animation: message-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  will-change: transform, opacity;
+  animation: none;
 }
 
 /* Typing dots (smooth) */
