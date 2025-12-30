@@ -264,7 +264,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                       <span className="text-ultra-thin text-[10px] text-gray-400 uppercase tracking-wide">Recent conversation</span>
                     </div>
                     <div className="flex items-start gap-2">
-                      <div className="w-7 h-7 rounded-lg overflow-hidden flex-shrink-0" style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}>
+                      <div className="w-7 h-7 rounded-lg overflow-hidden flex-shrink-0" style={{ background: "transparent" }}>
                         <BlurImage src={launcherLogo} alt="" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -363,7 +363,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                     <div className="flex items-start gap-2 content-fade">
                       <div 
                         className="w-7 h-7 rounded-lg overflow-hidden flex-shrink-0" 
-                        style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}
+                        style={{ background: "transparent" }}
                       >
                         <BlurImage src={launcherLogo} alt="" />
                       </div>
