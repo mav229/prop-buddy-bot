@@ -2,6 +2,7 @@ import { User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import scholarisLogo from "@/assets/scholaris-logo.png";
+import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
@@ -35,6 +36,20 @@ const TypingIndicator = () => (
 
 export const ChatMessage = ({ role, content, isStreaming, isWidget = false, timestamp }: ChatMessageProps) => {
   const isUser = role === "user";
+  const { config } = useWidgetConfig();
+
+  // Build inline styles from config when in widget mode
+  const userBubbleStyle = isWidget ? {
+    backgroundColor: config.userMessageBgColor,
+    color: config.userMessageTextColor,
+    borderRadius: `${config.userMessageBorderRadius}px`,
+  } : undefined;
+
+  const aiBubbleStyle = isWidget ? {
+    backgroundColor: config.aiMessageBgColor,
+    color: config.aiMessageTextColor,
+    borderRadius: `${config.aiMessageBorderRadius}px`,
+  } : undefined;
 
   return (
     <div className={cn("flex flex-col gap-1 message-in", isUser ? "items-end" : "items-start")}>
@@ -43,7 +58,9 @@ export const ChatMessage = ({ role, content, isStreaming, isWidget = false, time
         <div className={cn(
           "flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center overflow-hidden",
           isUser ? "bg-gradient-to-br from-indigo-500 to-purple-500" : "bg-transparent"
-        )}>
+        )}
+          style={isWidget && isUser ? { background: `linear-gradient(135deg, ${config.userMessageBgColor}, ${config.primaryColor})` } : undefined}
+        >
           {isUser ? (
             <User className="w-3.5 h-3.5 text-white" strokeWidth={1.5} />
           ) : (
@@ -52,33 +69,39 @@ export const ChatMessage = ({ role, content, isStreaming, isWidget = false, time
         </div>
 
         {/* Bubble */}
-        <div className={cn(
-          "max-w-[80%] px-4 py-3 text-[14px] leading-relaxed",
-          isWidget ? (isUser ? "bubble-user" : "bubble-assistant") : (isUser ? "chat-bubble-user" : "chat-bubble-assistant")
-        )}>
+        <div 
+          className={cn(
+            "max-w-[80%] px-4 py-3 text-[14px] leading-relaxed",
+            !isWidget && (isUser ? "chat-bubble-user" : "chat-bubble-assistant")
+          )}
+          style={isUser ? userBubbleStyle : aiBubbleStyle}
+        >
           {!content && isStreaming ? (
             <TypingIndicator />
           ) : isUser ? (
             <span className="text-thin whitespace-pre-wrap">{content}</span>
           ) : (
-            <div className={cn(
-              "prose prose-sm max-w-none text-thin whitespace-pre-line",
-              "prose-p:my-3 prose-p:leading-relaxed",
-              "prose-ul:my-3 prose-ol:my-3 prose-li:my-1",
-              "prose-headings:my-3 prose-headings:font-medium prose-headings:text-gray-700",
-              "prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-[13px] prose-code:bg-gray-100 prose-code:text-gray-700 prose-code:before:content-none prose-code:after:content-none",
-              "prose-blockquote:my-3 prose-blockquote:pl-3 prose-blockquote:border-l-2 prose-blockquote:border-gray-200 prose-blockquote:text-gray-500",
-              "prose-strong:font-semibold prose-strong:text-gray-800",
-              "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
-              "[&_br]:block [&_br]:my-2",
-              isWidget ? "[&_*]:text-gray-600 [&_strong]:text-gray-800" : "prose-invert"
-            )}>
+            <div 
+              className={cn(
+                "prose prose-sm max-w-none text-thin whitespace-pre-line",
+                "prose-p:my-3 prose-p:leading-relaxed",
+                "prose-ul:my-3 prose-ol:my-3 prose-li:my-1",
+                "prose-headings:my-3 prose-headings:font-medium",
+                "prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-[13px] prose-code:before:content-none prose-code:after:content-none",
+                "prose-blockquote:my-3 prose-blockquote:pl-3 prose-blockquote:border-l-2",
+                "prose-strong:font-semibold",
+                "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
+                "[&_br]:block [&_br]:my-2",
+                !isWidget && "prose-invert"
+              )}
+              style={isWidget ? { color: config.aiMessageTextColor } : undefined}
+            >
               <ReactMarkdown
                 components={{
                   p: ({ children }) => <p className="mb-3">{children}</p>,
                   ul: ({ children }) => <ul className="my-3 space-y-1 list-disc list-inside">{children}</ul>,
-                  li: ({ children }) => <li className="text-gray-600">{children}</li>,
-                  strong: ({ children }) => <strong className="font-semibold text-gray-800">{children}</strong>,
+                  li: ({ children }) => <li style={isWidget ? { color: config.aiMessageTextColor } : undefined}>{children}</li>,
+                  strong: ({ children }) => <strong className="font-semibold" style={isWidget ? { color: config.aiMessageTextColor } : undefined}>{children}</strong>,
                 }}
               >
                 {content}
@@ -89,7 +112,7 @@ export const ChatMessage = ({ role, content, isStreaming, isWidget = false, time
       </div>
       
       {content && (
-        <span className={cn("text-ultra-thin text-[10px] px-10", isWidget ? "text-gray-300" : "text-muted-foreground/50")}>
+        <span className={cn("text-ultra-thin text-[10px] px-10", isWidget ? "text-gray-400" : "text-muted-foreground/50")}>
           {formatTimestamp(timestamp)}
         </span>
       )}
