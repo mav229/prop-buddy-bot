@@ -9,6 +9,28 @@ import scholarisLogo from "@/assets/scholaris-logo.png";
 import propscholarLogo from "@/assets/propscholar-logo.jpg";
 import { cn } from "@/lib/utils";
 
+// Image with blur loading effect
+function BlurImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <div className={cn("relative overflow-hidden", className)}>
+      <img
+        src={src}
+        alt={alt}
+        className={cn(
+          "w-full h-full object-cover transition-all duration-500",
+          loaded ? "blur-0 scale-100 opacity-100" : "blur-md scale-105 opacity-0"
+        )}
+        onLoad={() => setLoaded(true)}
+        draggable={false}
+      />
+      {!loaded && (
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-400/30 to-purple-400/30 animate-pulse" />
+      )}
+    </div>
+  );
+}
+
 interface EmbeddableChatProps {
   isWidget?: boolean;
 }
@@ -103,9 +125,9 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
           <div className="launcher-ring" />
           <button
             onClick={handleOpen}
-            className="launcher-btn"
+            className="launcher-btn launcher-fade-in"
           >
-            <img src={launcherLogo} alt="Chat" className="launcher-logo" draggable={false} />
+            <BlurImage src={launcherLogo} alt="Chat" className="launcher-logo" />
           </button>
         </div>
       </div>
@@ -146,7 +168,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
               <ChevronRight className="w-4 h-4 text-white/80 rotate-180" strokeWidth={1.5} />
             </button>
             <div className="w-8 h-8 rounded-xl overflow-hidden glass-surface-subtle p-0.5">
-              <img src={launcherLogo} alt={config.botName} className="w-full h-full object-cover rounded-lg" />
+              <BlurImage src={launcherLogo} alt={config.botName} className="rounded-lg" />
             </div>
             <div className="flex-1">
               <p className="text-thin text-[13px] text-white">{config.botName}</p>
@@ -167,7 +189,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
           <div className="content-fade">
             <div className="flex items-start justify-between mb-3">
               <div className="w-10 h-10 rounded-xl overflow-hidden glass-surface-subtle p-0.5 logo-float">
-                <img src={headerLogo} alt="Logo" className="w-full h-full object-cover rounded-lg" />
+                <BlurImage src={headerLogo} alt="Logo" className="rounded-lg" />
               </div>
               {isWidget && (
                 <button onClick={handleClose} className="w-7 h-7 flex items-center justify-center rounded-full close-btn">
@@ -205,7 +227,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                     </div>
                     <div className="flex items-start gap-2">
                       <div className="w-7 h-7 rounded-lg overflow-hidden flex-shrink-0" style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}>
-                        <img src={launcherLogo} alt="" className="w-full h-full object-cover" />
+                        <BlurImage src={launcherLogo} alt="" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-thin text-[12px] text-gray-700 line-clamp-2">
@@ -279,8 +301,8 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
             <div className="flex-1 px-3 py-3 space-y-3 overflow-y-auto scrollbar-hide">
               {!isReady ? <ChatSkeleton /> : messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full min-h-[160px] text-center content-fade">
-                  <div className="w-12 h-12 rounded-xl overflow-hidden mb-3 logo-float glass-card">
-                    <img src={headerLogo} alt="Logo" className="w-full h-full object-contain p-2" />
+                  <div className="w-12 h-12 rounded-xl overflow-hidden mb-3 logo-float glass-card p-2">
+                    <BlurImage src={headerLogo} alt="Logo" className="rounded-lg" />
                   </div>
                   <p className="text-ultra-thin text-[12px] text-gray-400 max-w-[200px]">
                     Ask me anything about PropScholar trading, evaluations, or payouts.

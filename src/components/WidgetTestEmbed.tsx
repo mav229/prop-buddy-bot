@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
 
 /**
@@ -8,6 +8,22 @@ import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
  */
 export function WidgetTestEmbed() {
   const { config } = useWidgetConfig();
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const allowedOriginRef = useRef<string>(window.location.origin);
+
+  // Send config updates to iframe whenever config changes
+  useEffect(() => {
+    if (!iframeRef.current) return;
+    try {
+      iframeRef.current.contentWindow?.postMessage(
+        { type: "scholaris:config", config },
+        allowedOriginRef.current
+      );
+    } catch {
+      // ignore
+    }
+  }, [config]);
+
   useEffect(() => {
     const host = window.location.origin.replace(/\/+$/, "");
     const allowedOrigin = window.location.origin;
@@ -41,6 +57,7 @@ export function WidgetTestEmbed() {
     iframe.src = `${host}/widget`;
     iframe.allow = "clipboard-write";
     iframe.title = "Scholaris chat widget";
+    iframeRef.current = iframe;
 
     iframe.style.width = "100%";
     iframe.style.height = "100%";
