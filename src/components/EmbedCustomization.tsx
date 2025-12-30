@@ -105,7 +105,7 @@ export const EmbedCustomization = () => {
     iframe.style.border = 'none';
     iframe.style.display = 'block';
     iframe.style.overflow = 'hidden';
-    iframe.style.borderRadius = '999px';
+    iframe.style.borderRadius = '32px';
     iframe.style.background = 'transparent';
     iframe.style.pointerEvents = 'none';
     iframe.style.boxShadow = 'none';
@@ -121,7 +121,7 @@ export const EmbedCustomization = () => {
     overlay.style.margin = '0';
     overlay.style.background = 'transparent';
     overlay.style.cursor = 'pointer';
-    overlay.style.borderRadius = '999px';
+    overlay.style.borderRadius = '32px';
     overlay.style.pointerEvents = 'auto';
     overlay.style.touchAction = 'manipulation';
 
