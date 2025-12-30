@@ -62,10 +62,18 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const launcherLogo = config.launcherLogoUrl || scholarisLogo;
 
   const handleOpen = useCallback(() => {
-    // Play soft chime sound
-    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-    audio.volume = 0.3;
-    audio.play().catch(() => {}); // Ignore autoplay restrictions
+    // Play soft chime sound with fade-in for smoother experience
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
+    audio.volume = 0;
+    audio.play().then(() => {
+      // Smooth fade-in over 150ms
+      let vol = 0;
+      const fadeIn = setInterval(() => {
+        vol = Math.min(vol + 0.02, 0.15);
+        audio.volume = vol;
+        if (vol >= 0.15) clearInterval(fadeIn);
+      }, 10);
+    }).catch(() => {});
     setIsMinimized(false);
   }, []);
   
