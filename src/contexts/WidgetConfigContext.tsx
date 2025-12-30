@@ -132,8 +132,8 @@ const defaultConfig: WidgetConfig = {
   // Colors
   primaryColor: "#6366f1",
   accentColor: "#818cf8",
-  backgroundColor: "#e0e7ff",
-  cardBackgroundColor: "#ffffff",
+  backgroundColor: "rgba(15, 23, 42, 0.95)",
+  cardBackgroundColor: "rgba(30, 41, 59, 0.9)",
   textColor: "#111827",
   mutedTextColor: "#6b7280",
   
