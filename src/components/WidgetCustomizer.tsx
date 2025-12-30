@@ -637,7 +637,13 @@ export const WidgetCustomizer = () => {
 
                 <Section title="Chat Messages" icon={MessageSquare}>
                   <div className="space-y-4">
-                    <p className="text-xs text-muted-foreground font-medium">User Messages</p>
+                    <ColorPicker
+                      label="Chat Background"
+                      value={config.chatBackgroundColor}
+                      onChange={(v) => updateConfig({ chatBackgroundColor: v })}
+                    />
+                    
+                    <p className="text-xs text-muted-foreground font-medium pt-2">User Messages</p>
                     <div className="grid grid-cols-2 gap-3">
                       <ColorPicker
                         label="Background"

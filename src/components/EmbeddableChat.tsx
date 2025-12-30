@@ -275,7 +275,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
 
         {/* MESSAGES */}
         {activeTab === "messages" && (
-          <div className="flex flex-col h-full" style={{ background: "rgba(255,255,255,0.6)" }}>
+          <div className="flex flex-col h-full" style={{ background: config.chatBackgroundColor }}>
             <div className="flex-1 px-3 py-3 space-y-3 overflow-y-auto scrollbar-hide">
               {!isReady ? <ChatSkeleton /> : messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full min-h-[160px] text-center content-fade">
@@ -346,7 +346,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
 
       {/* INPUT */}
       {activeTab === "messages" && (
-        <div className="flex-shrink-0 px-3 pb-2 pt-1.5" style={{ background: "rgba(255,255,255,0.8)", borderTop: "1px solid rgba(0,0,0,0.04)" }}>
+        <div className="flex-shrink-0 px-3 pb-2 pt-1.5" style={{ background: config.chatInputBgColor, borderTop: `1px solid ${config.chatInputBorderColor}` }}>
           <ChatInput onSend={handleSendMessage} isLoading={isLoading} isWidget={true} />
         </div>
       )}

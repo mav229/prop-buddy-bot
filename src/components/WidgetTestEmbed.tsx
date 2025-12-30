@@ -248,6 +248,15 @@ export function WidgetTestEmbed() {
 
     const onIframeLoad = () => {
       postToWidget(isExpanded ? "expand" : "minimize");
+      // Send config to iframe
+      try {
+        iframe.contentWindow?.postMessage(
+          { type: "scholaris:config", config },
+          allowedOrigin
+        );
+      } catch {
+        // ignore
+      }
     };
     iframe.addEventListener("load", onIframeLoad);
 
@@ -264,7 +273,7 @@ export function WidgetTestEmbed() {
       nudge.remove();
       container.remove();
     };
-  }, [config.showNotificationPopup, config.notificationPopupDelay, config.notificationPopupText]);
+  }, [config]);
 
   return null;
 }
