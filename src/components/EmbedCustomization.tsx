@@ -46,12 +46,20 @@ export const EmbedCustomization = () => {
       window[GLOBAL_KEY] = true;
     } catch (e) {}
 
-    // Remove any previously injected widget (helps replace older versions)
+    // Aggressive de-duplication: remove any previous widget by ID and selector
     try {
+      var oldById = document.getElementById('scholaris-widget-container');
+      if (oldById && oldById.parentNode) oldById.parentNode.removeChild(oldById);
       var oldContainer = document.querySelector('[data-scholaris-widget="container"]');
       if (oldContainer && oldContainer.parentNode) oldContainer.parentNode.removeChild(oldContainer);
       var oldNudge = document.querySelector('[data-scholaris-nudge="true"]');
       if (oldNudge && oldNudge.parentNode) oldNudge.parentNode.removeChild(oldNudge);
+      // Also remove any orphan iframes pointing to the widget
+      document.querySelectorAll('iframe').forEach(function(f) {
+        if (f.src && f.src.indexOf('/widget') !== -1) {
+          try { f.parentNode && f.parentNode.removeChild(f); } catch(e) {}
+        }
+      });
     } catch (e) {}
 
     var host = '${hostUrl}';
@@ -85,6 +93,7 @@ export const EmbedCustomization = () => {
     }
 
     var container = document.createElement('div');
+    container.id = 'scholaris-widget-container';
     container.setAttribute('data-scholaris-widget', 'container');
     container.style.position = 'fixed';
     container.style.right = 'calc(16px + env(safe-area-inset-right))';
@@ -93,6 +102,11 @@ export const EmbedCustomization = () => {
     container.style.height = bubbleSize + 'px';
     container.style.zIndex = '2147483647';
     container.style.transition = 'width 240ms ease, height 240ms ease, left 240ms ease, right 240ms ease, bottom 240ms ease';
+    container.style.background = 'transparent';
+    container.style.border = 'none';
+    container.style.boxShadow = 'none';
+    container.style.padding = '0';
+    container.style.overflow = 'visible';
 
     var iframe = document.createElement('iframe');
     // Cache-bust to ensure your website always loads the latest published widget
@@ -269,10 +283,12 @@ export const EmbedCustomization = () => {
         container.style.bottom = 'calc(16px + env(safe-area-inset-bottom))';
         container.style.width = bubbleSize + 'px';
         container.style.height = bubbleSize + 'px';
-        iframe.style.borderRadius = '999px';
+        container.style.background = 'transparent';
+        iframe.style.borderRadius = '32px';
         iframe.style.boxShadow = 'none';
         iframe.style.pointerEvents = 'none';
         overlay.style.display = 'block';
+        overlay.style.borderRadius = '32px';
         postToWidget('minimize');
         scheduleNudge();
       }
