@@ -151,8 +151,14 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   // Minimized launcher
   if (isWidget && isMinimized) {
     return (
-      <div className={cn(inIframe ? "w-full h-full" : "fixed bottom-6 right-4 z-[9999]", "flex items-center justify-center")}>
-        <div className="launcher-container">
+      <div 
+        className={cn(
+          inIframe ? "w-full h-full" : "fixed bottom-6 right-4 z-[9999]", 
+          "flex items-end justify-end"
+        )}
+        style={{ background: "transparent", pointerEvents: "none" }}
+      >
+        <div className="launcher-container" style={{ pointerEvents: "auto" }}>
           <div className="launcher-glow" />
           <div className="launcher-ring" />
           <button
