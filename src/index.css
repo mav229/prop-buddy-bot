@@ -225,20 +225,9 @@
   border-radius: 9999px;
 }
 
-/* Launcher fade in - simple fade + glide */
-@keyframes launcher-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
+/* Launcher fade in - removed */
 .launcher-fade-in {
-  animation: launcher-fade-in 0.25s ease-out forwards;
+  animation: none !important;
 }
 
 /* Outer ring + glow - REMOVED (keeping empty classes for compatibility) */
