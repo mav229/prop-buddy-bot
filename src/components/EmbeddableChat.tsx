@@ -1,5 +1,5 @@
-import { useRef, useEffect, useState, useCallback } from "react";
-import { X, MessageCircle, Send, Search, Home, HelpCircle, ExternalLink, ChevronRight, ShoppingBag, Clock } from "lucide-react";
+import { useRef, useEffect, useState } from "react";
+import { X, MessageCircle, Send, Search, Home, HelpCircle, ExternalLink, ChevronRight, ShoppingBag, Clock, MessageSquare } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
@@ -16,7 +16,7 @@ interface EmbeddableChatProps {
 type TabType = "home" | "messages" | "help";
 
 export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
-  const { messages, isLoading, error, sendMessage } = useChat();
+  const { messages, isLoading, error, sendMessage, pastSessions, isLoadingSessions, loadSession } = useChat();
   const { config } = useWidgetConfig();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
@@ -83,9 +83,25 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     setActiveTab("messages");
   };
 
-  // Get last message for recent conversation preview
-  const lastAssistantMessage = messages.filter(m => m.role === "assistant").slice(-1)[0];
-  const lastUserMessage = messages.filter(m => m.role === "user").slice(-1)[0];
+  const handleLoadSession = (sessionId: string) => {
+    loadSession(sessionId);
+    setActiveTab("messages");
+  };
+
+  // Format relative time
+  const formatTimeAgo = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
+  };
 
   // Minimized launcher
   if (isWidget && isMinimized) {
@@ -185,28 +201,56 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
           <div className="p-3 space-y-2 content-fade">
             {!isReady ? <CardSkeleton /> : (
               <>
-                {/* Recent Conversation */}
-                {(lastAssistantMessage || lastUserMessage) && (
+                {/* Past Conversations */}
+                {pastSessions.length > 0 && (
+                  <div className="rounded-xl overflow-hidden glass-card stagger-item stagger-1">
+                    <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="w-3.5 h-3.5 text-indigo-400" strokeWidth={1.5} />
+                        <span className="text-ultra-thin text-[10px] text-gray-400 uppercase tracking-wide">Recent conversations</span>
+                      </div>
+                    </div>
+                    {pastSessions.slice(0, 3).map((session, i) => (
+                      <button
+                        key={session.session_id}
+                        onClick={() => handleLoadSession(session.session_id)}
+                        className={cn(
+                          "w-full px-4 py-2.5 flex items-start gap-2.5 text-left list-item",
+                          i < Math.min(pastSessions.length, 3) - 1 && "border-b border-gray-50/50"
+                        )}
+                      >
+                        <div className="w-6 h-6 rounded-lg overflow-hidden flex-shrink-0 mt-0.5" style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}>
+                          <img src={launcherLogo} alt="" className="w-full h-full object-cover opacity-90" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-ultra-thin text-[11px] text-gray-600 line-clamp-2 leading-relaxed">
+                            {session.last_message?.slice(0, 60)}...
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Clock className="w-2.5 h-2.5 text-gray-300" strokeWidth={1.5} />
+                            <span className="text-ultra-thin text-[9px] text-gray-300">{formatTimeAgo(session.created_at)}</span>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0 mt-1" strokeWidth={1.5} />
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Current session - if has messages */}
+                {messages.length > 0 && (
                   <button
                     onClick={() => setActiveTab("messages")}
-                    className="w-full p-3 rounded-xl text-left card-hover stagger-item stagger-1 glass-card"
+                    className="w-full p-3 rounded-xl text-left card-hover glass-card"
+                    style={{ background: "linear-gradient(135deg, rgba(102,126,234,0.08) 0%, rgba(118,75,162,0.08) 100%)" }}
                   >
-                    <div className="flex items-center gap-2 mb-2">
-                      <Clock className="w-3.5 h-3.5 text-indigo-400" strokeWidth={1.5} />
-                      <span className="text-ultra-thin text-[10px] text-gray-400 uppercase tracking-wide">Recent conversation</span>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-400 online-dot" />
+                      <span className="text-ultra-thin text-[10px] text-indigo-500 uppercase tracking-wide">Continue chat</span>
                     </div>
-                    <div className="flex items-start gap-2">
-                      <div className="w-7 h-7 rounded-lg overflow-hidden flex-shrink-0" style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}>
-                        <img src={launcherLogo} alt="" className="w-full h-full object-cover" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-thin text-[12px] text-gray-700 line-clamp-2">
-                          {lastAssistantMessage?.content?.slice(0, 80) || lastUserMessage?.content?.slice(0, 80)}...
-                        </p>
-                        <span className="text-ultra-thin text-[10px] text-gray-400">Tap to continue</span>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" strokeWidth={1.5} />
-                    </div>
+                    <p className="text-ultra-thin text-[11px] text-gray-500 line-clamp-1">
+                      {messages[messages.length - 1]?.content?.slice(0, 50)}...
+                    </p>
                   </button>
                 )}
 
