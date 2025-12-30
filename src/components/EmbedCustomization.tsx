@@ -6,8 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
 
 export const EmbedCustomization = () => {
+  const { config: widgetConfig } = useWidgetConfig();
   const [copied, setCopied] = useState<string | null>(null);
   const [config, setConfig] = useState({
     botName: "Scholaris AI",
@@ -115,7 +117,7 @@ export const EmbedCustomization = () => {
     nudgeText.style.fontSize = '13px';
     nudgeText.style.fontWeight = '700';
     nudgeText.style.color = '#111827';
-    nudgeText.textContent = 'Hey, Try Me! I can helpp you';
+    nudgeText.textContent = '${widgetConfig.notificationPopupText.replace(/'/g, "\\'")}';
 
     var nudgeClose = document.createElement('button');
     nudgeClose.type = 'button';
@@ -152,11 +154,12 @@ export const EmbedCustomization = () => {
     }
 
     function scheduleNudge() {
+      ${!widgetConfig.showNotificationPopup ? 'return;' : ''}
       try { if (sessionStorage.getItem(NUDGE_KEY) === '1') return; } catch (e) {}
       if (nudgeTimer) return;
       nudgeTimer = setTimeout(function() {
         if (!isExpanded) showNudge();
-      }, 20000);
+      }, ${widgetConfig.notificationPopupDelay * 1000});
     }
 
     nudge.addEventListener('click', function() {

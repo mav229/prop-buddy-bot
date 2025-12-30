@@ -603,6 +603,37 @@ export const WidgetCustomizer = () => {
                     />
                   </div>
                 </Section>
+
+                <Section title="Notification Popup" icon={MessageSquare}>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm">Show Notification Popup</Label>
+                      <Switch
+                        checked={config.showNotificationPopup}
+                        onCheckedChange={(v) => updateConfig({ showNotificationPopup: v })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Delay: {config.notificationPopupDelay} seconds</Label>
+                      <Slider
+                        value={[config.notificationPopupDelay]}
+                        onValueChange={([v]) => updateConfig({ notificationPopupDelay: v })}
+                        min={5}
+                        max={60}
+                        step={5}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Popup Message</Label>
+                      <Input
+                        value={config.notificationPopupText}
+                        onChange={(e) => updateConfig({ notificationPopupText: e.target.value })}
+                        className="bg-background/50"
+                        placeholder="Hi there! 👋 I can help you..."
+                      />
+                    </div>
+                  </div>
+                </Section>
               </TabsContent>
             </Tabs>
           </CardContent>
