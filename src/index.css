@@ -272,48 +272,29 @@
   border-radius: 9999px;
 }
 
-/* Launcher fade in animation (GPU accelerated, blur + glide up only) */
+/* Launcher fade in - simple fade + glide */
 @keyframes launcher-fade-in {
-  0% {
+  from {
     opacity: 0;
-    transform: translate3d(0, 10px, 0);
-    filter: blur(6px);
+    transform: translateY(8px);
   }
-  100% {
+  to {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
-    filter: blur(0);
+    transform: translateY(0);
   }
 }
 
 .launcher-fade-in {
-  animation: launcher-fade-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  will-change: transform, opacity, filter;
-  transform: translateZ(0);
-  backface-visibility: hidden;
+  animation: launcher-fade-in 0.25s ease-out forwards;
 }
 
-@media (max-width: 640px) {
-  .launcher-fade-in {
-    animation-duration: 0.24s;
-  }
-}
-
-/* Outer ring + glow (static; no extra motion) */
+/* Outer ring + glow - REMOVED (keeping empty classes for compatibility) */
 .launcher-ring {
-  position: absolute;
-  inset: -6px;
-  border-radius: 9999px;
-  border: 1px solid rgba(102, 126, 234, 0.28);
-  pointer-events: none;
+  display: none;
 }
 
 .launcher-glow {
-  position: absolute;
-  inset: -12px;
-  border-radius: 9999px;
-  background: radial-gradient(circle, rgba(102, 126, 234, 0.18) 0%, transparent 70%);
-  pointer-events: none;
+  display: none;
 }
 
 /* Card hover (smooth GPU accelerated) */
