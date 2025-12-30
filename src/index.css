@@ -215,7 +215,7 @@
   justify-content: center;
 }
 
-/* Launcher button */
+/* Launcher button - clean logo only, no border/shadow */
 .launcher-btn {
   position: relative;
   z-index: 10;
@@ -227,16 +227,16 @@
   padding: 0;
   cursor: pointer;
   background: transparent;
-  box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.6);
-  transition: box-shadow 0.18s ease-out;
+  box-shadow: none;
+  transition: opacity 0.18s ease-out;
 }
 
 .launcher-btn:hover {
-  box-shadow: 0 22px 48px -18px rgba(0, 0, 0, 0.7);
+  opacity: 0.9;
 }
 
 .launcher-btn:active {
-  box-shadow: 0 16px 36px -18px rgba(0, 0, 0, 0.55);
+  opacity: 0.8;
 }
 
 /* Centered logo */
