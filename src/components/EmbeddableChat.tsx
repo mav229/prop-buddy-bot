@@ -3,10 +3,11 @@ import { X, MessageCircle, Send, Search, Home, HelpCircle, ExternalLink, Chevron
 import { useChat } from "@/hooks/useChat";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
-import { ChatSkeleton } from "./ChatSkeleton";
+import { ChatSkeleton, CardSkeleton } from "./ChatSkeleton";
 import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
 import scholarisLogo from "@/assets/scholaris-logo.png";
 import propscholarLogo from "@/assets/propscholar-logo.jpg";
+import { cn } from "@/lib/utils";
 
 interface EmbeddableChatProps {
   isWidget?: boolean;
@@ -15,7 +16,7 @@ interface EmbeddableChatProps {
 type TabType = "home" | "messages" | "help";
 
 // Soft chime sound (base64 encoded short tone)
-const OPEN_SOUND_URL = "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYZNAz7CAAAAAAD/+9DEAAAH8ANntAAAA3AI7PcaAAAEAKQeaYoMBg+D4fBAEHggCAIHB9YPvB8HwfD4f5QEP/h+oGP/+sHwQBAMf/Lgg7///5c/ygIf+XD4IHH/1hAGD4f/+gABgCMN//yhSA//7vxB///KAgCAYB///+D4P/1A+H///0HAsD///+qBz/qH//qH/+D///9UDH///+oHP/U/5QEHw///0Hw////9QPgg+H///5QOfq////lg+Dj//qB9/////////////8AAAATEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//tQxBsAAADSAAAAAAAAANIAAAAATEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=";
+const OPEN_SOUND_URL = "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYZNAz7CAAAAAAD/+9DEAAAH8ANntAAAA3AI7PcaAAAEAKQeaYoMBg+D4fBAEHggCAIHB9YPvB8HwfD4f5QEP/h+oGP/+sHwQBAMf/Lgg7///5c/ygIf+XD4IHH/1hAGD4f/+gABgCMN//yhSA//7vxB///KAgCAYB///+D4P/1A+H///0HAsD///+qBz/qH//qH/+D///9UDH///+oHP/U/5QEHw///0Hw////9QPgg+H///5QOfq////lg+Dj//qB9/////////////8AAAATEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//tQxBsAAADSAAAAAAAAANIAAAAATEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=";
 
 export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const { messages, isLoading, error, sendMessage, clearChat } = useChat();
@@ -37,7 +38,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const playOpenSound = useCallback(() => {
     try {
       const audio = new Audio(OPEN_SOUND_URL);
-      audio.volume = 0.3;
+      audio.volume = 0.25;
       audio.play().catch(() => {});
     } catch {}
   }, []);
@@ -52,7 +53,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     setTimeout(() => {
       setIsClosing(false);
       setIsMinimized(true);
-    }, 220);
+    }, 250);
   };
 
   const inIframe = (() => {
@@ -76,9 +77,9 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     };
   }, [isWidget]);
 
-  // Simulate initial load
+  // Simulate initial load with skeleton
   useEffect(() => {
-    const timer = setTimeout(() => setIsReady(true), 600);
+    const timer = setTimeout(() => setIsReady(true), 800);
     return () => clearTimeout(timer);
   }, []);
 
@@ -161,91 +162,103 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     ? "panel-close" 
     : "panel-open";
 
-  // Dynamic styles from config
-  const headerGradient = `linear-gradient(${config.headerGradientAngle}deg, ${config.headerGradientStart} 0%, ${config.headerGradientMiddle} 50%, ${config.headerGradientEnd} 100%)`;
-  const supportCardGradient = `linear-gradient(90deg, ${config.supportCardGradientStart}, ${config.supportCardGradientEnd})`;
-
-  // Full flowing gradient for the entire widget
-  const flowingGradient = `linear-gradient(180deg, ${config.headerGradientStart} 0%, ${config.headerGradientMiddle} 25%, ${config.headerGradientEnd} 50%, ${config.backgroundColor} 100%)`;
-
   return (
     <div
-      className={`flex flex-col ${animationClass} ${
+      className={cn(
+        "flex flex-col",
+        animationClass,
         isWidget
           ? widgetFloatingFrame
             ? `fixed bottom-4 right-4 z-[9999] ${panelAnimation}`
             : `w-full h-full ${panelAnimation}`
           : "h-screen bg-background"
-      }`}
+      )}
       style={{
         ...(widgetFloatingFrame ? { width: `${config.widgetWidth}px`, height: `${config.widgetHeight}px` } : {}),
-        background: '#ffffff',
-        borderRadius: '24px',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
+        background: '#FFFFFF',
+        borderRadius: '20px',
+        boxShadow: '0 0 0 1px rgba(0, 0, 0, 0.04), 0 8px 32px -4px rgba(0, 0, 0, 0.12), 0 24px 48px -8px rgba(0, 0, 0, 0.08)',
         overflow: 'hidden'
       }}
     >
-      {/* Header */}
+      {/* Header - Premium Apple gradient */}
       <header 
         className="flex-shrink-0 relative"
         style={{ 
-          background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%)',
-          padding: activeTab === "messages" && messages.length > 0 ? '12px 16px' : '20px',
+          background: 'linear-gradient(135deg, #0A84FF 0%, #007AFF 50%, #0051D4 100%)',
+          padding: activeTab === "messages" && messages.length > 0 ? '14px 16px' : '20px',
         }}
       >
         {activeTab === "messages" && messages.length > 0 ? (
           /* Compact header */
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 header-transition">
             <button
               onClick={() => setActiveTab("home")}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-full close-button"
             >
-              <ChevronLeft className="w-5 h-5 text-white" />
+              <ChevronLeft className="w-5 h-5 text-white/90" />
             </button>
             <div 
-              className="w-9 h-9 rounded-xl overflow-hidden bg-white/20 p-1"
+              className="w-9 h-9 rounded-xl overflow-hidden"
+              style={{ 
+                background: 'rgba(255,255,255,0.18)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255,255,255,0.2)'
+              }}
             >
-              <img src={launcherLogo} alt={config.botName} className="w-full h-full object-cover rounded-lg" />
+              <img src={launcherLogo} alt={config.botName} className="w-full h-full object-cover" />
             </div>
-            <div className="flex-1">
-              <h3 className="text-[15px] font-semibold text-white">{config.botName}</h3>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-[15px] font-semibold text-white tracking-tight truncate">{config.botName}</h3>
               {config.showOnlineIndicator && (
                 <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                  <span className="text-[12px] text-white/70">Online</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#30D158] online-pulse" />
+                  <span className="text-[11px] text-white/70 font-medium">Active now</span>
                 </div>
               )}
             </div>
             {isWidget && (
-              <button onClick={handleClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
+              <button 
+                onClick={handleClose} 
+                className="w-8 h-8 flex items-center justify-center rounded-full close-button"
+              >
                 <X className="w-5 h-5 text-white/80" />
               </button>
             )}
           </div>
         ) : (
           /* Full header */
-          <div>
+          <div className="content-fade">
             <div className="flex items-start justify-between mb-4">
               <div 
-                className="w-11 h-11 rounded-full overflow-hidden"
+                className="w-11 h-11 rounded-2xl overflow-hidden logo-float"
                 style={{ 
-                  background: 'rgba(255,255,255,0.15)',
-                  backdropFilter: 'blur(8px)',
-                  border: '2px solid rgba(255,255,255,0.25)'
+                  background: 'rgba(255,255,255,0.18)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.25)'
                 }}
               >
                 <img src={headerLogo} alt="Logo" className="w-full h-full object-cover" />
               </div>
               {isWidget && (
-                <button onClick={handleClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
+                <button 
+                  onClick={handleClose} 
+                  className="w-8 h-8 flex items-center justify-center rounded-full close-button"
+                >
                   <X className="w-5 h-5 text-white/80" />
                 </button>
               )}
             </div>
-            <h1 className="text-[22px] font-semibold text-white mb-0.5">
+            <h1 
+              className="text-[22px] font-semibold text-white mb-1"
+              style={{ letterSpacing: '-0.02em' }}
+            >
               {config.greetingText} {config.greetingEmoji}
             </h1>
-            <p className="text-[18px] font-medium text-white/80">
+            <p 
+              className="text-[16px] text-white/75 font-normal"
+              style={{ letterSpacing: '-0.01em' }}
+            >
               {config.greetingSubtext}
             </p>
           </div>
@@ -257,70 +270,86 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         
         {/* HOME TAB */}
         {activeTab === "home" && (
-          <div className="p-4 space-y-3">
-            {/* Shop Now Card */}
-            <button
-              onClick={() => window.open('https://www.propscholar.com/shop', '_blank')}
-              className="w-full p-4 flex items-center justify-between rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98]"
-              style={{ 
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0'
-              }}
-            >
-              <span className="text-[15px] font-semibold text-gray-800">Shop Now</span>
-              <ShoppingBag className="w-5 h-5 text-blue-500" />
-            </button>
+          <div className="p-4 space-y-2.5 content-fade">
+            {!isReady ? (
+              <CardSkeleton />
+            ) : (
+              <>
+                {/* Shop Now Card */}
+                <button
+                  onClick={() => window.open('https://www.propscholar.com/shop', '_blank')}
+                  className="w-full p-4 flex items-center justify-between rounded-2xl premium-card stagger-item stagger-1"
+                  style={{ 
+                    background: '#F5F5F7',
+                    border: '1px solid rgba(0, 0, 0, 0.04)'
+                  }}
+                >
+                  <span className="text-[15px] font-semibold text-[#1D1D1F] tracking-tight">Shop Now</span>
+                  <ShoppingBag className="w-5 h-5 text-[#007AFF]" />
+                </button>
 
-            {/* Discord Card */}
-            {config.showDiscordCard && (
-              <button
-                onClick={() => window.open(config.discordLink, '_blank')}
-                className="w-full p-4 flex items-center justify-between rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98]"
-                style={{ 
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0'
-                }}
-              >
-                <span className="text-[15px] font-semibold text-gray-800">{config.discordCardText}</span>
-                <ExternalLink className="w-5 h-5 text-blue-500" />
-              </button>
-            )}
+                {/* Discord Card */}
+                {config.showDiscordCard && (
+                  <button
+                    onClick={() => window.open(config.discordLink, '_blank')}
+                    className="w-full p-4 flex items-center justify-between rounded-2xl premium-card stagger-item stagger-2"
+                    style={{ 
+                      background: '#F5F5F7',
+                      border: '1px solid rgba(0, 0, 0, 0.04)'
+                    }}
+                  >
+                    <span className="text-[15px] font-semibold text-[#1D1D1F] tracking-tight">{config.discordCardText}</span>
+                    <ExternalLink className="w-5 h-5 text-[#007AFF]" />
+                  </button>
+                )}
 
-            {/* Message Card */}
-            {config.showMessageCard && (
-              <button
-                onClick={() => setActiveTab("messages")}
-                className="w-full p-4 flex items-center justify-between rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98]"
-                style={{ 
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                  boxShadow: '0 4px 14px rgba(59, 130, 246, 0.35)'
-                }}
-              >
-                <span className="text-[15px] font-semibold text-white">{config.messageCardText}</span>
-                <Send className="w-5 h-5 text-white" />
-              </button>
-            )}
+                {/* Message Card - Primary CTA */}
+                {config.showMessageCard && (
+                  <button
+                    onClick={() => setActiveTab("messages")}
+                    className="w-full p-4 flex items-center justify-between rounded-2xl btn-press stagger-item stagger-3"
+                    style={{ 
+                      background: 'linear-gradient(135deg, #007AFF 0%, #0051D4 100%)',
+                      boxShadow: '0 4px 16px -2px rgba(0, 122, 255, 0.35), 0 8px 24px -4px rgba(0, 122, 255, 0.2)'
+                    }}
+                  >
+                    <span className="text-[15px] font-semibold text-white tracking-tight">{config.messageCardText}</span>
+                    <Send className="w-5 h-5 text-white/90" />
+                  </button>
+                )}
 
-            {/* FAQ Section */}
-            {config.showHelpSearch && (
-              <div className="rounded-2xl overflow-hidden" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                <div className="px-4 py-3 flex items-center justify-between border-b border-gray-100">
-                  <span className="text-[15px] font-semibold text-gray-800">Frequently Asked</span>
-                  <Search className="w-4 h-4 text-gray-400" />
-                </div>
-                <div>
-                  {config.suggestedQuestions.map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      onClick={() => handleSendMessage(suggestion)}
-                      className="w-full px-4 py-3.5 flex items-center justify-between text-left border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors"
-                    >
-                      <span className="text-[14px] text-gray-600">{suggestion}</span>
-                      <span className="text-gray-300 text-lg">›</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+                {/* FAQ Section */}
+                {config.showHelpSearch && (
+                  <div 
+                    className="rounded-2xl overflow-hidden stagger-item stagger-4" 
+                    style={{ 
+                      background: '#F5F5F7', 
+                      border: '1px solid rgba(0, 0, 0, 0.04)' 
+                    }}
+                  >
+                    <div className="px-4 py-3 flex items-center justify-between border-b" style={{ borderColor: 'rgba(0, 0, 0, 0.04)' }}>
+                      <span className="text-[15px] font-semibold text-[#1D1D1F] tracking-tight">Frequently Asked</span>
+                      <Search className="w-4 h-4 text-[#8E8E93]" />
+                    </div>
+                    <div>
+                      {config.suggestedQuestions.map((suggestion, index) => (
+                        <button
+                          key={suggestion}
+                          onClick={() => handleSendMessage(suggestion)}
+                          className={cn(
+                            "w-full px-4 py-3.5 flex items-center justify-between text-left list-item-smooth",
+                            index < config.suggestedQuestions.length - 1 && "border-b"
+                          )}
+                          style={{ borderColor: 'rgba(0, 0, 0, 0.04)' }}
+                        >
+                          <span className="text-[14px] text-[#48484A] font-normal">{suggestion}</span>
+                          <ChevronLeft className="w-4 h-4 text-[#C7C7CC] rotate-180" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -332,32 +361,45 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
               {!isReady ? (
                 <ChatSkeleton />
               ) : messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center">
+                <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center content-fade">
                   <div 
-                    className="w-16 h-16 rounded-2xl overflow-hidden bg-blue-50 p-2 mb-4"
-                    style={{ border: '1px solid #dbeafe' }}
+                    className="w-14 h-14 rounded-2xl overflow-hidden mb-4 logo-float"
+                    style={{ 
+                      background: '#F5F5F7',
+                      border: '1px solid rgba(0, 0, 0, 0.04)'
+                    }}
                   >
-                    <img src={headerLogo} alt="Logo" className="w-full h-full object-contain" />
+                    <img src={headerLogo} alt="Logo" className="w-full h-full object-contain p-2" />
                   </div>
-                  <p className="text-[14px] text-gray-500 max-w-[240px]">
+                  <p 
+                    className="text-[14px] text-[#8E8E93] max-w-[240px] font-normal"
+                    style={{ lineHeight: '1.5', letterSpacing: '-0.01em' }}
+                  >
                     Ask me anything about PropScholar trading, evaluations, or payouts.
                   </p>
                 </div>
               ) : (
                 <>
-                  {messages.map((message, index) => (
+                  {messages.map((message) => (
                     <ChatMessage
                       key={message.id}
                       role={message.role}
                       content={message.content}
-                      isStreaming={isLoading && index === messages.length - 1 && message.role === "assistant"}
+                      isStreaming={isLoading && message.id === messages[messages.length - 1]?.id && message.role === "assistant"}
                       isWidget={true}
                     />
                   ))}
                 </>
               )}
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl">
+                <div 
+                  className="text-[13px] px-4 py-3 rounded-xl message-bubble"
+                  style={{ 
+                    background: '#FFF2F2', 
+                    color: '#FF3B30',
+                    border: '1px solid rgba(255, 59, 48, 0.1)'
+                  }}
+                >
                   {error}
                 </div>
               )}
@@ -368,41 +410,51 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
 
         {/* HELP TAB */}
         {activeTab === "help" && (
-          <div className="p-4 space-y-3">
+          <div className="p-4 space-y-2.5 content-fade">
             {/* Support Card */}
             {config.showSupportCard && (
               <a
                 href={`mailto:${config.supportEmail}`}
-                className="block w-full p-4 rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98]"
+                className="block w-full p-4 rounded-2xl btn-press stagger-item stagger-1"
                 style={{ 
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                  boxShadow: '0 4px 14px rgba(59, 130, 246, 0.35)'
+                  background: 'linear-gradient(135deg, #007AFF 0%, #0051D4 100%)',
+                  boxShadow: '0 4px 16px -2px rgba(0, 122, 255, 0.35), 0 8px 24px -4px rgba(0, 122, 255, 0.2)'
                 }}
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-[15px] font-semibold text-white block">Open Support Ticket</span>
-                    <span className="text-[13px] text-white/70">{config.supportEmail}</span>
+                    <span className="text-[15px] font-semibold text-white block tracking-tight">Open Support Ticket</span>
+                    <span className="text-[13px] text-white/70 font-normal">{config.supportEmail}</span>
                   </div>
-                  <Send className="w-5 h-5 text-white" />
+                  <Send className="w-5 h-5 text-white/90" />
                 </div>
               </a>
             )}
 
             {/* FAQ */}
-            <div className="rounded-2xl overflow-hidden" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-              <div className="px-4 py-3 border-b border-gray-100">
-                <span className="text-[15px] font-semibold text-gray-800">Frequently Asked</span>
+            <div 
+              className="rounded-2xl overflow-hidden stagger-item stagger-2" 
+              style={{ 
+                background: '#F5F5F7', 
+                border: '1px solid rgba(0, 0, 0, 0.04)' 
+              }}
+            >
+              <div className="px-4 py-3 border-b" style={{ borderColor: 'rgba(0, 0, 0, 0.04)' }}>
+                <span className="text-[15px] font-semibold text-[#1D1D1F] tracking-tight">Frequently Asked</span>
               </div>
               <div>
-                {config.suggestedQuestions.map((suggestion) => (
+                {config.suggestedQuestions.map((suggestion, index) => (
                   <button
                     key={suggestion}
                     onClick={() => handleSendMessage(suggestion)}
-                    className="w-full px-4 py-3.5 flex items-center justify-between text-left border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors"
+                    className={cn(
+                      "w-full px-4 py-3.5 flex items-center justify-between text-left list-item-smooth",
+                      index < config.suggestedQuestions.length - 1 && "border-b"
+                    )}
+                    style={{ borderColor: 'rgba(0, 0, 0, 0.04)' }}
                   >
-                    <span className="text-[14px] text-gray-600">{suggestion}</span>
-                    <span className="text-gray-300 text-lg">›</span>
+                    <span className="text-[14px] text-[#48484A] font-normal">{suggestion}</span>
+                    <ChevronLeft className="w-4 h-4 text-[#C7C7CC] rotate-180" />
                   </button>
                 ))}
               </div>
@@ -411,46 +463,63 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         )}
       </div>
 
-      {/* Input Area */}
+      {/* Input Area - Refined */}
       {activeTab === "messages" && (
-        <div className="flex-shrink-0 px-4 pb-3 pt-2 border-t bg-white" style={{ borderColor: '#e5e7eb' }}>
+        <div 
+          className="flex-shrink-0 px-4 pb-3 pt-2 border-t bg-white" 
+          style={{ borderColor: 'rgba(0, 0, 0, 0.06)' }}
+        >
           <ChatInput onSend={handleSendMessage} isLoading={isLoading} isWidget={true} />
         </div>
       )}
 
-      {/* Bottom Navigation Tabs */}
+      {/* Bottom Navigation - Premium tab bar */}
       <div 
-        className="flex-shrink-0 border-t px-4 py-2"
-        style={{ backgroundColor: '#ffffff', borderColor: '#e5e7eb' }}
+        className="flex-shrink-0 border-t"
+        style={{ 
+          backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+          backdropFilter: 'blur(20px)',
+          borderColor: 'rgba(0, 0, 0, 0.06)' 
+        }}
       >
-        <div className="flex items-center justify-around">
-          <button
-            onClick={() => setActiveTab("home")}
-            className="flex flex-col items-center gap-1 px-6 py-2 rounded-lg transition-colors"
-            style={{ color: activeTab === "home" ? '#3b82f6' : '#9ca3af' }}
-          >
-            <Home className="w-5 h-5" />
-            <span className="text-xs font-medium">Home</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("messages")}
-            className="flex flex-col items-center gap-1 px-6 py-2 rounded-lg transition-colors"
-            style={{ color: activeTab === "messages" ? '#3b82f6' : '#9ca3af' }}
-          >
-            <MessageCircle className="w-5 h-5" />
-            <span className="text-xs font-medium">Messages</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("help")}
-            className="flex flex-col items-center gap-1 px-6 py-2 rounded-lg transition-colors"
-            style={{ color: activeTab === "help" ? '#3b82f6' : '#9ca3af' }}
-          >
-            <HelpCircle className="w-5 h-5" />
-            <span className="text-xs font-medium">Help</span>
-          </button>
+        <div className="flex items-center justify-around py-2">
+          {[
+            { id: 'home' as TabType, icon: Home, label: 'Home' },
+            { id: 'messages' as TabType, icon: MessageCircle, label: 'Messages' },
+            { id: 'help' as TabType, icon: HelpCircle, label: 'Help' },
+          ].map(({ id, icon: Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={cn(
+                "flex flex-col items-center gap-0.5 px-6 py-1.5 rounded-lg tab-button",
+                activeTab === id && "active"
+              )}
+            >
+              <Icon 
+                className="w-[22px] h-[22px] transition-colors duration-200"
+                style={{ 
+                  color: activeTab === id ? '#007AFF' : '#8E8E93',
+                  strokeWidth: activeTab === id ? 2 : 1.5
+                }} 
+              />
+              <span 
+                className="text-[10px] font-medium transition-colors duration-200"
+                style={{ 
+                  color: activeTab === id ? '#007AFF' : '#8E8E93',
+                  letterSpacing: '0.01em'
+                }}
+              >
+                {label}
+              </span>
+            </button>
+          ))}
         </div>
         {config.showFooter && (
-          <p className="text-[10px] text-center mt-1 font-medium text-gray-400">
+          <p 
+            className="text-[10px] text-center pb-2 font-medium"
+            style={{ color: '#C7C7CC', letterSpacing: '0.02em' }}
+          >
             {config.footerText}
           </p>
         )}
