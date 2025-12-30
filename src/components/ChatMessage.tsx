@@ -90,10 +90,13 @@ export const ChatMessage = ({ role, content, isStreaming, isWidget = false, time
         {/* Bubble */}
         <div 
           className={cn(
-            "max-w-[80%] px-4 py-3 text-[14px] leading-relaxed",
+            "max-w-[80%] px-4 py-3 leading-relaxed",
             !isWidget && (isUser ? "chat-bubble-user" : "chat-bubble-assistant")
           )}
-          style={isUser ? userBubbleStyle : aiBubbleStyle}
+          style={{
+            ...(isUser ? userBubbleStyle : aiBubbleStyle),
+            fontSize: isWidget ? `${config.chatMessageFontSize}px` : '14px',
+          }}
         >
           {!content && isStreaming ? (
             <TypingIndicator />
@@ -130,7 +133,7 @@ export const ChatMessage = ({ role, content, isStreaming, isWidget = false, time
         </div>
       </div>
       
-      {content && (
+      {content && config.showTimestamps && (
         <span className={cn("text-ultra-thin text-[10px] px-10", isWidget ? "text-gray-400" : "text-muted-foreground/50")}>
           {formattedTime}
         </span>
