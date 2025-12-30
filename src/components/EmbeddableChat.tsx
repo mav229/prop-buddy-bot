@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from "react";
-import { X, MessageCircle, Send, Search, Home, HelpCircle, ExternalLink, ChevronRight, ShoppingBag } from "lucide-react";
+import { X, MessageCircle, Send, Search, Home, HelpCircle, ExternalLink, ChevronRight, ShoppingBag, Clock } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
@@ -83,15 +83,19 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     setActiveTab("messages");
   };
 
+  // Get last message for recent conversation preview
+  const lastAssistantMessage = messages.filter(m => m.role === "assistant").slice(-1)[0];
+  const lastUserMessage = messages.filter(m => m.role === "user").slice(-1)[0];
+
   // Minimized launcher
   if (isWidget && isMinimized) {
     return (
-      <div className={cn(inIframe ? "w-full h-full" : "fixed bottom-4 right-4 z-[9999]", "flex items-center justify-center")}>
-        <div className="relative" style={{ width: 64, height: 64 }}>
+      <div className={cn(inIframe ? "w-full h-full" : "fixed bottom-6 right-4 z-[9999]", "flex items-center justify-center")}>
+        <div className="relative" style={{ width: 56, height: 56 }}>
           <div className="glow-ring" />
           <button
             onClick={handleOpen}
-            className="w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden launcher-btn relative z-10"
+            className="w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden launcher-btn relative z-10"
           >
             <img src={launcherLogo} alt="Chat" className="w-full h-full object-cover" draggable={false} />
           </button>
@@ -107,63 +111,66 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     <div
       className={cn(
         "widget-glass flex flex-col",
-        isWidget ? widgetFloatingFrame ? `fixed bottom-4 right-4 z-[9999] ${panelClass}` : `w-full h-full ${panelClass}` : "h-screen bg-background"
+        isWidget ? widgetFloatingFrame ? `fixed bottom-6 right-4 z-[9999] ${panelClass}` : `w-full h-full ${panelClass}` : "h-screen bg-background"
       )}
       style={{
         ...(widgetFloatingFrame ? { width: config.widgetWidth, height: config.widgetHeight } : {}),
-        borderRadius: 24,
+        borderRadius: 20,
         overflow: "hidden",
-        boxShadow: "0 0 0 1px rgba(0,0,0,0.04), 0 24px 48px -12px rgba(0,0,0,0.18)",
-        background: "#fff",
+        boxShadow: "0 0 0 1px rgba(255,255,255,0.1), 0 16px 40px -12px rgba(0,0,0,0.25)",
+        background: "rgba(255,255,255,0.95)",
+        backdropFilter: "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
       }}
     >
-      {/* HEADER - Glassmorphic gradient */}
+      {/* HEADER - Thin glassmorphic */}
       <header
         className="flex-shrink-0 relative"
         style={{
-          background: "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #6B8DD6 100%)",
-          padding: activeTab === "messages" && messages.length > 0 ? "16px" : "24px 20px 28px",
+          background: "linear-gradient(135deg, rgba(102,126,234,0.95) 0%, rgba(118,75,162,0.95) 100%)",
+          backdropFilter: "blur(16px)",
+          padding: activeTab === "messages" && messages.length > 0 ? "12px 14px" : "18px 16px 22px",
         }}
       >
         {activeTab === "messages" && messages.length > 0 ? (
-          <div className="flex items-center gap-3 content-fade">
-            <button onClick={() => setActiveTab("home")} className="w-8 h-8 flex items-center justify-center rounded-full close-btn">
-              <ChevronRight className="w-5 h-5 text-white/80 rotate-180" strokeWidth={1.5} />
+          <div className="flex items-center gap-2.5 content-fade">
+            <button onClick={() => setActiveTab("home")} className="w-7 h-7 flex items-center justify-center rounded-full close-btn">
+              <ChevronRight className="w-4 h-4 text-white/80 rotate-180" strokeWidth={1.5} />
             </button>
-            <div className="w-10 h-10 rounded-2xl overflow-hidden glass-surface-subtle p-0.5">
-              <img src={launcherLogo} alt={config.botName} className="w-full h-full object-cover rounded-xl" />
+            <div className="w-8 h-8 rounded-xl overflow-hidden glass-surface-subtle p-0.5">
+              <img src={launcherLogo} alt={config.botName} className="w-full h-full object-cover rounded-lg" />
             </div>
             <div className="flex-1">
-              <p className="text-regular text-[15px] text-white">{config.botName}</p>
+              <p className="text-thin text-[13px] text-white">{config.botName}</p>
               {config.showOnlineIndicator && (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-400 online-dot" />
-                  <span className="text-ultra-thin text-[11px] text-white/70">Active now</span>
+                  <span className="text-ultra-thin text-[10px] text-white/60">Online</span>
                 </div>
               )}
             </div>
             {isWidget && (
-              <button onClick={handleClose} className="w-8 h-8 flex items-center justify-center rounded-full close-btn">
-                <X className="w-5 h-5 text-white/70" strokeWidth={1.5} />
+              <button onClick={handleClose} className="w-7 h-7 flex items-center justify-center rounded-full close-btn">
+                <X className="w-4 h-4 text-white/70" strokeWidth={1.5} />
               </button>
             )}
           </div>
         ) : (
           <div className="content-fade">
-            <div className="flex items-start justify-between mb-5">
-              <div className="w-12 h-12 rounded-2xl overflow-hidden glass-surface-subtle p-0.5 logo-float">
-                <img src={headerLogo} alt="Logo" className="w-full h-full object-cover rounded-xl" />
+            <div className="flex items-start justify-between mb-3">
+              <div className="w-10 h-10 rounded-xl overflow-hidden glass-surface-subtle p-0.5 logo-float">
+                <img src={headerLogo} alt="Logo" className="w-full h-full object-cover rounded-lg" />
               </div>
               {isWidget && (
-                <button onClick={handleClose} className="w-8 h-8 flex items-center justify-center rounded-full close-btn">
-                  <X className="w-5 h-5 text-white/70" strokeWidth={1.5} />
+                <button onClick={handleClose} className="w-7 h-7 flex items-center justify-center rounded-full close-btn">
+                  <X className="w-4 h-4 text-white/70" strokeWidth={1.5} />
                 </button>
               )}
             </div>
-            <h1 className="text-thin text-[28px] text-white leading-tight">
+            <h1 className="text-thin text-[22px] text-white leading-tight">
               {config.greetingText} {config.greetingEmoji}
             </h1>
-            <p className="text-ultra-thin text-[18px] text-white/80 mt-1">
+            <p className="text-ultra-thin text-[14px] text-white/70 mt-0.5">
               {config.greetingSubtext}
             </p>
           </div>
@@ -171,61 +178,84 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       </header>
 
       {/* CONTENT */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin" style={{ background: "#fafafa" }}>
+      <div className="flex-1 overflow-y-auto scrollbar-thin" style={{ background: "rgba(250,250,252,0.8)" }}>
         
         {/* HOME */}
         {activeTab === "home" && (
-          <div className="p-4 space-y-3 content-fade">
+          <div className="p-3 space-y-2 content-fade">
             {!isReady ? <CardSkeleton /> : (
               <>
+                {/* Recent Conversation */}
+                {(lastAssistantMessage || lastUserMessage) && (
+                  <button
+                    onClick={() => setActiveTab("messages")}
+                    className="w-full p-3 rounded-xl text-left card-hover stagger-item stagger-1 glass-card"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <Clock className="w-3.5 h-3.5 text-indigo-400" strokeWidth={1.5} />
+                      <span className="text-ultra-thin text-[10px] text-gray-400 uppercase tracking-wide">Recent conversation</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <div className="w-7 h-7 rounded-lg overflow-hidden flex-shrink-0" style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}>
+                        <img src={launcherLogo} alt="" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-thin text-[12px] text-gray-700 line-clamp-2">
+                          {lastAssistantMessage?.content?.slice(0, 80) || lastUserMessage?.content?.slice(0, 80)}...
+                        </p>
+                        <span className="text-ultra-thin text-[10px] text-gray-400">Tap to continue</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" strokeWidth={1.5} />
+                    </div>
+                  </button>
+                )}
+
                 <button
                   onClick={() => window.open("https://www.propscholar.com/shop", "_blank")}
-                  className="w-full px-5 py-4 flex items-center justify-between rounded-2xl card-hover stagger-item stagger-1"
-                  style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.05)" }}
+                  className="w-full px-4 py-3 flex items-center justify-between rounded-xl card-hover stagger-item stagger-1 glass-card"
                 >
-                  <span className="text-regular text-[15px] text-gray-800">Shop Now</span>
-                  <ShoppingBag className="w-5 h-5 text-indigo-500" strokeWidth={1.5} />
+                  <span className="text-thin text-[13px] text-gray-700">Shop Now</span>
+                  <ShoppingBag className="w-4 h-4 text-indigo-400" strokeWidth={1.5} />
                 </button>
 
                 {config.showDiscordCard && (
                   <button
                     onClick={() => window.open(config.discordLink, "_blank")}
-                    className="w-full px-5 py-4 flex items-center justify-between rounded-2xl card-hover stagger-item stagger-2"
-                    style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.05)" }}
+                    className="w-full px-4 py-3 flex items-center justify-between rounded-xl card-hover stagger-item stagger-2 glass-card"
                   >
-                    <span className="text-regular text-[15px] text-gray-800">{config.discordCardText}</span>
-                    <ExternalLink className="w-5 h-5 text-indigo-500" strokeWidth={1.5} />
+                    <span className="text-thin text-[13px] text-gray-700">{config.discordCardText}</span>
+                    <ExternalLink className="w-4 h-4 text-indigo-400" strokeWidth={1.5} />
                   </button>
                 )}
 
                 {config.showMessageCard && (
                   <button
                     onClick={() => setActiveTab("messages")}
-                    className="w-full px-5 py-4 flex items-center justify-between rounded-2xl card-hover stagger-item stagger-3"
+                    className="w-full px-4 py-3 flex items-center justify-between rounded-xl card-hover stagger-item stagger-3"
                     style={{ 
-                      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                      boxShadow: "0 8px 24px -8px rgba(102, 126, 234, 0.5)"
+                      background: "linear-gradient(135deg, rgba(102,126,234,0.9) 0%, rgba(118,75,162,0.9) 100%)",
+                      boxShadow: "0 6px 20px -6px rgba(102, 126, 234, 0.4)"
                     }}
                   >
-                    <span className="text-regular text-[15px] text-white">{config.messageCardText}</span>
-                    <ChevronRight className="w-5 h-5 text-white/80" strokeWidth={1.5} />
+                    <span className="text-thin text-[13px] text-white">{config.messageCardText}</span>
+                    <ChevronRight className="w-4 h-4 text-white/70" strokeWidth={1.5} />
                   </button>
                 )}
 
                 {config.showHelpSearch && (
-                  <div className="rounded-2xl overflow-hidden stagger-item stagger-4" style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.05)" }}>
-                    <div className="px-5 py-3.5 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
-                      <span className="text-thin text-[14px] text-gray-500">Search for help</span>
-                      <Search className="w-4 h-4 text-indigo-500" strokeWidth={1.5} />
+                  <div className="rounded-xl overflow-hidden stagger-item stagger-4 glass-card">
+                    <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
+                      <span className="text-ultra-thin text-[11px] text-gray-400 uppercase tracking-wide">Search for help</span>
+                      <Search className="w-3.5 h-3.5 text-indigo-400" strokeWidth={1.5} />
                     </div>
                     {config.suggestedQuestions.map((q, i) => (
                       <button
                         key={q}
                         onClick={() => handleSendMessage(q)}
-                        className={cn("w-full px-5 py-3.5 flex items-center justify-between text-left list-item", i < config.suggestedQuestions.length - 1 && "border-b border-gray-50")}
+                        className={cn("w-full px-4 py-2.5 flex items-center justify-between text-left list-item", i < config.suggestedQuestions.length - 1 && "border-b border-gray-50/50")}
                       >
-                        <span className="text-thin text-[14px] text-gray-600">{q}</span>
-                        <ChevronRight className="w-4 h-4 text-gray-300" strokeWidth={1.5} />
+                        <span className="text-ultra-thin text-[12px] text-gray-500">{q}</span>
+                        <ChevronRight className="w-3.5 h-3.5 text-gray-300" strokeWidth={1.5} />
                       </button>
                     ))}
                   </div>
@@ -237,14 +267,14 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
 
         {/* MESSAGES */}
         {activeTab === "messages" && (
-          <div className="flex flex-col h-full" style={{ background: "#fff" }}>
-            <div className="flex-1 px-4 py-4 space-y-4 overflow-y-auto scrollbar-hide">
+          <div className="flex flex-col h-full" style={{ background: "rgba(255,255,255,0.6)" }}>
+            <div className="flex-1 px-3 py-3 space-y-3 overflow-y-auto scrollbar-hide">
               {!isReady ? <ChatSkeleton /> : messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full min-h-[180px] text-center content-fade">
-                  <div className="w-14 h-14 rounded-2xl overflow-hidden mb-4 logo-float" style={{ background: "#f5f5f5" }}>
+                <div className="flex flex-col items-center justify-center h-full min-h-[160px] text-center content-fade">
+                  <div className="w-12 h-12 rounded-xl overflow-hidden mb-3 logo-float glass-card">
                     <img src={headerLogo} alt="Logo" className="w-full h-full object-contain p-2" />
                   </div>
-                  <p className="text-thin text-[14px] text-gray-400 max-w-[220px]">
+                  <p className="text-ultra-thin text-[12px] text-gray-400 max-w-[200px]">
                     Ask me anything about PropScholar trading, evaluations, or payouts.
                   </p>
                 </div>
@@ -259,7 +289,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                   />
                 ))
               )}
-              {error && <div className="text-thin text-[13px] px-4 py-3 rounded-xl bg-red-50 text-red-500">{error}</div>}
+              {error && <div className="text-ultra-thin text-[11px] px-3 py-2 rounded-lg bg-red-50/80 text-red-500">{error}</div>}
               <div ref={messagesEndRef} />
             </div>
           </div>
@@ -267,38 +297,38 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
 
         {/* HELP */}
         {activeTab === "help" && (
-          <div className="p-4 space-y-3 content-fade">
+          <div className="p-3 space-y-2 content-fade">
             {config.showSupportCard && (
               <a
                 href={`mailto:${config.supportEmail}`}
-                className="block w-full px-5 py-4 rounded-2xl card-hover stagger-item stagger-1"
+                className="block w-full px-4 py-3 rounded-xl card-hover stagger-item stagger-1"
                 style={{ 
-                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                  boxShadow: "0 8px 24px -8px rgba(102, 126, 234, 0.5)"
+                  background: "linear-gradient(135deg, rgba(102,126,234,0.9) 0%, rgba(118,75,162,0.9) 100%)",
+                  boxShadow: "0 6px 20px -6px rgba(102, 126, 234, 0.4)"
                 }}
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-regular text-[15px] text-white block">Open Support Ticket</span>
-                    <span className="text-ultra-thin text-[13px] text-white/60">{config.supportEmail}</span>
+                    <span className="text-thin text-[13px] text-white block">Open Support Ticket</span>
+                    <span className="text-ultra-thin text-[11px] text-white/50">{config.supportEmail}</span>
                   </div>
-                  <Send className="w-5 h-5 text-white/80" strokeWidth={1.5} />
+                  <Send className="w-4 h-4 text-white/70" strokeWidth={1.5} />
                 </div>
               </a>
             )}
 
-            <div className="rounded-2xl overflow-hidden stagger-item stagger-2" style={{ background: "#fff", border: "1px solid rgba(0,0,0,0.05)" }}>
-              <div className="px-5 py-3" style={{ borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
-                <span className="text-thin text-[14px] text-gray-500">Frequently Asked</span>
+            <div className="rounded-xl overflow-hidden stagger-item stagger-2 glass-card">
+              <div className="px-4 py-2.5" style={{ borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
+                <span className="text-ultra-thin text-[11px] text-gray-400 uppercase tracking-wide">Frequently Asked</span>
               </div>
               {config.suggestedQuestions.map((q, i) => (
                 <button
                   key={q}
                   onClick={() => handleSendMessage(q)}
-                  className={cn("w-full px-5 py-3.5 flex items-center justify-between text-left list-item", i < config.suggestedQuestions.length - 1 && "border-b border-gray-50")}
+                  className={cn("w-full px-4 py-2.5 flex items-center justify-between text-left list-item", i < config.suggestedQuestions.length - 1 && "border-b border-gray-50/50")}
                 >
-                  <span className="text-thin text-[14px] text-gray-600">{q}</span>
-                  <ChevronRight className="w-4 h-4 text-gray-300" strokeWidth={1.5} />
+                  <span className="text-ultra-thin text-[12px] text-gray-500">{q}</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-gray-300" strokeWidth={1.5} />
                 </button>
               ))}
             </div>
@@ -308,14 +338,14 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
 
       {/* INPUT */}
       {activeTab === "messages" && (
-        <div className="flex-shrink-0 px-4 pb-3 pt-2" style={{ background: "#fff", borderTop: "1px solid rgba(0,0,0,0.05)" }}>
+        <div className="flex-shrink-0 px-3 pb-2 pt-1.5" style={{ background: "rgba(255,255,255,0.8)", borderTop: "1px solid rgba(0,0,0,0.04)" }}>
           <ChatInput onSend={handleSendMessage} isLoading={isLoading} isWidget={true} />
         </div>
       )}
 
       {/* TABS */}
-      <nav className="flex-shrink-0" style={{ background: "#fff", borderTop: "1px solid rgba(0,0,0,0.05)" }}>
-        <div className="flex items-center justify-around py-2.5">
+      <nav className="flex-shrink-0" style={{ background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderTop: "1px solid rgba(0,0,0,0.04)" }}>
+        <div className="flex items-center justify-around py-1.5">
           {([
             { id: "home", icon: Home, label: "Home" },
             { id: "messages", icon: MessageCircle, label: "Messages" },
@@ -324,15 +354,28 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
             <button
               key={id}
               onClick={() => setActiveTab(id)}
-              className={cn("flex flex-col items-center gap-1 px-5 py-1 tab-btn", activeTab === id && "active")}
+              className={cn("flex flex-col items-center gap-0.5 px-4 py-1 tab-btn", activeTab === id && "active")}
             >
-              <Icon className="w-5 h-5" style={{ color: activeTab === id ? "#667eea" : "#9ca3af" }} strokeWidth={activeTab === id ? 1.8 : 1.3} />
-              <span className="text-ultra-thin text-[11px]" style={{ color: activeTab === id ? "#667eea" : "#9ca3af" }}>{label}</span>
+              <Icon className="w-4 h-4" style={{ color: activeTab === id ? "#667eea" : "#b0b0b0" }} strokeWidth={activeTab === id ? 1.6 : 1.2} />
+              <span className="text-ultra-thin text-[9px]" style={{ color: activeTab === id ? "#667eea" : "#b0b0b0" }}>{label}</span>
             </button>
           ))}
         </div>
         {config.showFooter && (
-          <p className="text-ultra-thin text-[10px] text-center pb-2 text-gray-300">{config.footerText}</p>
+          <div className="pb-2 pt-0.5">
+            <p 
+              className="text-ultra-thin text-[10px] text-center"
+              style={{ 
+                background: "linear-gradient(90deg, #667eea, #764ba2)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                opacity: 0.7
+              }}
+            >
+              {config.footerText}
+            </p>
+          </div>
         )}
       </nav>
     </div>
