@@ -57,6 +57,10 @@ export interface WidgetConfig {
   supportCardGradientStart: string;
   supportCardGradientEnd: string;
   
+  // Chat Messages Settings
+  showTimestamps: boolean;
+  chatMessageFontSize: number;
+  
   // Suggested Questions
   suggestedQuestions: string[];
   
@@ -152,6 +156,10 @@ const defaultConfig: WidgetConfig = {
   showSupportCard: true,
   supportCardGradientStart: "#3b82f6",
   supportCardGradientEnd: "#2563eb",
+  
+  // Chat Messages Settings
+  showTimestamps: true,
+  chatMessageFontSize: 14,
   
   // Suggested Questions
   suggestedQuestions: [

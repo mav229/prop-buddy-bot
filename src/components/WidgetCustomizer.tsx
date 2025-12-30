@@ -734,6 +734,25 @@ export const WidgetCustomizer = () => {
                       />
                     </div>
 
+                    <p className="text-xs text-muted-foreground font-medium pt-2">Message Settings</p>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm">Show Timestamps</Label>
+                      <Switch
+                        checked={config.showTimestamps}
+                        onCheckedChange={(v) => updateConfig({ showTimestamps: v })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Font Size: {config.chatMessageFontSize}px</Label>
+                      <Slider
+                        value={[config.chatMessageFontSize]}
+                        onValueChange={([v]) => updateConfig({ chatMessageFontSize: v })}
+                        min={10}
+                        max={20}
+                        step={1}
+                      />
+                    </div>
+
                     <p className="text-xs text-muted-foreground font-medium pt-2">Chat Input</p>
                     <div className="grid grid-cols-2 gap-3">
                       <ColorPicker
