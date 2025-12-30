@@ -131,11 +131,11 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         WebkitBackdropFilter: "blur(24px)",
       }}
     >
-      {/* HEADER - Thin glassmorphic */}
+      {/* HEADER - Uses config colors */}
       <header
         className="flex-shrink-0 relative"
         style={{
-          background: "linear-gradient(135deg, rgba(102,126,234,0.95) 0%, rgba(118,75,162,0.95) 100%)",
+          background: `linear-gradient(${config.headerGradientAngle}deg, ${config.headerGradientStart} 0%, ${config.headerGradientMiddle} 50%, ${config.headerGradientEnd} 100%)`,
           backdropFilter: "blur(16px)",
           padding: activeTab === "messages" && messages.length > 0 ? "12px 14px" : "18px 16px 22px",
         }}
@@ -175,10 +175,10 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                 </button>
               )}
             </div>
-            <h1 className="text-thin text-[22px] text-white leading-tight">
+            <h1 className="text-thin text-[22px] leading-tight" style={{ color: config.greetingSubtextColor }}>
               {config.greetingText} {config.greetingEmoji}
             </h1>
-            <p className="text-ultra-thin text-[14px] text-white/70 mt-0.5">
+            <p className="text-ultra-thin text-[14px] mt-0.5" style={{ color: config.greetingTextColor }}>
               {config.greetingSubtext}
             </p>
           </div>

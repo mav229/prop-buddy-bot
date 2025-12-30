@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { 
   Palette, Type, Layout, Image, Sparkles, MessageSquare, 
   RotateCcw, Save, Eye, Plus, Trash2, GripVertical,
@@ -49,27 +49,26 @@ const ColorPicker = ({
   </div>
 );
 
-const Section = ({ 
-  title, 
-  icon: Icon, 
-  children,
-  defaultOpen = true
-}: { 
-  title: string; 
-  icon: React.ElementType; 
+interface SectionProps {
+  title: string;
+  icon: React.ElementType;
   children: React.ReactNode;
   defaultOpen?: boolean;
-}) => {
+}
+
+const Section = ({ title, icon: Icon, children, defaultOpen = true }: SectionProps) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-lg bg-card/30 hover:bg-card/50 transition-colors">
-        <div className="flex items-center gap-2">
-          <Icon className="w-4 h-4 text-primary" />
-          <span className="font-medium text-sm">{title}</span>
-        </div>
-        {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+      <CollapsibleTrigger asChild>
+        <button className="flex items-center justify-between w-full p-3 rounded-lg bg-card/30 hover:bg-card/50 transition-colors">
+          <div className="flex items-center gap-2">
+            <Icon className="w-4 h-4 text-primary" />
+            <span className="font-medium text-sm">{title}</span>
+          </div>
+          {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        </button>
       </CollapsibleTrigger>
       <CollapsibleContent className="pt-3 space-y-4">
         {children}
@@ -619,14 +618,14 @@ export const WidgetCustomizer = () => {
           </CardHeader>
           <CardContent className="p-4">
             <div 
-              className="relative rounded-xl overflow-hidden shadow-2xl"
+              className="relative rounded-xl overflow-hidden shadow-2xl bg-gray-100"
               style={{ 
                 width: `${Math.min(config.widgetWidth, 380)}px`, 
                 height: `${Math.min(config.widgetHeight, 550)}px`,
                 margin: "0 auto"
               }}
             >
-              <EmbeddableChat isWidget={false} />
+              <EmbeddableChat isWidget={true} />
             </div>
           </CardContent>
         </Card>
