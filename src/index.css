@@ -2,50 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
-/* SF Pro-inspired system fonts for Apple aesthetic */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;450;500;600;700&display=swap');
+/* Premium thin font - Inter with light weights */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap');
 
 @layer base {
   :root {
-    /* Premium Apple-inspired Light Theme for Widget */
     --background: 0 0% 4%;
     --foreground: 0 0% 95%;
-
     --card: 0 0% 7%;
     --card-foreground: 0 0% 95%;
-
     --popover: 0 0% 9%;
     --popover-foreground: 0 0% 95%;
-
     --primary: 0 0% 95%;
     --primary-foreground: 0 0% 4%;
-
     --secondary: 0 0% 12%;
     --secondary-foreground: 0 0% 95%;
-
     --muted: 0 0% 10%;
     --muted-foreground: 0 0% 55%;
-
     --accent: 0 0% 85%;
     --accent-foreground: 0 0% 4%;
-
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-
     --border: 0 0% 15%;
     --input: 0 0% 15%;
     --ring: 0 0% 95%;
-
     --radius: 0.75rem;
-
-    /* Custom tokens */
     --glow-primary: 0 0% 95%;
-    --glow-accent: 0 0% 75%;
-    --surface-glass: 0 0% 8%;
-    --text-bright: 0 0% 98%;
     --success: 142 76% 46%;
     --warning: 38 92% 50%;
-
     --sidebar-background: 0 0% 5%;
     --sidebar-foreground: 0 0% 95%;
     --sidebar-primary: 0 0% 95%;
@@ -54,21 +38,6 @@
     --sidebar-accent-foreground: 0 0% 95%;
     --sidebar-border: 0 0% 12%;
     --sidebar-ring: 0 0% 95%;
-
-    /* Apple Blue Accent */
-    --apple-blue: 211 100% 50%;
-    --apple-blue-light: 211 100% 60%;
-    --apple-blue-dark: 211 100% 40%;
-    
-    /* Premium widget tokens */
-    --widget-surface: 0 0% 100%;
-    --widget-surface-secondary: 220 14% 96%;
-    --widget-surface-tertiary: 220 14% 92%;
-    --widget-text-primary: 220 20% 10%;
-    --widget-text-secondary: 220 10% 40%;
-    --widget-text-tertiary: 220 8% 55%;
-    --widget-border: 220 13% 91%;
-    --widget-border-subtle: 220 13% 95%;
   }
 
   .dark {
@@ -99,9 +68,7 @@
     @apply border-border;
   }
 
-  html,
-  body,
-  #root {
+  html, body, #root {
     height: 100%;
     width: 100%;
   }
@@ -109,18 +76,39 @@
   body {
     margin: 0;
     @apply bg-background text-foreground antialiased;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
-    font-weight: 600;
-    letter-spacing: -0.02em;
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-weight: 400;
   }
+}
+
+/* ===== PREMIUM WIDGET TYPOGRAPHY ===== */
+/* Ultra-thin, minimal, aesthetic font classes */
+
+.widget-premium {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.widget-text-light {
+  font-weight: 300 !important;
+  letter-spacing: -0.01em;
+}
+
+.widget-text-regular {
+  font-weight: 400 !important;
+  letter-spacing: -0.01em;
+}
+
+.widget-text-medium {
+  font-weight: 500 !important;
+  letter-spacing: -0.015em;
 }
 
 @layer components {

@@ -39,10 +39,8 @@ export const ChatInput = ({ onSend, isLoading, disabled, isWidget = false }: Cha
   return (
     <form onSubmit={handleSubmit} className="relative">
       <div className={cn(
-        "p-1.5 flex items-end gap-2 rounded-2xl input-premium",
-        isWidget 
-          ? "bg-[#F5F5F7] border border-[rgba(0,0,0,0.06)]" 
-          : "glass-panel"
+        "p-1.5 flex items-end gap-2 rounded-xl input-premium",
+        isWidget ? "bg-[#F5F5F5] border border-[#E8E8E8]" : "glass-panel"
       )}>
         <textarea
           ref={textareaRef}
@@ -53,22 +51,17 @@ export const ChatInput = ({ onSend, isLoading, disabled, isWidget = false }: Cha
           disabled={isLoading || disabled}
           rows={1}
           className={cn(
-            "flex-1 bg-transparent border-0 resize-none focus:ring-0 focus:outline-none px-3 py-2.5 max-h-36 scrollbar-hide text-[14px]",
-            isWidget 
-              ? "text-[#1D1D1F] placeholder:text-[#8E8E93]" 
-              : "text-foreground placeholder:text-muted-foreground"
+            "flex-1 bg-transparent border-0 resize-none focus:ring-0 focus:outline-none px-3 py-2.5 max-h-36 scrollbar-hide text-[14px] widget-text-light",
+            isWidget ? "text-[#1a1a1a] placeholder:text-[#999]" : "text-foreground placeholder:text-muted-foreground"
           )}
-          style={{ letterSpacing: '-0.01em' }}
         />
         <Button
           type="submit"
           size="icon"
           disabled={!input.trim() || isLoading || disabled}
           className={cn(
-            "flex-shrink-0 w-8 h-8 rounded-xl transition-all duration-200",
-            isWidget 
-              ? "bg-[#007AFF] hover:bg-[#0056D4] text-white disabled:bg-[#007AFF]/50" 
-              : ""
+            "flex-shrink-0 w-8 h-8 rounded-lg transition-all duration-200",
+            isWidget ? "bg-[#6366f1] hover:bg-[#5558e3] text-white disabled:bg-[#6366f1]/40" : ""
           )}
           variant={isWidget ? undefined : "premium"}
         >
