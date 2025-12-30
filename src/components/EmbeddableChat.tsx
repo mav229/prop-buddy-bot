@@ -10,7 +10,7 @@ import scholarisLogo from "@/assets/scholaris-logo.png";
 import propscholarLogo from "@/assets/propscholar-logo.jpg";
 import { cn } from "@/lib/utils";
 
-// Image with blur loading effect
+// Image with minimal loading (no blur/pulse placeholder)
 function BlurImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
   const [loaded, setLoaded] = useState(false);
   return (
@@ -19,15 +19,12 @@ function BlurImage({ src, alt, className }: { src: string; alt: string; classNam
         src={src}
         alt={alt}
         className={cn(
-          "w-full h-full object-cover transition-all duration-400",
-          loaded ? "blur-0 opacity-100" : "blur-md opacity-0"
+          "w-full h-full object-cover transition-opacity duration-200",
+          loaded ? "opacity-100" : "opacity-0"
         )}
         onLoad={() => setLoaded(true)}
         draggable={false}
       />
-      {!loaded && (
-        <div className="absolute inset-0 bg-black/20 animate-pulse" />
-      )}
     </div>
   );
 }
@@ -202,9 +199,11 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
             <button onClick={() => setActiveTab("home")} className="w-7 h-7 flex items-center justify-center rounded-full close-btn">
               <ChevronRight className="w-4 h-4 text-white/80 rotate-180" strokeWidth={1.5} />
             </button>
-            <div className="w-8 h-8 rounded-xl overflow-hidden glass-surface-subtle p-0.5">
-              <BlurImage src={launcherLogo} alt={config.botName} className="rounded-lg" />
-            </div>
+            <BlurImage
+              src={launcherLogo}
+              alt={`${config.botName} logo`}
+              className="w-8 h-8 rounded-xl"
+            />
             <div className="flex-1">
               <p className="text-thin text-[13px] text-white">{config.botName}</p>
               {config.showOnlineIndicator && (
@@ -223,9 +222,11 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         ) : (
           <div className="content-fade">
             <div className="flex items-start justify-between mb-3">
-              <div className="w-10 h-10 rounded-xl overflow-hidden glass-surface-subtle p-0.5">
-                <BlurImage src={headerLogo} alt="Logo" className="rounded-lg" />
-              </div>
+              <BlurImage
+                src={headerLogo}
+                alt="PropScholar support logo"
+                className="w-10 h-10 rounded-xl"
+              />
               {isWidget && (
                 <button onClick={handleClose} className="w-7 h-7 flex items-center justify-center rounded-full close-btn">
                   <X className="w-4 h-4 text-white/70" strokeWidth={1.5} />
@@ -338,9 +339,11 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
             <div className="flex-1 px-3 py-3 space-y-3 overflow-y-auto scrollbar-hide">
               {!isReady ? <ChatSkeleton /> : messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full min-h-[160px] text-center content-fade">
-                  <div className="w-12 h-12 rounded-xl overflow-hidden mb-3 glass-card p-2">
-                    <BlurImage src={headerLogo} alt="Logo" className="rounded-lg" />
-                  </div>
+                  <BlurImage
+                    src={headerLogo}
+                    alt="PropScholar support logo"
+                    className="w-12 h-12 rounded-xl mb-3"
+                  />
                   <p className="text-ultra-thin text-[12px] text-gray-400 max-w-[200px]">
                     Ask me anything about PropScholar trading, evaluations, or payouts.
                   </p>
