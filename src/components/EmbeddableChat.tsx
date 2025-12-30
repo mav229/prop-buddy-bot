@@ -7,7 +7,7 @@ import { ChatSkeleton, CardSkeleton } from "./ChatSkeleton";
 import { TypingIndicator } from "./TypingIndicator";
 import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
 import scholarisLogo from "@/assets/scholaris-logo.png";
-import scholarisLauncher from "@/assets/scholaris-launcher.png";
+import scholarisLauncher from "@/assets/scholaris-launcher-nohalo.png";
 import propscholarLogo from "@/assets/propscholar-logo.jpg";
 import { cn } from "@/lib/utils";
 
@@ -201,7 +201,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         style={{ background: "transparent" }}
       >
         <button onClick={handleOpen} className="launcher-btn">
-          <img src={launcherLogo} alt="Chat" />
+          <img src={launcherLogo} alt="Scholaris chat launcher" />
         </button>
       </div>
     );

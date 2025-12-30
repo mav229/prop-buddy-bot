@@ -216,16 +216,17 @@
   cursor: pointer;
   background: transparent;
   outline: none;
+  overflow: hidden; /* hard-clip to prevent any halo/ring */
   -webkit-tap-highlight-color: transparent;
 }
 
 .launcher-btn img {
   width: 100%;
   height: 100%;
-  border-radius: 32px;
-  object-fit: contain;
+  border-radius: 0;
+  object-fit: cover;
   display: block;
-  background: none;
+  background: transparent;
   border: none;
   box-shadow: none;
 }
