@@ -226,7 +226,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         ) : (
           <div className="content-fade">
             <div className="flex items-start justify-between mb-3">
-              <div className="w-10 h-10 rounded-xl overflow-hidden glass-surface-subtle p-0.5 logo-float">
+              <div className="w-10 h-10 rounded-xl overflow-hidden glass-surface-subtle p-0.5">
                 <BlurImage src={headerLogo} alt="Logo" className="rounded-lg" />
               </div>
               {isWidget && (
@@ -341,7 +341,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
             <div className="flex-1 px-3 py-3 space-y-3 overflow-y-auto scrollbar-hide">
               {!isReady ? <ChatSkeleton /> : messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full min-h-[160px] text-center content-fade">
-                  <div className="w-12 h-12 rounded-xl overflow-hidden mb-3 logo-float glass-card p-2">
+                  <div className="w-12 h-12 rounded-xl overflow-hidden mb-3 glass-card p-2">
                     <BlurImage src={headerLogo} alt="Logo" className="rounded-lg" />
                   </div>
                   <p className="text-ultra-thin text-[12px] text-gray-400 max-w-[200px]">

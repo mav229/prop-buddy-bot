@@ -9,16 +9,16 @@ export const TypingIndicator = ({ className }: TypingIndicatorProps) => {
     <div className={cn("flex items-center gap-1 px-3 py-2", className)}>
       <div className="flex items-center gap-[3px]">
         <span 
-          className="w-[6px] h-[6px] rounded-full bg-gray-400 animate-bounce"
-          style={{ animationDelay: "0ms", animationDuration: "600ms" }}
+          className="w-[6px] h-[6px] rounded-full bg-gray-400 typing-dot"
+          style={{ animationDelay: "0ms" }}
         />
         <span 
-          className="w-[6px] h-[6px] rounded-full bg-gray-400 animate-bounce"
-          style={{ animationDelay: "150ms", animationDuration: "600ms" }}
+          className="w-[6px] h-[6px] rounded-full bg-gray-400 typing-dot"
+          style={{ animationDelay: "200ms" }}
         />
         <span 
-          className="w-[6px] h-[6px] rounded-full bg-gray-400 animate-bounce"
-          style={{ animationDelay: "300ms", animationDuration: "600ms" }}
+          className="w-[6px] h-[6px] rounded-full bg-gray-400 typing-dot"
+          style={{ animationDelay: "400ms" }}
         />
       </div>
     </div>
