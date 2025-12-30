@@ -15,7 +15,7 @@ interface EmbeddableChatProps {
 
 type TabType = "home" | "messages" | "help";
 
-// Soft chime sound (base64 encoded short tone)
+// Soft chime sound
 const OPEN_SOUND_URL = "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYZNAz7CAAAAAAD/+9DEAAAH8ANntAAAA3AI7PcaAAAEAKQeaYoMBg+D4fBAEHggCAIHB9YPvB8HwfD4f5QEP/h+oGP/+sHwQBAMf/Lgg7///5c/ygIf+XD4IHH/1hAGD4f/+gABgCMN//yhSA//7vxB///KAgCAYB///+D4P/1A+H///0HAsD///+qBz/qH//qH/+D///9UDH///+oHP/U/5QEHw///0Hw////9QPgg+H///5QOfq////lg+Dj//qB9/////////////8AAAATEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//tQxBsAAADSAAAAAAAAANIAAAAATEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=";
 
 export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
@@ -25,20 +25,16 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const [isReady, setIsReady] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>("home");
 
-  // Animation states
   const [isMinimized, setIsMinimized] = useState<boolean>(isWidget);
   const [isClosing, setIsClosing] = useState(false);
-  
 
-  // Use config logos or fallback to defaults
   const headerLogo = config.logoUrl || propscholarLogo;
   const launcherLogo = config.launcherLogoUrl || scholarisLogo;
 
-  // Play soft open sound
   const playOpenSound = useCallback(() => {
     try {
       const audio = new Audio(OPEN_SOUND_URL);
-      audio.volume = 0.25;
+      audio.volume = 0.2;
       audio.play().catch(() => {});
     } catch {}
   }, []);
@@ -53,7 +49,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     setTimeout(() => {
       setIsClosing(false);
       setIsMinimized(true);
-    }, 250);
+    }, 280);
   };
 
   const inIframe = (() => {
@@ -64,7 +60,6 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     }
   })();
 
-  // Prevent tiny scrollbars inside the widget iframe (glow/animations can overflow)
   useEffect(() => {
     if (!isWidget) return;
     const prevHtmlOverflow = document.documentElement.style.overflow;
@@ -77,21 +72,17 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     };
   }, [isWidget]);
 
-  // Simulate initial load with skeleton
   useEffect(() => {
-    const timer = setTimeout(() => setIsReady(true), 800);
+    const timer = setTimeout(() => setIsReady(true), 600);
     return () => clearTimeout(timer);
   }, []);
-
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Allow host page to force open/close
   useEffect(() => {
     if (!isWidget || !inIframe) return;
-
     const onMessage = (e: MessageEvent) => {
       if (!e?.data || typeof e.data !== "object") return;
       const data = e.data as { type?: string; action?: string };
@@ -99,42 +90,27 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       if (data.action === "expand") setIsMinimized(false);
       if (data.action === "minimize") setIsMinimized(true);
     };
-
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, [isWidget, inIframe]);
 
-  // Tell the parent page to resize the iframe
   useEffect(() => {
     if (!isWidget || !inIframe) return;
     try {
-      window.parent?.postMessage(
-        {
-          type: "scholaris:widget",
-          action: isMinimized ? "minimized" : "expanded",
-        },
-        "*"
-      );
-    } catch {
-      // ignore cross-origin errors
-    }
+      window.parent?.postMessage({ type: "scholaris:widget", action: isMinimized ? "minimized" : "expanded" }, "*");
+    } catch {}
   }, [isMinimized, isWidget, inIframe]);
 
-  // Switch to messages tab when a message is sent
   const handleSendMessage = (msg: string) => {
     sendMessage(msg);
     setActiveTab("messages");
   };
 
-  // Animation classes
   const animationClass = config.enableAnimations ? "" : "!animation-none";
 
-  // Widget mode - minimized bubble
+  // Minimized launcher
   if (isWidget && isMinimized) {
-    const bubbleClass = inIframe
-      ? "w-full h-full"
-      : "fixed bottom-4 right-4 z-[9999]";
-
+    const bubbleClass = inIframe ? "w-full h-full" : "fixed bottom-4 right-4 z-[9999]";
     return (
       <div className={`${bubbleClass} flex items-center justify-center`} style={{ overflow: "hidden" }}>
         <div className="relative" style={{ width: 64, height: 64 }}>
@@ -148,7 +124,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
             <img
               src={launcherLogo}
               alt="Chat"
-              className="w-full h-full rounded-full object-cover relative z-10 active:scale-95 transition-transform duration-100"
+              className="w-full h-full rounded-full object-cover relative z-10"
               draggable={false}
             />
           </button>
@@ -158,9 +134,11 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   }
 
   const widgetFloatingFrame = isWidget && !inIframe;
-  const panelAnimation = isClosing 
-    ? "panel-close" 
-    : "panel-open";
+  const panelAnimation = isClosing ? "panel-close" : "panel-open";
+
+  // Premium thin font style
+  const thinText = { fontWeight: 400, letterSpacing: '-0.01em' };
+  const mediumText = { fontWeight: 500, letterSpacing: '-0.015em' };
 
   return (
     <div
@@ -177,173 +155,128 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         ...(widgetFloatingFrame ? { width: `${config.widgetWidth}px`, height: `${config.widgetHeight}px` } : {}),
         background: '#FFFFFF',
         borderRadius: '20px',
-        boxShadow: '0 0 0 1px rgba(0, 0, 0, 0.04), 0 8px 32px -4px rgba(0, 0, 0, 0.12), 0 24px 48px -8px rgba(0, 0, 0, 0.08)',
-        overflow: 'hidden'
+        boxShadow: '0 0 0 1px rgba(0, 0, 0, 0.03), 0 8px 40px -8px rgba(0, 0, 0, 0.15)',
+        overflow: 'hidden',
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif"
       }}
     >
-      {/* Header - Premium Apple gradient */}
+      {/* Header */}
       <header 
         className="flex-shrink-0 relative"
         style={{ 
-          background: 'linear-gradient(135deg, #0A84FF 0%, #007AFF 50%, #0051D4 100%)',
-          padding: activeTab === "messages" && messages.length > 0 ? '14px 16px' : '20px',
+          background: 'linear-gradient(135deg, #0A84FF 0%, #007AFF 50%, #0055D4 100%)',
+          padding: activeTab === "messages" && messages.length > 0 ? '14px 16px' : '20px 20px 24px',
         }}
       >
         {activeTab === "messages" && messages.length > 0 ? (
-          /* Compact header */
           <div className="flex items-center gap-3 header-transition">
-            <button
-              onClick={() => setActiveTab("home")}
-              className="w-8 h-8 flex items-center justify-center rounded-full close-button"
-            >
-              <ChevronLeft className="w-5 h-5 text-white/90" />
+            <button onClick={() => setActiveTab("home")} className="w-8 h-8 flex items-center justify-center rounded-full close-button">
+              <ChevronLeft className="w-5 h-5 text-white/90" strokeWidth={1.5} />
             </button>
-            <div 
-              className="w-9 h-9 rounded-xl overflow-hidden"
-              style={{ 
-                background: 'rgba(255,255,255,0.18)',
-                backdropFilter: 'blur(8px)',
-                border: '1px solid rgba(255,255,255,0.2)'
-              }}
-            >
+            <div className="w-9 h-9 rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)' }}>
               <img src={launcherLogo} alt={config.botName} className="w-full h-full object-cover" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-[15px] font-semibold text-white tracking-tight truncate">{config.botName}</h3>
+              <h3 className="text-[15px] text-white truncate" style={mediumText}>{config.botName}</h3>
               {config.showOnlineIndicator && (
                 <div className="flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#30D158] online-pulse" />
-                  <span className="text-[11px] text-white/70 font-medium">Active now</span>
+                  <span className="text-[11px] text-white/60" style={thinText}>Active now</span>
                 </div>
               )}
             </div>
             {isWidget && (
-              <button 
-                onClick={handleClose} 
-                className="w-8 h-8 flex items-center justify-center rounded-full close-button"
-              >
-                <X className="w-5 h-5 text-white/80" />
+              <button onClick={handleClose} className="w-8 h-8 flex items-center justify-center rounded-full close-button">
+                <X className="w-5 h-5 text-white/70" strokeWidth={1.5} />
               </button>
             )}
           </div>
         ) : (
-          /* Full header */
           <div className="content-fade">
-            <div className="flex items-start justify-between mb-4">
-              <div 
-                className="w-11 h-11 rounded-2xl overflow-hidden logo-float"
-                style={{ 
-                  background: 'rgba(255,255,255,0.18)',
-                  backdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(255,255,255,0.25)'
-                }}
-              >
+            <div className="flex items-start justify-between mb-5">
+              <div className="w-12 h-12 rounded-2xl overflow-hidden logo-float" style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)' }}>
                 <img src={headerLogo} alt="Logo" className="w-full h-full object-cover" />
               </div>
               {isWidget && (
-                <button 
-                  onClick={handleClose} 
-                  className="w-8 h-8 flex items-center justify-center rounded-full close-button"
-                >
-                  <X className="w-5 h-5 text-white/80" />
+                <button onClick={handleClose} className="w-8 h-8 flex items-center justify-center rounded-full close-button">
+                  <X className="w-5 h-5 text-white/70" strokeWidth={1.5} />
                 </button>
               )}
             </div>
-            <h1 
-              className="text-[22px] font-semibold text-white mb-1"
-              style={{ letterSpacing: '-0.02em' }}
-            >
+            <h1 className="text-[24px] text-white mb-1" style={{ fontWeight: 500, letterSpacing: '-0.02em' }}>
               {config.greetingText} {config.greetingEmoji}
             </h1>
-            <p 
-              className="text-[16px] text-white/75 font-normal"
-              style={{ letterSpacing: '-0.01em' }}
-            >
+            <p className="text-[16px] text-white/70" style={thinText}>
               {config.greetingSubtext}
             </p>
           </div>
         )}
       </header>
 
-      {/* Content Area */}
+      {/* Content */}
       <div className="flex-1 overflow-y-auto bg-white scrollbar-premium">
         
         {/* HOME TAB */}
         {activeTab === "home" && (
-          <div className="p-4 space-y-2.5 content-fade">
+          <div className="p-4 space-y-2 content-fade">
             {!isReady ? (
               <CardSkeleton />
             ) : (
               <>
-                {/* Shop Now Card */}
+                {/* Shop Now */}
                 <button
                   onClick={() => window.open('https://www.propscholar.com/shop', '_blank')}
                   className="w-full p-4 flex items-center justify-between rounded-2xl premium-card stagger-item stagger-1"
-                  style={{ 
-                    background: '#F5F5F7',
-                    border: '1px solid rgba(0, 0, 0, 0.04)'
-                  }}
+                  style={{ background: '#F8F8FA', border: '1px solid rgba(0, 0, 0, 0.04)' }}
                 >
-                  <span className="text-[15px] font-semibold text-[#1D1D1F] tracking-tight">Shop Now</span>
-                  <ShoppingBag className="w-5 h-5 text-[#007AFF]" />
+                  <span className="text-[15px] text-[#1D1D1F]" style={mediumText}>Shop Now</span>
+                  <ShoppingBag className="w-5 h-5 text-[#007AFF]" strokeWidth={1.5} />
                 </button>
 
-                {/* Discord Card */}
+                {/* Discord */}
                 {config.showDiscordCard && (
                   <button
                     onClick={() => window.open(config.discordLink, '_blank')}
                     className="w-full p-4 flex items-center justify-between rounded-2xl premium-card stagger-item stagger-2"
-                    style={{ 
-                      background: '#F5F5F7',
-                      border: '1px solid rgba(0, 0, 0, 0.04)'
-                    }}
+                    style={{ background: '#F8F8FA', border: '1px solid rgba(0, 0, 0, 0.04)' }}
                   >
-                    <span className="text-[15px] font-semibold text-[#1D1D1F] tracking-tight">{config.discordCardText}</span>
-                    <ExternalLink className="w-5 h-5 text-[#007AFF]" />
+                    <span className="text-[15px] text-[#1D1D1F]" style={mediumText}>{config.discordCardText}</span>
+                    <ExternalLink className="w-5 h-5 text-[#007AFF]" strokeWidth={1.5} />
                   </button>
                 )}
 
-                {/* Message Card - Primary CTA */}
+                {/* Message CTA */}
                 {config.showMessageCard && (
                   <button
                     onClick={() => setActiveTab("messages")}
                     className="w-full p-4 flex items-center justify-between rounded-2xl btn-press stagger-item stagger-3"
                     style={{ 
-                      background: 'linear-gradient(135deg, #007AFF 0%, #0051D4 100%)',
-                      boxShadow: '0 4px 16px -2px rgba(0, 122, 255, 0.35), 0 8px 24px -4px rgba(0, 122, 255, 0.2)'
+                      background: 'linear-gradient(135deg, #007AFF 0%, #0055D4 100%)',
+                      boxShadow: '0 4px 20px -4px rgba(0, 122, 255, 0.4)'
                     }}
                   >
-                    <span className="text-[15px] font-semibold text-white tracking-tight">{config.messageCardText}</span>
-                    <Send className="w-5 h-5 text-white/90" />
+                    <span className="text-[15px] text-white" style={mediumText}>{config.messageCardText}</span>
+                    <Send className="w-5 h-5 text-white/80" strokeWidth={1.5} />
                   </button>
                 )}
 
-                {/* FAQ Section */}
+                {/* FAQ */}
                 {config.showHelpSearch && (
-                  <div 
-                    className="rounded-2xl overflow-hidden stagger-item stagger-4" 
-                    style={{ 
-                      background: '#F5F5F7', 
-                      border: '1px solid rgba(0, 0, 0, 0.04)' 
-                    }}
-                  >
-                    <div className="px-4 py-3 flex items-center justify-between border-b" style={{ borderColor: 'rgba(0, 0, 0, 0.04)' }}>
-                      <span className="text-[15px] font-semibold text-[#1D1D1F] tracking-tight">Frequently Asked</span>
-                      <Search className="w-4 h-4 text-[#8E8E93]" />
+                  <div className="rounded-2xl overflow-hidden stagger-item stagger-4" style={{ background: '#F8F8FA', border: '1px solid rgba(0, 0, 0, 0.04)' }}>
+                    <div className="px-4 py-3 flex items-center justify-between border-b" style={{ borderColor: 'rgba(0, 0, 0, 0.05)' }}>
+                      <span className="text-[14px] text-[#1D1D1F]" style={mediumText}>Frequently Asked</span>
+                      <Search className="w-4 h-4 text-[#8E8E93]" strokeWidth={1.5} />
                     </div>
                     <div>
                       {config.suggestedQuestions.map((suggestion, index) => (
                         <button
                           key={suggestion}
                           onClick={() => handleSendMessage(suggestion)}
-                          className={cn(
-                            "w-full px-4 py-3.5 flex items-center justify-between text-left list-item-smooth",
-                            index < config.suggestedQuestions.length - 1 && "border-b"
-                          )}
+                          className={cn("w-full px-4 py-3.5 flex items-center justify-between text-left list-item-smooth", index < config.suggestedQuestions.length - 1 && "border-b")}
                           style={{ borderColor: 'rgba(0, 0, 0, 0.04)' }}
                         >
-                          <span className="text-[14px] text-[#48484A] font-normal">{suggestion}</span>
-                          <ChevronLeft className="w-4 h-4 text-[#C7C7CC] rotate-180" />
+                          <span className="text-[14px] text-[#3C3C43]" style={thinText}>{suggestion}</span>
+                          <ChevronLeft className="w-4 h-4 text-[#C7C7CC] rotate-180" strokeWidth={1.5} />
                         </button>
                       ))}
                     </div>
@@ -362,19 +295,10 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                 <ChatSkeleton />
               ) : messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center content-fade">
-                  <div 
-                    className="w-14 h-14 rounded-2xl overflow-hidden mb-4 logo-float"
-                    style={{ 
-                      background: '#F5F5F7',
-                      border: '1px solid rgba(0, 0, 0, 0.04)'
-                    }}
-                  >
+                  <div className="w-14 h-14 rounded-2xl overflow-hidden mb-4 logo-float" style={{ background: '#F8F8FA', border: '1px solid rgba(0, 0, 0, 0.04)' }}>
                     <img src={headerLogo} alt="Logo" className="w-full h-full object-contain p-2" />
                   </div>
-                  <p 
-                    className="text-[14px] text-[#8E8E93] max-w-[240px] font-normal"
-                    style={{ lineHeight: '1.5', letterSpacing: '-0.01em' }}
-                  >
+                  <p className="text-[14px] text-[#8E8E93] max-w-[240px]" style={{ ...thinText, lineHeight: '1.5' }}>
                     Ask me anything about PropScholar trading, evaluations, or payouts.
                   </p>
                 </div>
@@ -392,14 +316,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                 </>
               )}
               {error && (
-                <div 
-                  className="text-[13px] px-4 py-3 rounded-xl message-bubble"
-                  style={{ 
-                    background: '#FFF2F2', 
-                    color: '#FF3B30',
-                    border: '1px solid rgba(255, 59, 48, 0.1)'
-                  }}
-                >
+                <div className="text-[13px] px-4 py-3 rounded-xl message-bubble" style={{ background: '#FFF2F2', color: '#FF3B30', border: '1px solid rgba(255, 59, 48, 0.1)', ...thinText }}>
                   {error}
                 </div>
               )}
@@ -410,51 +327,37 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
 
         {/* HELP TAB */}
         {activeTab === "help" && (
-          <div className="p-4 space-y-2.5 content-fade">
-            {/* Support Card */}
+          <div className="p-4 space-y-2 content-fade">
             {config.showSupportCard && (
               <a
                 href={`mailto:${config.supportEmail}`}
                 className="block w-full p-4 rounded-2xl btn-press stagger-item stagger-1"
-                style={{ 
-                  background: 'linear-gradient(135deg, #007AFF 0%, #0051D4 100%)',
-                  boxShadow: '0 4px 16px -2px rgba(0, 122, 255, 0.35), 0 8px 24px -4px rgba(0, 122, 255, 0.2)'
-                }}
+                style={{ background: 'linear-gradient(135deg, #007AFF 0%, #0055D4 100%)', boxShadow: '0 4px 20px -4px rgba(0, 122, 255, 0.4)' }}
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-[15px] font-semibold text-white block tracking-tight">Open Support Ticket</span>
-                    <span className="text-[13px] text-white/70 font-normal">{config.supportEmail}</span>
+                    <span className="text-[15px] text-white block" style={mediumText}>Open Support Ticket</span>
+                    <span className="text-[13px] text-white/60" style={thinText}>{config.supportEmail}</span>
                   </div>
-                  <Send className="w-5 h-5 text-white/90" />
+                  <Send className="w-5 h-5 text-white/80" strokeWidth={1.5} />
                 </div>
               </a>
             )}
 
-            {/* FAQ */}
-            <div 
-              className="rounded-2xl overflow-hidden stagger-item stagger-2" 
-              style={{ 
-                background: '#F5F5F7', 
-                border: '1px solid rgba(0, 0, 0, 0.04)' 
-              }}
-            >
-              <div className="px-4 py-3 border-b" style={{ borderColor: 'rgba(0, 0, 0, 0.04)' }}>
-                <span className="text-[15px] font-semibold text-[#1D1D1F] tracking-tight">Frequently Asked</span>
+            <div className="rounded-2xl overflow-hidden stagger-item stagger-2" style={{ background: '#F8F8FA', border: '1px solid rgba(0, 0, 0, 0.04)' }}>
+              <div className="px-4 py-3 border-b" style={{ borderColor: 'rgba(0, 0, 0, 0.05)' }}>
+                <span className="text-[14px] text-[#1D1D1F]" style={mediumText}>Frequently Asked</span>
               </div>
               <div>
                 {config.suggestedQuestions.map((suggestion, index) => (
                   <button
                     key={suggestion}
                     onClick={() => handleSendMessage(suggestion)}
-                    className={cn(
-                      "w-full px-4 py-3.5 flex items-center justify-between text-left list-item-smooth",
-                      index < config.suggestedQuestions.length - 1 && "border-b"
-                    )}
+                    className={cn("w-full px-4 py-3.5 flex items-center justify-between text-left list-item-smooth", index < config.suggestedQuestions.length - 1 && "border-b")}
                     style={{ borderColor: 'rgba(0, 0, 0, 0.04)' }}
                   >
-                    <span className="text-[14px] text-[#48484A] font-normal">{suggestion}</span>
-                    <ChevronLeft className="w-4 h-4 text-[#C7C7CC] rotate-180" />
+                    <span className="text-[14px] text-[#3C3C43]" style={thinText}>{suggestion}</span>
+                    <ChevronLeft className="w-4 h-4 text-[#C7C7CC] rotate-180" strokeWidth={1.5} />
                   </button>
                 ))}
               </div>
@@ -463,25 +366,15 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         )}
       </div>
 
-      {/* Input Area - Refined */}
+      {/* Input */}
       {activeTab === "messages" && (
-        <div 
-          className="flex-shrink-0 px-4 pb-3 pt-2 border-t bg-white" 
-          style={{ borderColor: 'rgba(0, 0, 0, 0.06)' }}
-        >
+        <div className="flex-shrink-0 px-4 pb-3 pt-2 border-t bg-white" style={{ borderColor: 'rgba(0, 0, 0, 0.05)' }}>
           <ChatInput onSend={handleSendMessage} isLoading={isLoading} isWidget={true} />
         </div>
       )}
 
-      {/* Bottom Navigation - Premium tab bar */}
-      <div 
-        className="flex-shrink-0 border-t"
-        style={{ 
-          backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-          backdropFilter: 'blur(20px)',
-          borderColor: 'rgba(0, 0, 0, 0.06)' 
-        }}
-      >
+      {/* Bottom Nav */}
+      <div className="flex-shrink-0 border-t" style={{ backgroundColor: 'rgba(255, 255, 255, 0.98)', backdropFilter: 'blur(20px)', borderColor: 'rgba(0, 0, 0, 0.05)' }}>
         <div className="flex items-center justify-around py-2">
           {[
             { id: 'home' as TabType, icon: Home, label: 'Home' },
@@ -491,37 +384,15 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
             <button
               key={id}
               onClick={() => setActiveTab(id)}
-              className={cn(
-                "flex flex-col items-center gap-0.5 px-6 py-1.5 rounded-lg tab-button",
-                activeTab === id && "active"
-              )}
+              className={cn("flex flex-col items-center gap-0.5 px-6 py-1.5 rounded-lg tab-button", activeTab === id && "active")}
             >
-              <Icon 
-                className="w-[22px] h-[22px] transition-colors duration-200"
-                style={{ 
-                  color: activeTab === id ? '#007AFF' : '#8E8E93',
-                  strokeWidth: activeTab === id ? 2 : 1.5
-                }} 
-              />
-              <span 
-                className="text-[10px] font-medium transition-colors duration-200"
-                style={{ 
-                  color: activeTab === id ? '#007AFF' : '#8E8E93',
-                  letterSpacing: '0.01em'
-                }}
-              >
-                {label}
-              </span>
+              <Icon className="w-[22px] h-[22px] transition-colors duration-200" style={{ color: activeTab === id ? '#007AFF' : '#8E8E93' }} strokeWidth={activeTab === id ? 1.8 : 1.4} />
+              <span className="text-[10px] transition-colors duration-200" style={{ color: activeTab === id ? '#007AFF' : '#8E8E93', ...thinText }}>{label}</span>
             </button>
           ))}
         </div>
         {config.showFooter && (
-          <p 
-            className="text-[10px] text-center pb-2 font-medium"
-            style={{ color: '#C7C7CC', letterSpacing: '0.02em' }}
-          >
-            {config.footerText}
-          </p>
+          <p className="text-[10px] text-center pb-2" style={{ color: '#C7C7CC', ...thinText }}>{config.footerText}</p>
         )}
       </div>
     </div>

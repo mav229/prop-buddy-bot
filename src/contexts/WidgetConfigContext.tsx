@@ -116,7 +116,7 @@ const defaultConfig: WidgetConfig = {
   cardShadow: "0 1px 3px rgba(0,0,0,0.1)",
   showDiscordCard: true,
   discordLink: "https://discord.gg/propscholar",
-  discordCardText: "JOIN DISCORD",
+  discordCardText: "Join Discord",
   showMessageCard: true,
   messageCardText: "Send us a message",
   

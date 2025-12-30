@@ -28,17 +28,17 @@ const formatTimestamp = (date?: Date): string => {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 };
 
-// Premium typing indicator with Apple-like animation
+// Premium typing indicator
 const TypingIndicator = ({ isWidget }: { isWidget: boolean }) => (
-  <div className="flex items-center gap-1.5 py-2 px-1">
+  <div className="flex items-center gap-1.5 py-2 px-0.5">
     {[0, 1, 2].map((i) => (
       <span 
         key={i}
         className={cn(
-          "w-[6px] h-[6px] rounded-full typing-dot",
+          "w-[5px] h-[5px] rounded-full typing-dot",
           isWidget ? "bg-[#8E8E93]" : "bg-primary/50"
         )} 
-        style={{ animationDelay: `${i * 140}ms` }}
+        style={{ animationDelay: `${i * 150}ms` }}
       />
     ))}
   </div>
@@ -47,53 +47,42 @@ const TypingIndicator = ({ isWidget }: { isWidget: boolean }) => (
 export const ChatMessage = ({ role, content, isStreaming, isWidget = false, timestamp }: ChatMessageProps) => {
   const isUser = role === "user";
 
+  // Premium thin font styles
+  const thinText = { fontWeight: 400, letterSpacing: '-0.01em' };
+
   return (
     <div 
       className={cn(
-        "flex flex-col gap-1.5 message-bubble",
+        "flex flex-col gap-1 message-bubble",
         isUser ? "items-end" : "items-start"
       )}
     >
-      <div
-        className={cn(
-          "flex gap-2.5",
-          isUser ? "flex-row-reverse" : "flex-row"
-        )}
-      >
+      <div className={cn("flex gap-2.5", isUser ? "flex-row-reverse" : "flex-row")}>
         {/* Avatar */}
         <div
           className={cn(
             "flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center overflow-hidden",
             isWidget
               ? isUser
-                ? "bg-gradient-to-br from-[#007AFF] to-[#0051D4]"
+                ? "bg-gradient-to-br from-[#007AFF] to-[#0055D4]"
                 : "bg-transparent"
               : isUser
                 ? "bg-gradient-to-br from-primary to-accent"
                 : "bg-transparent"
           )}
-          style={{
-            boxShadow: isUser && isWidget ? '0 2px 8px -2px rgba(0, 122, 255, 0.3)' : undefined
-          }}
+          style={{ boxShadow: isUser && isWidget ? '0 2px 8px -2px rgba(0, 122, 255, 0.25)' : undefined }}
         >
           {isUser ? (
-            <User className={cn(
-              "w-3.5 h-3.5",
-              isWidget ? "text-white" : "text-primary-foreground"
-            )} />
+            <User className={cn("w-3.5 h-3.5", isWidget ? "text-white" : "text-primary-foreground")} strokeWidth={1.5} />
           ) : (
-            <img 
-              src={scholarisLogo} 
-              alt="Scholaris" 
-              className="w-full h-full object-cover rounded-full" 
-            />
+            <img src={scholarisLogo} alt="Scholaris" className="w-full h-full object-cover rounded-full" />
           )}
         </div>
 
         {/* Message bubble */}
         <div
           className={cn(
-            "max-w-[82%] px-4 py-2.5 text-[14px] leading-[1.5]",
+            "max-w-[82%] px-4 py-2.5 text-[14px]",
             isWidget
               ? isUser
                 ? "widget-bubble-user"
@@ -102,10 +91,7 @@ export const ChatMessage = ({ role, content, isStreaming, isWidget = false, time
                 ? "chat-bubble-user"
                 : "chat-bubble-assistant"
           )}
-          style={{
-            fontWeight: isUser ? 450 : 400,
-            letterSpacing: '-0.01em'
-          }}
+          style={{ ...thinText, lineHeight: '1.5' }}
         >
           {!content && isStreaming ? (
             <TypingIndicator isWidget={isWidget} />
@@ -114,15 +100,14 @@ export const ChatMessage = ({ role, content, isStreaming, isWidget = false, time
           ) : (
             <div className={cn(
               "prose prose-sm max-w-none",
-              "prose-p:my-3 prose-p:leading-[1.6]",
-              "prose-ul:my-3 prose-ol:my-3 prose-li:my-1",
-              "prose-headings:my-4 prose-headings:font-semibold prose-headings:tracking-tight",
-              "prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-code:font-medium prose-code:text-[13px]",
-              "prose-strong:font-semibold",
-              "prose-blockquote:my-3 prose-blockquote:pl-3.5 prose-blockquote:border-l-2 prose-blockquote:italic",
+              "prose-p:my-2.5 prose-p:leading-[1.55]",
+              "prose-ul:my-2.5 prose-ol:my-2.5 prose-li:my-1",
+              "prose-headings:my-3 prose-headings:tracking-tight",
+              "prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-code:text-[13px]",
+              "prose-blockquote:my-2.5 prose-blockquote:pl-3 prose-blockquote:border-l-2 prose-blockquote:italic",
               "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
               isWidget 
-                ? "prose-pre:bg-[#F5F5F7] prose-pre:border prose-pre:border-[#E5E5EA] prose-pre:rounded-xl prose-code:text-[#1D1D1F] prose-code:bg-[#F5F5F7] prose-blockquote:border-[#D1D1D6] prose-blockquote:text-[#48484A]"
+                ? "[&_*]:font-normal prose-headings:font-medium prose-pre:bg-[#F5F5F7] prose-pre:border prose-pre:border-[#E5E5EA] prose-pre:rounded-xl prose-code:text-[#1D1D1F] prose-code:bg-[#F5F5F7] prose-code:font-normal prose-blockquote:border-[#D1D1D6] prose-blockquote:text-[#48484A] prose-strong:font-medium"
                 : "prose-invert prose-pre:bg-muted prose-pre:border prose-pre:border-border/50 prose-code:text-primary prose-code:bg-primary/10 prose-blockquote:border-primary/50"
             )}>
               <ReactMarkdown>{content}</ReactMarkdown>
@@ -131,15 +116,9 @@ export const ChatMessage = ({ role, content, isStreaming, isWidget = false, time
         </div>
       </div>
       
-      {/* Timestamp - refined typography */}
+      {/* Timestamp */}
       {content && (
-        <span 
-          className={cn(
-            "text-[10px] font-medium tracking-wide px-10",
-            isWidget ? "text-[#8E8E93]" : "text-muted-foreground/50"
-          )}
-          style={{ letterSpacing: '0.02em' }}
-        >
+        <span className={cn("text-[10px] px-10", isWidget ? "text-[#AEAEB2]" : "text-muted-foreground/50")} style={{ fontWeight: 400, letterSpacing: '0.01em' }}>
           {formatTimestamp(timestamp)}
         </span>
       )}
