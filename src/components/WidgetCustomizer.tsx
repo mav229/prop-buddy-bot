@@ -443,7 +443,7 @@ export const WidgetCustomizer = () => {
                   </div>
                 </Section>
 
-                <Section title="Message Card" icon={MessageSquare}>
+                <Section title="Message Card (Send us a message)" icon={MessageSquare}>
                   <div className="flex items-center justify-between mb-3">
                     <Label className="text-sm">Show Message Card</Label>
                     <Switch
@@ -459,9 +459,28 @@ export const WidgetCustomizer = () => {
                       className="bg-background/50"
                     />
                   </div>
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <ColorPicker
+                      label="Gradient Start"
+                      value={config.messageCardGradientStart}
+                      onChange={(v) => updateConfig({ messageCardGradientStart: v })}
+                    />
+                    <ColorPicker
+                      label="Gradient End"
+                      value={config.messageCardGradientEnd}
+                      onChange={(v) => updateConfig({ messageCardGradientEnd: v })}
+                    />
+                  </div>
+                  {/* Preview */}
+                  <div 
+                    className="h-10 rounded-lg mt-2"
+                    style={{
+                      background: `linear-gradient(135deg, ${config.messageCardGradientStart} 0%, ${config.messageCardGradientEnd} 100%)`
+                    }}
+                  />
                 </Section>
 
-                <Section title="Support Card" icon={Layout}>
+                <Section title="Support Card (Open Support Ticket)" icon={Layout}>
                   <div className="flex items-center justify-between mb-3">
                     <Label className="text-sm">Show Support Card</Label>
                     <Switch
@@ -478,6 +497,25 @@ export const WidgetCustomizer = () => {
                       placeholder="support@example.com"
                     />
                   </div>
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <ColorPicker
+                      label="Gradient Start"
+                      value={config.supportCardGradientStart}
+                      onChange={(v) => updateConfig({ supportCardGradientStart: v })}
+                    />
+                    <ColorPicker
+                      label="Gradient End"
+                      value={config.supportCardGradientEnd}
+                      onChange={(v) => updateConfig({ supportCardGradientEnd: v })}
+                    />
+                  </div>
+                  {/* Preview */}
+                  <div 
+                    className="h-10 rounded-lg mt-2"
+                    style={{
+                      background: `linear-gradient(135deg, ${config.supportCardGradientStart} 0%, ${config.supportCardGradientEnd} 100%)`
+                    }}
+                  />
                 </Section>
 
                 <Section title="Help Search" icon={Layout} defaultOpen={false}>
