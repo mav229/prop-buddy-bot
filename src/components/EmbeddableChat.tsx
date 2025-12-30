@@ -119,14 +119,14 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     <div
       className={cn(
         "widget-glass flex flex-col",
-        isWidget ? widgetFloatingFrame ? `fixed bottom-6 right-4 z-[9999] ${panelClass}` : `w-full h-full ${panelClass}` : "h-screen bg-background"
+        isWidget ? widgetFloatingFrame ? `fixed bottom-6 right-4 z-[9999] ${panelClass}` : `w-full h-full ${panelClass}` : "h-screen"
       )}
       style={{
         ...(widgetFloatingFrame ? { width: config.widgetWidth, height: config.widgetHeight } : {}),
-        borderRadius: 20,
+        borderRadius: config.cardBorderRadius + 8,
         overflow: "hidden",
-        boxShadow: "0 0 0 1px rgba(255,255,255,0.1), 0 16px 40px -12px rgba(0,0,0,0.25)",
-        background: "rgba(255,255,255,0.95)",
+        boxShadow: config.cardShadow,
+        background: config.backgroundColor,
         backdropFilter: "blur(24px)",
         WebkitBackdropFilter: "blur(24px)",
       }}
@@ -186,7 +186,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       </header>
 
       {/* CONTENT */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin" style={{ background: "rgba(250,250,252,0.8)" }}>
+      <div className="flex-1 overflow-y-auto scrollbar-thin" style={{ background: config.cardBackgroundColor }}>
         
         {/* HOME */}
         {activeTab === "home" && (
@@ -352,7 +352,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       )}
 
       {/* TABS */}
-      <nav className="flex-shrink-0" style={{ background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderTop: "1px solid rgba(0,0,0,0.04)" }}>
+      <nav className="flex-shrink-0" style={{ background: config.cardBackgroundColor, backdropFilter: "blur(12px)", borderTop: "1px solid rgba(0,0,0,0.04)" }}>
         <div className="flex items-center justify-around py-1.5">
           {([
             { id: "home", icon: Home, label: "Home" },
@@ -364,8 +364,8 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
               onClick={() => setActiveTab(id)}
               className={cn("flex flex-col items-center gap-0.5 px-4 py-1 tab-btn", activeTab === id && "active")}
             >
-              <Icon className="w-4 h-4" style={{ color: activeTab === id ? "#667eea" : "#b0b0b0" }} strokeWidth={activeTab === id ? 1.6 : 1.2} />
-              <span className="text-ultra-thin text-[9px]" style={{ color: activeTab === id ? "#667eea" : "#b0b0b0" }}>{label}</span>
+              <Icon className="w-4 h-4" style={{ color: activeTab === id ? config.activeTabColor : config.inactiveTabColor }} strokeWidth={activeTab === id ? 1.6 : 1.2} />
+              <span className="text-ultra-thin text-[9px]" style={{ color: activeTab === id ? config.activeTabColor : config.inactiveTabColor }}>{label}</span>
             </button>
           ))}
         </div>

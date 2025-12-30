@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
 
 /**
  * In-app widget embed tester.
@@ -6,6 +7,7 @@ import { useEffect } from "react";
  * Background page stays fully interactive when chat is open.
  */
 export function WidgetTestEmbed() {
+  const { config } = useWidgetConfig();
   useEffect(() => {
     const host = window.location.origin.replace(/\/+$/, "");
     const allowedOrigin = window.location.origin;
@@ -94,7 +96,7 @@ export function WidgetTestEmbed() {
     nudgeText.style.fontSize = "14px";
     nudgeText.style.fontWeight = "600";
     nudgeText.style.color = "#111827";
-    nudgeText.textContent = "Hey! 👋 Try me, I can help you";
+    nudgeText.textContent = config.notificationPopupText;
 
     const nudgeClose = document.createElement("button");
     nudgeClose.type = "button";
@@ -144,9 +146,10 @@ export function WidgetTestEmbed() {
     function scheduleNudge() {
       if (sessionStorage.getItem(NUDGE_KEY) === "1") return;
       if (nudgeTimer !== undefined) return;
+      if (!config.showNotificationPopup) return;
       nudgeTimer = window.setTimeout(() => {
         if (!isExpanded) showNudge();
-      }, 5000); // 5 seconds for testing, change to 20000 for production
+      }, config.notificationPopupDelay * 1000);
     }
 
     nudge.addEventListener("click", () => {
@@ -261,7 +264,7 @@ export function WidgetTestEmbed() {
       nudge.remove();
       container.remove();
     };
-  }, []);
+  }, [config.showNotificationPopup, config.notificationPopupDelay, config.notificationPopupText]);
 
   return null;
 }

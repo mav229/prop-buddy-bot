@@ -72,6 +72,11 @@ export interface WidgetConfig {
   // Online Indicator
   showOnlineIndicator: boolean;
   onlineIndicatorColor: string;
+  
+  // Notification Popup
+  showNotificationPopup: boolean;
+  notificationPopupDelay: number;
+  notificationPopupText: string;
 }
 
 const defaultConfig: WidgetConfig = {
@@ -151,6 +156,11 @@ const defaultConfig: WidgetConfig = {
   // Online Indicator
   showOnlineIndicator: true,
   onlineIndicatorColor: "#22c55e",
+  
+  // Notification Popup
+  showNotificationPopup: true,
+  notificationPopupDelay: 20,
+  notificationPopupText: "Hi there! 👋 I can help you with any questions!",
 };
 
 interface WidgetConfigContextType {
