@@ -259,7 +259,7 @@ export const EmbedCustomization = () => {
           iframe.style.borderRadius = '16px';
         }
 
-        iframe.style.boxShadow = '0 25px 60px -18px rgba(0,0,0,0.5)';
+        iframe.style.boxShadow = 'none';
         iframe.style.pointerEvents = 'auto';
         overlay.style.display = 'none';
         postToWidget('expand');
