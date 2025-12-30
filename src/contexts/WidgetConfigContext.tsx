@@ -79,6 +79,7 @@ export interface WidgetConfig {
   notificationPopupText: string;
   
   // Chat Messages
+  chatBackgroundColor: string;
   userMessageBgColor: string;
   userMessageTextColor: string;
   userMessageBorderRadius: number;
@@ -176,6 +177,7 @@ const defaultConfig: WidgetConfig = {
   notificationPopupText: "Hi there! 👋 I can help you with any questions!",
   
   // Chat Messages
+  chatBackgroundColor: "#f9fafb",
   userMessageBgColor: "#6366f1",
   userMessageTextColor: "#ffffff",
   userMessageBorderRadius: 16,
@@ -237,6 +239,19 @@ export const WidgetConfigProvider = ({ children }: { children: ReactNode }) => {
     }, 500);
     return () => clearTimeout(timeout);
   }, [config]);
+
+  // Listen for config updates from parent window (for iframe widgets)
+  useEffect(() => {
+    const handleMessage = (e: MessageEvent) => {
+      if (!e?.data || typeof e.data !== "object") return;
+      const data = e.data as { type?: string; config?: Partial<WidgetConfig> };
+      if (data.type === "scholaris:config" && data.config) {
+        setConfig((prev) => ({ ...prev, ...data.config }));
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
 
   return (
     <WidgetConfigContext.Provider value={{ config, updateConfig, resetConfig, saveConfig }}>
