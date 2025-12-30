@@ -62,17 +62,27 @@ export const ChatMessage = ({ role, content, isStreaming, isWidget = false, time
             <span className="text-thin whitespace-pre-wrap">{content}</span>
           ) : (
             <div className={cn(
-              "prose prose-sm max-w-none text-thin",
-              "prose-p:my-2 prose-p:leading-relaxed",
-              "prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5",
-              "prose-headings:my-2 prose-headings:font-normal prose-headings:text-gray-700",
+              "prose prose-sm max-w-none text-thin whitespace-pre-line",
+              "prose-p:my-3 prose-p:leading-relaxed",
+              "prose-ul:my-3 prose-ol:my-3 prose-li:my-1",
+              "prose-headings:my-3 prose-headings:font-medium prose-headings:text-gray-700",
               "prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-[13px] prose-code:bg-gray-100 prose-code:text-gray-700 prose-code:before:content-none prose-code:after:content-none",
-              "prose-blockquote:my-2 prose-blockquote:pl-3 prose-blockquote:border-l-2 prose-blockquote:border-gray-200 prose-blockquote:text-gray-500",
-              "prose-strong:font-normal prose-strong:text-gray-700",
+              "prose-blockquote:my-3 prose-blockquote:pl-3 prose-blockquote:border-l-2 prose-blockquote:border-gray-200 prose-blockquote:text-gray-500",
+              "prose-strong:font-semibold prose-strong:text-gray-800",
               "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
-              isWidget ? "[&_*]:text-gray-600" : "prose-invert"
+              "[&_br]:block [&_br]:my-2",
+              isWidget ? "[&_*]:text-gray-600 [&_strong]:text-gray-800" : "prose-invert"
             )}>
-              <ReactMarkdown>{content}</ReactMarkdown>
+              <ReactMarkdown
+                components={{
+                  p: ({ children }) => <p className="mb-3">{children}</p>,
+                  ul: ({ children }) => <ul className="my-3 space-y-1 list-disc list-inside">{children}</ul>,
+                  li: ({ children }) => <li className="text-gray-600">{children}</li>,
+                  strong: ({ children }) => <strong className="font-semibold text-gray-800">{children}</strong>,
+                }}
+              >
+                {content}
+              </ReactMarkdown>
             </div>
           )}
         </div>
