@@ -3,46 +3,13 @@ import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import scholarisLogo from "@/assets/scholaris-logo.png";
 import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
-import { useState, useEffect } from "react";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
   content: string;
   isStreaming?: boolean;
   isWidget?: boolean;
-  timestamp?: Date;
 }
-
-const formatTimestamp = (date?: Date): string => {
-  if (!date) return "Just now";
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSecs = Math.floor(diffMs / 1000);
-  const diffMins = Math.floor(diffSecs / 60);
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffSecs < 10) return "Just now";
-  if (diffSecs < 60) return `${diffSecs}s ago`;
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-};
-
-// Hook for dynamic timestamp updates
-const useFormattedTimestamp = (timestamp?: Date) => {
-  const [formatted, setFormatted] = useState(() => formatTimestamp(timestamp));
-  
-  useEffect(() => {
-    if (!timestamp) return;
-    
-    const update = () => setFormatted(formatTimestamp(timestamp));
-    update();
-    
-    const interval = setInterval(update, 10000); // Update every 10 seconds
-    return () => clearInterval(interval);
-  }, [timestamp]);
-  
-  return formatted;
-};
 
 const TypingIndicator = () => (
   <div className="flex items-center gap-1.5 py-1.5">
@@ -52,10 +19,9 @@ const TypingIndicator = () => (
   </div>
 );
 
-export const ChatMessage = ({ role, content, isStreaming, isWidget = false, timestamp }: ChatMessageProps) => {
+export const ChatMessage = ({ role, content, isStreaming, isWidget = false }: ChatMessageProps) => {
   const isUser = role === "user";
   const { config } = useWidgetConfig();
-  const formattedTime = useFormattedTimestamp(timestamp);
 
   // Build inline styles from config when in widget mode
   const userBubbleStyle = isWidget ? {
@@ -132,12 +98,6 @@ export const ChatMessage = ({ role, content, isStreaming, isWidget = false, time
           )}
         </div>
       </div>
-      
-      {content && config.showTimestamps && (
-        <span className={cn("text-ultra-thin text-[10px] px-10", isWidget ? "text-gray-400" : "text-muted-foreground/50")}>
-          {formattedTime}
-        </span>
-      )}
     </div>
   );
 };

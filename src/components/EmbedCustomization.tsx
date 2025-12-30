@@ -165,7 +165,7 @@ export const EmbedCustomization = () => {
     nudge.addEventListener('click', function() {
       hideNudge();
       try { sessionStorage.setItem(NUDGE_KEY, '1'); } catch (e) {}
-      applyExpandedStyles(true);
+      applyExpandedStyles(true, true);
     });
 
     nudgeClose.addEventListener('click', function(e) {
@@ -175,6 +175,10 @@ export const EmbedCustomization = () => {
     });
 
     var isExpanded = false;
+    
+    // Preload chime sound for widget open
+    var chimeSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+    chimeSound.volume = 0.3;
 
     function postToWidget(action) {
       try {
@@ -183,11 +187,15 @@ export const EmbedCustomization = () => {
       } catch (e) {}
     }
 
-    function applyExpandedStyles(expand) {
+    function applyExpandedStyles(expand, playSound) {
       isExpanded = !!expand;
 
       if (isExpanded) {
         hideNudge();
+        // Play chime sound when opening (only if triggered by user action)
+        if (playSound) {
+          try { chimeSound.currentTime = 0; chimeSound.play().catch(function(){}); } catch(e){}
+        }
         var w = calcExpandedW();
         var h = calcExpandedH();
 
@@ -227,10 +235,10 @@ export const EmbedCustomization = () => {
       }
     }
 
-    overlay.addEventListener('click', function() { applyExpandedStyles(true); });
+    overlay.addEventListener('click', function() { applyExpandedStyles(true, true); });
 
     window.addEventListener('keydown', function(e) {
-      if (e && e.key === 'Escape') applyExpandedStyles(false);
+      if (e && e.key === 'Escape') applyExpandedStyles(false, false);
     });
 
     iframe.addEventListener('load', function() {
@@ -239,17 +247,17 @@ export const EmbedCustomization = () => {
 
     window.addEventListener('resize', function() {
       if (!isExpanded) return;
-      applyExpandedStyles(true);
+      applyExpandedStyles(true, false);
     });
 
     window.addEventListener('message', function(e) {
       if (!e || !e.data || e.data.type !== 'scholaris:widget') return;
       if (allowedOrigin && e.origin && e.origin !== allowedOrigin) return;
-      if (e.data.action === 'expanded') applyExpandedStyles(true);
-      if (e.data.action === 'minimized') applyExpandedStyles(false);
+      if (e.data.action === 'expanded') applyExpandedStyles(true, true);
+      if (e.data.action === 'minimized') applyExpandedStyles(false, false);
     });
 
-    applyExpandedStyles(false);
+    applyExpandedStyles(false, false);
     scheduleNudge();
   })();
 </script>`;
