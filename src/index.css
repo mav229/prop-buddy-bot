@@ -143,8 +143,28 @@
   }
 }
 
+@keyframes panel-fade-in-mobile {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
 .panel-open {
-  animation: panel-fade-in 0.3s ease-out forwards;
+  animation: panel-fade-in 0.28s ease-out forwards;
+}
+
+@media (max-width: 640px) {
+  .panel-open {
+    animation-name: panel-fade-in-mobile;
+    animation-duration: 0.24s;
+  }
 }
 
 /* Panel close - blur fade out */
@@ -226,22 +246,21 @@
   padding: 0;
   cursor: pointer;
   background: transparent;
-  box-shadow: 
+  box-shadow:
     0 4px 20px rgba(102, 126, 234, 0.4),
     0 0 0 1px rgba(255, 255, 255, 0.1) inset;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
-  animation: launcher-float 4s ease-in-out infinite;
+  transition: transform 0.22s ease-out, box-shadow 0.22s ease-out;
 }
 
 .launcher-btn:hover {
-  transform: scale(1.1);
-  box-shadow: 
+  transform: translateY(-1px);
+  box-shadow:
     0 8px 32px rgba(102, 126, 234, 0.5),
-    0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+    0 0 0 1px rgba(255, 255, 255, 0.18) inset;
 }
 
 .launcher-btn:active {
-  transform: scale(0.95);
+  transform: translateY(0);
 }
 
 /* Centered logo */
@@ -252,76 +271,59 @@
   border-radius: 9999px;
 }
 
-/* Launcher fade in animation */
+/* Launcher fade in animation (blur + glide up only) */
 @keyframes launcher-fade-in {
   0% {
     opacity: 0;
-    transform: scale(0.8);
+    transform: translateY(10px);
     filter: blur(8px);
   }
   100% {
     opacity: 1;
-    transform: scale(1);
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes launcher-fade-in-mobile {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+    filter: blur(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
     filter: blur(0);
   }
 }
 
 .launcher-fade-in {
-  animation: launcher-fade-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: launcher-fade-in 0.26s ease-out forwards;
 }
 
-/* Subtle floating animation */
-@keyframes launcher-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
+@media (max-width: 640px) {
+  .launcher-fade-in {
+    animation-name: launcher-fade-in-mobile;
+    animation-duration: 0.22s;
+  }
 }
 
-.launcher-btn:hover {
-  animation: none;
-}
-
-/* Outer glow ring with wave pulse */
+/* Outer ring + glow (static; no extra motion) */
 .launcher-ring {
   position: absolute;
   inset: -6px;
   border-radius: 9999px;
-  border: 1px solid rgba(102, 126, 234, 0.3);
-  animation: ring-wave 3s ease-in-out infinite;
+  border: 1px solid rgba(102, 126, 234, 0.28);
   pointer-events: none;
 }
 
-@keyframes ring-wave {
-  0%, 100% { 
-    opacity: 0.6; 
-    transform: scale(1);
-    border-color: rgba(102, 126, 234, 0.3);
-  }
-  50% { 
-    opacity: 1; 
-    transform: scale(1.05);
-    border-color: rgba(102, 126, 234, 0.5);
-  }
-}
-
-/* Ambient glow */
 .launcher-glow {
   position: absolute;
   inset: -12px;
   border-radius: 9999px;
-  background: radial-gradient(circle, rgba(102, 126, 234, 0.2) 0%, transparent 70%);
-  animation: glow-breathe 4s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(102, 126, 234, 0.18) 0%, transparent 70%);
   pointer-events: none;
-}
-
-@keyframes glow-breathe {
-  0%, 100% { 
-    opacity: 0.5; 
-    transform: scale(1);
-  }
-  50% { 
-    opacity: 0.8; 
-    transform: scale(1.1);
-  }
 }
 
 /* Card hover */

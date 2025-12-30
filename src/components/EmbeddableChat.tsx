@@ -19,8 +19,8 @@ function BlurImage({ src, alt, className }: { src: string; alt: string; classNam
         src={src}
         alt={alt}
         className={cn(
-          "w-full h-full object-cover transition-all duration-500",
-          loaded ? "blur-0 scale-100 opacity-100" : "blur-md scale-105 opacity-0"
+          "w-full h-full object-cover transition-all duration-400",
+          loaded ? "blur-0 opacity-100" : "blur-md opacity-0"
         )}
         onLoad={() => setLoaded(true)}
         draggable={false}
