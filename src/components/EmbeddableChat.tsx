@@ -148,7 +148,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const lastAssistantMessage = messages.filter(m => m.role === "assistant").slice(-1)[0];
   const lastUserMessage = messages.filter(m => m.role === "user").slice(-1)[0];
 
-  // Minimized launcher
+  // Minimized launcher - clean, no container
   if (isWidget && isMinimized) {
     return (
       <div 
@@ -158,16 +158,13 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         )}
         style={{ background: "transparent", pointerEvents: "none" }}
       >
-        <div className="launcher-container" style={{ pointerEvents: "auto" }}>
-          <div className="launcher-glow" />
-          <div className="launcher-ring" />
-          <button
-            onClick={handleOpen}
-            className="launcher-btn launcher-fade-in"
-          >
-            <BlurImage src={launcherLogo} alt="Chat" className="launcher-logo" />
-          </button>
-        </div>
+        <button
+          onClick={handleOpen}
+          className="launcher-btn launcher-fade-in"
+          style={{ pointerEvents: "auto" }}
+        >
+          <BlurImage src={launcherLogo} alt="Chat" className="launcher-logo" />
+        </button>
       </div>
     );
   }
