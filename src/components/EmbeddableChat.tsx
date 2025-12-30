@@ -98,13 +98,14 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   if (isWidget && isMinimized) {
     return (
       <div className={cn(inIframe ? "w-full h-full" : "fixed bottom-6 right-4 z-[9999]", "flex items-center justify-center")}>
-        <div className="relative" style={{ width: 56, height: 56 }}>
-          <div className="glow-ring" />
+        <div className="launcher-container">
+          <div className="launcher-glow" />
+          <div className="launcher-ring" />
           <button
             onClick={handleOpen}
-            className="w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden launcher-btn relative z-10"
+            className="launcher-btn"
           >
-            <img src={launcherLogo} alt="Chat" className="w-full h-full object-cover" draggable={false} />
+            <img src={launcherLogo} alt="Chat" className="launcher-logo" draggable={false} />
           </button>
         </div>
       </div>
