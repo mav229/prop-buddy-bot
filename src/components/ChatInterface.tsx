@@ -1,5 +1,5 @@
 import { useRef, useEffect } from "react";
-import { Bot, RefreshCw, Settings } from "lucide-react";
+import { Bot, RefreshCw, Settings, AlertTriangle } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
 export const ChatInterface = () => {
-  const { messages, isLoading, error, sendMessage, clearChat } = useChat();
+  const { messages, isLoading, error, sendMessage, clearChat, isRateLimited } = useChat();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -104,6 +104,29 @@ export const ChatInterface = () => {
             </div>
           )}
 
+          {isRateLimited && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-4 py-4 animate-fade-in">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-semibold text-amber-500 mb-1">Session Limit Reached</h4>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    You've reached the AI usage limit for this session. This helps us provide free support to everyone.
+                  </p>
+                  <Button 
+                    onClick={clearChat} 
+                    variant="outline" 
+                    size="sm"
+                    className="border-amber-500/50 text-amber-500 hover:bg-amber-500/10"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Start New Chat
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
       </div>
@@ -111,7 +134,7 @@ export const ChatInterface = () => {
       {/* Input */}
       <div className="flex-shrink-0 px-6 pb-6">
         <div className="max-w-4xl mx-auto">
-          <ChatInput onSend={sendMessage} isLoading={isLoading} />
+          <ChatInput onSend={sendMessage} isLoading={isLoading} disabled={isRateLimited} />
           <p className="text-xs text-muted-foreground text-center mt-3">
             PropScholar AI can only answer questions related to PropScholar
             products and services.

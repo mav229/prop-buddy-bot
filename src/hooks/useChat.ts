@@ -8,14 +8,27 @@ export interface Message {
   timestamp: Date;
 }
 
+// Pricing for google/gemini-2.5-flash (per 1M tokens)
+const INPUT_COST_PER_MILLION = 0.15; // $0.15 per 1M input tokens
+const OUTPUT_COST_PER_MILLION = 0.60; // $0.60 per 1M output tokens
+const SESSION_COST_LIMIT = 0.40; // $0.40 per session
+
 export const useChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isRateLimited, setIsRateLimited] = useState(false);
+  const [sessionCost, setSessionCost] = useState(0);
   const sessionIdRef = useRef<string>(crypto.randomUUID());
 
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim()) return;
+
+    // Check if session is rate limited
+    if (isRateLimited) {
+      setError("Session limit reached. Please start a new chat to continue.");
+      return;
+    }
 
     setError(null);
     const userMessage: Message = {
@@ -93,6 +106,25 @@ export const useChat = () => {
 
           try {
             const parsed = JSON.parse(jsonStr);
+            
+            // Check for usage data (sent at end of stream)
+            if (parsed.usage) {
+              const { inputTokens, outputTokens } = parsed.usage;
+              const inputCost = (inputTokens / 1_000_000) * INPUT_COST_PER_MILLION;
+              const outputCost = (outputTokens / 1_000_000) * OUTPUT_COST_PER_MILLION;
+              const messageCost = inputCost + outputCost;
+              
+              setSessionCost((prev) => {
+                const newCost = prev + messageCost;
+                console.log(`Session cost: $${newCost.toFixed(4)} (limit: $${SESSION_COST_LIMIT})`);
+                if (newCost >= SESSION_COST_LIMIT) {
+                  setIsRateLimited(true);
+                }
+                return newCost;
+              });
+              continue;
+            }
+            
             const content = parsed.choices?.[0]?.delta?.content;
             if (content) {
               assistantContent += content;
@@ -142,10 +174,12 @@ export const useChat = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [messages]);
+  }, [messages, isRateLimited]);
 
   const clearChat = useCallback(() => {
     setMessages([]);
+    setSessionCost(0);
+    setIsRateLimited(false);
     sessionIdRef.current = crypto.randomUUID();
   }, []);
 
@@ -155,5 +189,7 @@ export const useChat = () => {
     error,
     sendMessage,
     clearChat,
+    isRateLimited,
+    sessionCost,
   };
 };

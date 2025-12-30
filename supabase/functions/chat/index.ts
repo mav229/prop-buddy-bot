@@ -117,6 +117,10 @@ serve(async (req) => {
 
     console.log("Sending request to Lovable AI Gateway...");
 
+    // Calculate input tokens (rough estimate: ~4 chars per token)
+    const inputText = systemPromptWithKnowledge + messages.map((m: any) => m.content).join(" ");
+    const estimatedInputTokens = Math.ceil(inputText.length / 4);
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -156,7 +160,52 @@ serve(async (req) => {
       );
     }
 
-    return new Response(response.body, {
+    // Create a transform stream to inject token usage at the end
+    const reader = response.body!.getReader();
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+    
+    let outputTokens = 0;
+    
+    const stream = new ReadableStream({
+      async pull(controller) {
+        const { done, value } = await reader.read();
+        if (done) {
+          // Send usage data as final SSE event
+          const usageData = {
+            inputTokens: estimatedInputTokens,
+            outputTokens: outputTokens,
+          };
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ usage: usageData })}\n\n`));
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+          return;
+        }
+        
+        // Count output tokens from the stream
+        const text = decoder.decode(value, { stream: true });
+        const lines = text.split("\n");
+        for (const line of lines) {
+          if (line.startsWith("data: ") && line !== "data: [DONE]") {
+            try {
+              const json = JSON.parse(line.slice(6));
+              const content = json.choices?.[0]?.delta?.content;
+              if (content) {
+                outputTokens += Math.ceil(content.length / 4);
+              }
+            } catch {}
+          }
+        }
+        
+        // Filter out [DONE] from original stream - we'll send our own
+        const filteredText = text.replace(/data: \[DONE\]\n\n/g, "");
+        if (filteredText) {
+          controller.enqueue(encoder.encode(filteredText));
+        }
+      },
+    });
+
+    return new Response(stream, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (error) {
