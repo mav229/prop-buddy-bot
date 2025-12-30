@@ -191,9 +191,9 @@ export const EmbedCustomization = () => {
 
     var isExpanded = false;
     
-    // Preload chime sound for widget open
-    var chimeSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-    chimeSound.volume = 0.3;
+    // Preload soft chime sound for widget open
+    var chimeSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
+    chimeSound.volume = 0;
 
     function postToWidget(action) {
       try {
@@ -207,9 +207,20 @@ export const EmbedCustomization = () => {
 
       if (isExpanded) {
         hideNudge();
-        // Play chime sound when opening (only if triggered by user action)
+        // Play chime sound with fade-in when opening
         if (playSound) {
-          try { chimeSound.currentTime = 0; chimeSound.play().catch(function(){}); } catch(e){}
+          try {
+            chimeSound.currentTime = 0;
+            chimeSound.volume = 0;
+            chimeSound.play().then(function() {
+              var vol = 0;
+              var fadeIn = setInterval(function() {
+                vol = Math.min(vol + 0.02, 0.15);
+                chimeSound.volume = vol;
+                if (vol >= 0.15) clearInterval(fadeIn);
+              }, 10);
+            }).catch(function(){});
+          } catch(e){}
         }
         var w = calcExpandedW();
         var h = calcExpandedH();
