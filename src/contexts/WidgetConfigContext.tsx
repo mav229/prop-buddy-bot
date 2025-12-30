@@ -63,6 +63,7 @@ export interface WidgetConfig {
   // Footer
   footerText: string;
   showFooter: boolean;
+  footerTextColor: string;
   
   // Dimensions
   widgetWidth: number;
@@ -163,6 +164,7 @@ const defaultConfig: WidgetConfig = {
   // Footer
   footerText: "Powered by PropScholar",
   showFooter: true,
+  footerTextColor: "#667eea",
   
   // Dimensions
   widgetWidth: 380,
