@@ -108,7 +108,7 @@ export const EmbedCustomization = () => {
     iframe.style.borderRadius = '999px';
     iframe.style.background = 'transparent';
     iframe.style.pointerEvents = 'none';
-    iframe.style.boxShadow = '0 25px 50px -12px rgba(0,0,0,0.35)';
+    iframe.style.boxShadow = 'none';
     iframe.style.transition = 'border-radius 220ms ease, box-shadow 220ms ease';
 
     var overlay = document.createElement('button');
@@ -270,7 +270,7 @@ export const EmbedCustomization = () => {
         container.style.width = bubbleSize + 'px';
         container.style.height = bubbleSize + 'px';
         iframe.style.borderRadius = '999px';
-        iframe.style.boxShadow = '0 25px 50px -12px rgba(0,0,0,0.35)';
+        iframe.style.boxShadow = 'none';
         iframe.style.pointerEvents = 'none';
         overlay.style.display = 'block';
         postToWidget('minimize');
