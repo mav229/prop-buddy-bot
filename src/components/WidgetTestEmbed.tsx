@@ -47,15 +47,39 @@ export function WidgetTestEmbed() {
     container.style.position = "fixed";
     container.style.right = "calc(16px + env(safe-area-inset-right))";
     container.style.bottom = "calc(16px + env(safe-area-inset-bottom))";
-    container.style.width = `${bubbleSize}px`;
-    container.style.height = `${bubbleSize}px`;
     container.style.zIndex = "2147483647";
-    container.style.transition = "none";
-    container.style.background = "transparent";
-    container.style.border = "none";
-    container.style.boxShadow = "none";
-    container.style.overflow = "hidden";
-    container.style.borderRadius = "50%";
+
+    // Launcher button (real button + img)
+    const launcherBtn = document.createElement("button");
+    launcherBtn.type = "button";
+    launcherBtn.setAttribute("aria-label", "Open Scholaris chat");
+    launcherBtn.style.width = `${bubbleSize}px`;
+    launcherBtn.style.height = `${bubbleSize}px`;
+    launcherBtn.style.border = "none";
+    launcherBtn.style.padding = "0";
+    launcherBtn.style.margin = "0";
+    launcherBtn.style.background = "transparent";
+    launcherBtn.style.borderRadius = "9999px";
+    launcherBtn.style.overflow = "hidden";
+    launcherBtn.style.cursor = "pointer";
+
+    const launcherImg = document.createElement("img");
+    launcherImg.src = config.launcherLogoUrl;
+    launcherImg.alt = "Chat";
+    launcherImg.draggable = false;
+    launcherImg.style.width = "100%";
+    launcherImg.style.height = "100%";
+    launcherImg.style.display = "block";
+    launcherImg.style.objectFit = "cover";
+    launcherImg.style.background = "transparent";
+    launcherImg.style.borderRadius = "9999px";
+    launcherBtn.appendChild(launcherImg);
+
+    // Panel wrapper
+    const panel = document.createElement("div");
+    panel.style.display = "none";
+    panel.style.overflow = "hidden";
+    panel.style.background = "transparent";
 
     const iframe = document.createElement("iframe");
     iframe.src = `${host}/widget`;
@@ -68,105 +92,81 @@ export function WidgetTestEmbed() {
     iframe.style.border = "none";
     iframe.style.display = "block";
     iframe.style.overflow = "hidden";
-    iframe.style.borderRadius = "999px";
     iframe.style.background = "#0b1020"; // Dark fallback
-    iframe.style.pointerEvents = "none";
-    iframe.style.boxShadow = "0 25px 50px -12px rgba(0,0,0,0.35)";
-    iframe.style.transition = "none";
 
-    // While minimized, we capture taps with an overlay for maximum reliability.
-    const overlay = document.createElement("button");
-    overlay.type = "button";
-    overlay.setAttribute("aria-label", "Open Scholaris chat");
-    overlay.style.position = "absolute";
-    overlay.style.inset = "0";
-    overlay.style.border = "none";
-    overlay.style.padding = "0";
-    overlay.style.margin = "0";
-    overlay.style.background = "transparent";
-    overlay.style.cursor = "pointer";
-    overlay.style.borderRadius = "999px";
-    overlay.style.pointerEvents = "auto";
-    overlay.style.touchAction = "manipulation";
-
-    container.appendChild(iframe);
-    container.appendChild(overlay);
+    panel.appendChild(iframe);
+    container.appendChild(launcherBtn);
+    container.appendChild(panel);
     document.body.appendChild(container);
 
     let isExpanded = false;
 
     function postToWidget(action: "expand" | "minimize") {
       try {
-        iframe.contentWindow?.postMessage(
-          { type: "scholaris:host", action },
-          allowedOrigin
-        );
+        iframe.contentWindow?.postMessage({ type: "scholaris:host", action }, allowedOrigin);
       } catch {
         // ignore
       }
     }
 
-    function applyExpandedStyles(expand: boolean) {
-      isExpanded = expand;
+    function openPanel() {
+      isExpanded = true;
+      launcherBtn.style.display = "none";
+      panel.style.display = "block";
+      applySizing();
+      postToWidget("expand");
+    }
 
-      if (isExpanded) {
-        const w = calcExpandedW();
-        const h = calcExpandedH();
+    function closePanel() {
+      isExpanded = false;
+      panel.style.display = "none";
+      launcherBtn.style.display = "block";
+      container.style.left = "auto";
+      container.style.top = "auto";
+      container.style.right = "calc(16px + env(safe-area-inset-right))";
+      container.style.bottom = "calc(16px + env(safe-area-inset-bottom))";
+      postToWidget("minimize");
+    }
 
-        // Fullscreen on small devices
-        const isSmall = window.innerWidth < 520;
-        if (isSmall) {
-          container.style.left = "0";
-          container.style.right = "0";
-          container.style.bottom = "0";
-          container.style.top = "0";
-          container.style.width = "100vw";
-          container.style.height = "100dvh";
-          container.style.borderRadius = "0";
-          iframe.style.borderRadius = "0px";
-        } else {
-          container.style.left = "auto";
-          container.style.top = "auto";
-          container.style.right = "calc(16px + env(safe-area-inset-right))";
-          container.style.bottom = "calc(16px + env(safe-area-inset-bottom))";
-          container.style.width = `${w}px`;
-          container.style.height = `${h}px`;
-          container.style.borderRadius = "16px";
-          iframe.style.borderRadius = "16px";
-        }
+    function applySizing() {
+      if (!isExpanded) return;
 
-        iframe.style.boxShadow = "0 25px 60px -18px rgba(0,0,0,0.5)";
-        iframe.style.pointerEvents = "auto";
-        overlay.style.display = "none";
-        postToWidget("expand");
+      const w = calcExpandedW();
+      const h = calcExpandedH();
+
+      const isSmall = window.innerWidth < 520;
+      if (isSmall) {
+        container.style.left = "0";
+        container.style.right = "0";
+        container.style.bottom = "0";
+        container.style.top = "0";
+        panel.style.width = "100vw";
+        panel.style.height = "100dvh";
+        panel.style.borderRadius = "0";
+        iframe.style.borderRadius = "0";
       } else {
         container.style.left = "auto";
         container.style.top = "auto";
         container.style.right = "calc(16px + env(safe-area-inset-right))";
         container.style.bottom = "calc(16px + env(safe-area-inset-bottom))";
-        container.style.width = `${bubbleSize}px`;
-        container.style.height = `${bubbleSize}px`;
-        container.style.borderRadius = "50%";
-        iframe.style.borderRadius = "999px";
-        iframe.style.boxShadow = "0 25px 50px -12px rgba(0,0,0,0.35)";
-        iframe.style.pointerEvents = "none";
-        overlay.style.display = "block";
-        postToWidget("minimize");
+        panel.style.width = `${w}px`;
+        panel.style.height = `${h}px`;
+        panel.style.borderRadius = "16px";
+        iframe.style.borderRadius = "16px";
       }
+
+      iframe.style.boxShadow = "0 25px 60px -18px rgba(0,0,0,0.5)";
     }
 
-    const onOverlayClick = () => applyExpandedStyles(true);
-    overlay.addEventListener("click", onOverlayClick);
+    const onLauncherClick = () => openPanel();
+    launcherBtn.addEventListener("click", onLauncherClick);
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") applyExpandedStyles(false);
+      if (e.key === "Escape") closePanel();
     };
     window.addEventListener("keydown", onKeyDown);
 
-    const onResize = () => {
-      if (!isExpanded) return;
-      applyExpandedStyles(true);
-    };
+    const onResize = () => applySizing();
     window.addEventListener("resize", onResize);
 
     const onMessage = (e: MessageEvent) => {
@@ -174,36 +174,33 @@ export function WidgetTestEmbed() {
       const data = e.data as { type?: string; action?: string };
       if (data.type !== "scholaris:widget") return;
       if (e.origin && e.origin !== allowedOrigin) return;
-      if (data.action === "expanded") applyExpandedStyles(true);
-      if (data.action === "minimized") applyExpandedStyles(false);
+      if (data.action === "expanded") openPanel();
+      if (data.action === "minimized") closePanel();
     };
     window.addEventListener("message", onMessage);
 
     const onIframeLoad = () => {
       postToWidget(isExpanded ? "expand" : "minimize");
-      // Send config to iframe
       try {
-        iframe.contentWindow?.postMessage(
-          { type: "scholaris:config", config },
-          allowedOrigin
-        );
+        iframe.contentWindow?.postMessage({ type: "scholaris:config", config }, allowedOrigin);
       } catch {
         // ignore
       }
     };
     iframe.addEventListener("load", onIframeLoad);
 
-    applyExpandedStyles(false);
+    closePanel();
 
     return () => {
       iframe.removeEventListener("load", onIframeLoad);
       window.removeEventListener("resize", onResize);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("message", onMessage);
-      overlay.removeEventListener("click", onOverlayClick);
+      launcherBtn.removeEventListener("click", onLauncherClick);
       container.remove();
     };
   }, [config]);
+
 
   return null;
 }

@@ -46,32 +46,24 @@ export const EmbedCustomization = () => {
       window[GLOBAL_KEY] = true;
     } catch (e) {}
 
-    // Aggressive de-duplication: remove any previous widget by ID and selector
+    // Aggressive de-duplication
     try {
       var oldById = document.getElementById('scholaris-widget-container');
       if (oldById && oldById.parentNode) oldById.parentNode.removeChild(oldById);
       var oldContainer = document.querySelector('[data-scholaris-widget="container"]');
       if (oldContainer && oldContainer.parentNode) oldContainer.parentNode.removeChild(oldContainer);
-      // Also remove any orphan iframes pointing to the widget
-      document.querySelectorAll('iframe').forEach(function(f) {
-        if (f.src && f.src.indexOf('/widget') !== -1) {
-          try { f.parentNode && f.parentNode.removeChild(f); } catch(e) {}
-        }
-      });
     } catch (e) {}
 
     var host = '${hostUrl}';
     var blockedUrls = ${blockedUrlsJson};
+    var launcherImg = ${JSON.stringify(widgetConfig.launcherLogoUrl || "")};
 
-    // Check if current URL matches any blocked pattern
+    // Blocklist
     var currentUrl = window.location.href;
     var currentPath = window.location.pathname;
     for (var i = 0; i < blockedUrls.length; i++) {
       var pattern = blockedUrls[i];
-      if (currentUrl.indexOf(pattern) !== -1 || currentPath.indexOf(pattern) !== -1) {
-        console.log('Scholaris widget blocked on this page:', pattern);
-        return; // Exit without loading widget
-      }
+      if (currentUrl.indexOf(pattern) !== -1 || currentPath.indexOf(pattern) !== -1) return;
     }
 
     var allowedOrigin = '';
@@ -90,89 +82,89 @@ export const EmbedCustomization = () => {
       return Math.min(requestedH, maxH);
     }
 
-    var container = document.createElement('div');
-    container.id = 'scholaris-widget-container';
-    container.setAttribute('data-scholaris-widget', 'container');
-
     function setImp(el, prop, value) {
       try { el.style.setProperty(prop, value, 'important'); }
       catch (e) { try { el.style[prop] = value; } catch (e2) {} }
     }
 
-    container.style.position = 'fixed';
-    container.style.right = 'calc(16px + env(safe-area-inset-right))';
-    container.style.bottom = 'calc(16px + env(safe-area-inset-bottom))';
-    container.style.width = bubbleSize + 'px';
-    container.style.height = bubbleSize + 'px';
-    container.style.zIndex = '2147483647';
-    container.style.transition = 'width 240ms ease, height 240ms ease, left 240ms ease, right 240ms ease, bottom 240ms ease';
+    function styleLauncherButton(btn) {
+      setImp(btn, 'width', bubbleSize + 'px');
+      setImp(btn, 'height', bubbleSize + 'px');
+      setImp(btn, 'border', 'none');
+      setImp(btn, 'padding', '0');
+      setImp(btn, 'margin', '0');
+      setImp(btn, 'border-radius', '9999px');
+      setImp(btn, 'overflow', 'hidden');
+      setImp(btn, 'background', 'transparent');
+      setImp(btn, 'background-color', 'transparent');
+      setImp(btn, 'box-shadow', 'none');
+      setImp(btn, 'cursor', 'pointer');
+      setImp(btn, 'touch-action', 'manipulation');
+      setImp(btn, '-webkit-tap-highlight-color', 'transparent');
+      setImp(btn, 'display', 'block');
+    }
 
-    // Force transparent container (some sites override with CSS !important)
-    setImp(container, 'background', 'transparent');
-    setImp(container, 'background-color', 'transparent');
-    setImp(container, 'border', 'none');
-    setImp(container, 'box-shadow', 'none');
-    setImp(container, 'padding', '0');
-    setImp(container, 'overflow', 'visible');
+    // Container
+    var container = document.createElement('div');
+    container.id = 'scholaris-widget-container';
+    container.setAttribute('data-scholaris-widget', 'container');
+    setImp(container, 'position', 'fixed');
+    setImp(container, 'right', 'calc(16px + env(safe-area-inset-right))');
+    setImp(container, 'bottom', 'calc(16px + env(safe-area-inset-bottom))');
+    setImp(container, 'z-index', '2147483647');
     setImp(container, 'pointer-events', 'auto');
 
+    // Launcher button (REAL launcher: not an iframe)
+    var launcherBtn = document.createElement('button');
+    launcherBtn.type = 'button';
+    launcherBtn.setAttribute('aria-label', 'Open chat');
+    styleLauncherButton(launcherBtn);
+
+    var launcherImgEl = document.createElement('img');
+    launcherImgEl.alt = 'Chat';
+    launcherImgEl.draggable = false;
+    launcherImgEl.src = launcherImg;
+    setImp(launcherImgEl, 'width', '100%');
+    setImp(launcherImgEl, 'height', '100%');
+    setImp(launcherImgEl, 'display', 'block');
+    setImp(launcherImgEl, 'object-fit', 'cover');
+    setImp(launcherImgEl, 'background', 'transparent');
+    setImp(launcherImgEl, 'background-color', 'transparent');
+    setImp(launcherImgEl, 'border', 'none');
+    setImp(launcherImgEl, 'box-shadow', 'none');
+    setImp(launcherImgEl, 'border-radius', '9999px');
+
+    launcherBtn.appendChild(launcherImgEl);
+
+    // Panel wrapper (iframe only exists here)
+    var panel = document.createElement('div');
+    setImp(panel, 'display', 'none');
+    setImp(panel, 'overflow', 'hidden');
+    setImp(panel, 'background', 'transparent');
+    setImp(panel, 'background-color', 'transparent');
+
     var iframe = document.createElement('iframe');
-    // Cache-bust to ensure your website always loads the latest published widget
     iframe.src = host + '/widget?v=' + encodeURIComponent(String(Date.now()));
     iframe.allow = 'clipboard-write';
     iframe.title = 'Scholaris chat widget';
 
-    iframe.style.width = '100%';
-    iframe.style.height = '100%';
-    iframe.style.border = 'none';
-    iframe.style.display = 'block';
-    iframe.style.overflow = 'hidden';
-    iframe.style.borderRadius = '32px';
-    // Dark fallback prevents the browser from showing a white iframe before the app paints
-    iframe.style.background = '#0b1020';
-    iframe.style.pointerEvents = 'none';
-    iframe.style.boxShadow = 'none';
-    iframe.style.transition = 'border-radius 220ms ease, box-shadow 220ms ease';
-    iframe.style.position = 'relative';
-
-    // Force key iframe styles (prevents host CSS from breaking click + background)
+    setImp(iframe, 'width', '100%');
+    setImp(iframe, 'height', '100%');
+    setImp(iframe, 'border', 'none');
+    setImp(iframe, 'display', 'block');
+    setImp(iframe, 'overflow', 'hidden');
+    // Dark fallback prevents any white iframe flash while the app paints
     setImp(iframe, 'background', '#0b1020');
     setImp(iframe, 'background-color', '#0b1020');
-    setImp(iframe, 'border', 'none');
-    setImp(iframe, 'border-radius', '32px');
-    setImp(iframe, 'pointer-events', 'none');
-    setImp(iframe, 'z-index', '1');
 
-    var overlay = document.createElement('button');
-    overlay.type = 'button';
-    overlay.setAttribute('aria-label', 'Open chat');
-    overlay.style.position = 'absolute';
-    overlay.style.inset = '0';
-    overlay.style.border = 'none';
-    overlay.style.padding = '0';
-    overlay.style.margin = '0';
-    overlay.style.background = 'transparent';
-    overlay.style.cursor = 'pointer';
-    overlay.style.borderRadius = '32px';
-    overlay.style.pointerEvents = 'auto';
-    overlay.style.touchAction = 'manipulation';
-
-    // Keep overlay above iframe even if the site changes iframe pointer-events
-    setImp(overlay, 'background', 'transparent');
-    setImp(overlay, 'border', 'none');
-    setImp(overlay, 'border-radius', '32px');
-    setImp(overlay, 'pointer-events', 'auto');
-    setImp(overlay, 'z-index', '2');
-    setImp(overlay, 'appearance', 'none');
-    setImp(overlay, '-webkit-appearance', 'none');
-
-    container.appendChild(iframe);
-    container.appendChild(overlay);
+    panel.appendChild(iframe);
+    container.appendChild(launcherBtn);
+    container.appendChild(panel);
     document.body.appendChild(container);
 
     var isExpanded = false;
 
-    // Preload soft chime sound for widget open
+    // Optional chime (kept)
     var chimeSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
     chimeSound.volume = 0;
 
@@ -183,89 +175,101 @@ export const EmbedCustomization = () => {
       } catch (e) {}
     }
 
-    function applyExpandedStyles(expand, playSound) {
-      isExpanded = !!expand;
+    function setPanelSize(expanded) {
+      if (!expanded) return;
+      var w = calcExpandedW();
+      var h = calcExpandedH();
+      var small = window.innerWidth < 520;
 
-      if (isExpanded) {
-        // Play chime sound with fade-in when opening
-        if (playSound) {
-          try {
-            chimeSound.currentTime = 0;
-            chimeSound.volume = 0;
-            chimeSound.play().then(function() {
-              var vol = 0;
-              var fadeIn = setInterval(function() {
-                vol = Math.min(vol + 0.02, 0.15);
-                chimeSound.volume = vol;
-                if (vol >= 0.15) clearInterval(fadeIn);
-              }, 10);
-            }).catch(function(){});
-          } catch(e){}
-        }
-        var w = calcExpandedW();
-        var h = calcExpandedH();
-
-        var isSmall = window.innerWidth < 520;
-        if (isSmall) {
-          container.style.left = '0';
-          container.style.right = '0';
-          container.style.bottom = '0';
-          container.style.width = '100vw';
-          container.style.height = '100dvh';
-          setImp(iframe, 'border-radius', '0px');
-        } else {
-          container.style.left = 'auto';
-          container.style.right = 'calc(16px + env(safe-area-inset-right))';
-          container.style.bottom = 'calc(16px + env(safe-area-inset-bottom))';
-          container.style.width = w + 'px';
-          container.style.height = h + 'px';
-          setImp(iframe, 'border-radius', '32px');
-        }
-
-        setImp(iframe, 'box-shadow', 'none');
-        setImp(iframe, 'pointer-events', 'auto');
-        overlay.style.display = 'none';
-        postToWidget('expand');
+      if (small) {
+        setImp(container, 'left', '0');
+        setImp(container, 'right', '0');
+        setImp(container, 'bottom', '0');
+        setImp(container, 'top', '0');
+        setImp(panel, 'width', '100vw');
+        setImp(panel, 'height', '100dvh');
+        setImp(panel, 'border-radius', '0px');
+        setImp(iframe, 'border-radius', '0px');
       } else {
-        container.style.left = 'auto';
-        container.style.right = 'calc(16px + env(safe-area-inset-right))';
-        container.style.bottom = 'calc(16px + env(safe-area-inset-bottom))';
-        container.style.width = bubbleSize + 'px';
-        container.style.height = bubbleSize + 'px';
-        setImp(container, 'background', 'transparent');
-        setImp(container, 'background-color', 'transparent');
-        setImp(iframe, 'border-radius', '32px');
-        setImp(iframe, 'box-shadow', 'none');
-        setImp(iframe, 'pointer-events', 'none');
-        overlay.style.display = 'block';
-        setImp(overlay, 'border-radius', '32px');
-        postToWidget('minimize');
+        setImp(container, 'left', 'auto');
+        setImp(container, 'top', 'auto');
+        setImp(container, 'right', 'calc(16px + env(safe-area-inset-right))');
+        setImp(container, 'bottom', 'calc(16px + env(safe-area-inset-bottom))');
+        setImp(panel, 'width', w + 'px');
+        setImp(panel, 'height', h + 'px');
+        setImp(panel, 'border-radius', '24px');
+        setImp(iframe, 'border-radius', '24px');
       }
+
+      // Never show a host-side white panel
+      setImp(panel, 'background', 'transparent');
+      setImp(panel, 'background-color', 'transparent');
+      setImp(panel, 'box-shadow', 'none');
     }
 
-    overlay.addEventListener('click', function() { applyExpandedStyles(true, true); });
+    function openPanel(playSound) {
+      isExpanded = true;
+
+      if (playSound) {
+        try {
+          chimeSound.currentTime = 0;
+          chimeSound.volume = 0;
+          chimeSound.play().then(function() {
+            var vol = 0;
+            var fadeIn = setInterval(function() {
+              vol = Math.min(vol + 0.02, 0.15);
+              chimeSound.volume = vol;
+              if (vol >= 0.15) clearInterval(fadeIn);
+            }, 10);
+          }).catch(function(){});
+        } catch(e) {}
+      }
+
+      launcherBtn.style.display = 'none';
+      panel.style.display = 'block';
+      setPanelSize(true);
+      postToWidget('expand');
+    }
+
+    function closePanel() {
+      isExpanded = false;
+
+      // Reset container positioning to corner
+      setImp(container, 'left', 'auto');
+      setImp(container, 'top', 'auto');
+      setImp(container, 'right', 'calc(16px + env(safe-area-inset-right))');
+      setImp(container, 'bottom', 'calc(16px + env(safe-area-inset-bottom))');
+
+      panel.style.display = 'none';
+      launcherBtn.style.display = 'block';
+      styleLauncherButton(launcherBtn);
+      postToWidget('minimize');
+    }
+
+    launcherBtn.addEventListener('click', function() { openPanel(true); });
 
     window.addEventListener('keydown', function(e) {
-      if (e && e.key === 'Escape') applyExpandedStyles(false, false);
+      if (e && e.key === 'Escape') closePanel();
     });
 
     iframe.addEventListener('load', function() {
+      // Keep widget state in sync after load
       postToWidget(isExpanded ? 'expand' : 'minimize');
     });
 
     window.addEventListener('resize', function() {
       if (!isExpanded) return;
-      applyExpandedStyles(true, false);
+      setPanelSize(true);
     });
 
     window.addEventListener('message', function(e) {
       if (!e || !e.data || e.data.type !== 'scholaris:widget') return;
       if (allowedOrigin && e.origin && e.origin !== allowedOrigin) return;
-      if (e.data.action === 'expanded') applyExpandedStyles(true, true);
-      if (e.data.action === 'minimized') applyExpandedStyles(false, false);
+      if (e.data.action === 'expanded') openPanel(false);
+      if (e.data.action === 'minimized') closePanel();
     });
 
-    applyExpandedStyles(false, false);
+    closePanel();
   })();
 </script>`;
 
