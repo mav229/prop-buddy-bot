@@ -3,8 +3,8 @@ import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
 
 /**
  * In-app widget embed tester.
- * Mimics the real embed snippet behavior (iframe + overlay button + postMessage).
- * Background page stays fully interactive when chat is open.
+ * Minimal: single container + single iframe + overlay button.
+ * No nudge/notification popup.
  */
 export function WidgetTestEmbed() {
   const { config } = useWidgetConfig();
@@ -51,6 +51,11 @@ export function WidgetTestEmbed() {
     container.style.height = `${bubbleSize}px`;
     container.style.zIndex = "2147483647";
     container.style.transition = "none";
+    container.style.background = "transparent";
+    container.style.border = "none";
+    container.style.boxShadow = "none";
+    container.style.overflow = "hidden";
+    container.style.borderRadius = "50%";
 
     const iframe = document.createElement("iframe");
     iframe.src = `${host}/widget`;
@@ -64,7 +69,7 @@ export function WidgetTestEmbed() {
     iframe.style.display = "block";
     iframe.style.overflow = "hidden";
     iframe.style.borderRadius = "999px";
-    iframe.style.background = "transparent";
+    iframe.style.background = "#0b1020"; // Dark fallback
     iframe.style.pointerEvents = "none";
     iframe.style.boxShadow = "0 25px 50px -12px rgba(0,0,0,0.35)";
     iframe.style.transition = "none";
@@ -88,98 +93,6 @@ export function WidgetTestEmbed() {
     container.appendChild(overlay);
     document.body.appendChild(container);
 
-    // Notification bubble rendered OUTSIDE the iframe (host DOM)
-    const nudge = document.createElement("div");
-    nudge.setAttribute("data-scholaris-nudge", "true");
-    nudge.style.position = "fixed";
-    nudge.style.right = "calc(16px + env(safe-area-inset-right))";
-    nudge.style.bottom = `calc(${bubbleSize + 28}px + env(safe-area-inset-bottom))`;
-    nudge.style.maxWidth = "200px";
-    nudge.style.padding = "12px 14px";
-    nudge.style.borderRadius = "18px";
-    nudge.style.background = "rgba(255,255,255,0.98)";
-    nudge.style.boxShadow = "0 12px 35px rgba(0,0,0,0.2)";
-    nudge.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
-    nudge.style.display = "none";
-    nudge.style.zIndex = "2147483647";
-    nudge.style.backdropFilter = "blur(12px)";
-    nudge.style.cursor = "pointer";
-    nudge.style.transition = "opacity 0.3s ease, transform 0.3s ease";
-    nudge.style.opacity = "0";
-    nudge.style.transform = "translateY(10px)";
-
-    const nudgeText = document.createElement("div");
-    nudgeText.style.fontSize = "14px";
-    nudgeText.style.fontWeight = "600";
-    nudgeText.style.color = "#111827";
-    nudgeText.textContent = config.notificationPopupText;
-
-    const nudgeClose = document.createElement("button");
-    nudgeClose.type = "button";
-    nudgeClose.textContent = "×";
-    nudgeClose.setAttribute("aria-label", "Dismiss message");
-    nudgeClose.style.position = "absolute";
-    nudgeClose.style.top = "-8px";
-    nudgeClose.style.right = "-8px";
-    nudgeClose.style.width = "24px";
-    nudgeClose.style.height = "24px";
-    nudgeClose.style.borderRadius = "999px";
-    nudgeClose.style.border = "none";
-    nudgeClose.style.background = "#e5e7eb";
-    nudgeClose.style.cursor = "pointer";
-    nudgeClose.style.fontWeight = "700";
-    nudgeClose.style.fontSize = "16px";
-    nudgeClose.style.color = "#4b5563";
-    nudgeClose.style.display = "flex";
-    nudgeClose.style.alignItems = "center";
-    nudgeClose.style.justifyContent = "center";
-
-    nudge.appendChild(nudgeText);
-    nudge.appendChild(nudgeClose);
-    document.body.appendChild(nudge);
-
-    // Timer for notification nudge
-    let nudgeTimer: number | undefined;
-    const NUDGE_KEY = "scholaris_nudge_dismissed_session";
-
-    function hideNudge() {
-      nudge.style.opacity = "0";
-      nudge.style.transform = "translateY(10px)";
-      setTimeout(() => { nudge.style.display = "none"; }, 300);
-      if (nudgeTimer !== undefined) window.clearTimeout(nudgeTimer);
-      nudgeTimer = undefined;
-    }
-
-    function showNudge() {
-      if (sessionStorage.getItem(NUDGE_KEY) === "1") return;
-      nudge.style.display = "block";
-      requestAnimationFrame(() => {
-        nudge.style.opacity = "1";
-        nudge.style.transform = "translateY(0)";
-      });
-    }
-
-    function scheduleNudge() {
-      if (sessionStorage.getItem(NUDGE_KEY) === "1") return;
-      if (nudgeTimer !== undefined) return;
-      if (!config.showNotificationPopup) return;
-      nudgeTimer = window.setTimeout(() => {
-        if (!isExpanded) showNudge();
-      }, config.notificationPopupDelay * 1000);
-    }
-
-    nudge.addEventListener("click", () => {
-      hideNudge();
-      sessionStorage.setItem(NUDGE_KEY, "1");
-      applyExpandedStyles(true);
-    });
-
-    nudgeClose.addEventListener("click", (e) => {
-      e.stopPropagation();
-      hideNudge();
-      sessionStorage.setItem(NUDGE_KEY, "1");
-    });
-
     let isExpanded = false;
 
     function postToWidget(action: "expand" | "minimize") {
@@ -197,7 +110,6 @@ export function WidgetTestEmbed() {
       isExpanded = expand;
 
       if (isExpanded) {
-        hideNudge();
         const w = calcExpandedW();
         const h = calcExpandedH();
 
@@ -207,15 +119,19 @@ export function WidgetTestEmbed() {
           container.style.left = "0";
           container.style.right = "0";
           container.style.bottom = "0";
+          container.style.top = "0";
           container.style.width = "100vw";
           container.style.height = "100dvh";
+          container.style.borderRadius = "0";
           iframe.style.borderRadius = "0px";
         } else {
           container.style.left = "auto";
+          container.style.top = "auto";
           container.style.right = "calc(16px + env(safe-area-inset-right))";
           container.style.bottom = "calc(16px + env(safe-area-inset-bottom))";
           container.style.width = `${w}px`;
           container.style.height = `${h}px`;
+          container.style.borderRadius = "16px";
           iframe.style.borderRadius = "16px";
         }
 
@@ -225,16 +141,17 @@ export function WidgetTestEmbed() {
         postToWidget("expand");
       } else {
         container.style.left = "auto";
+        container.style.top = "auto";
         container.style.right = "calc(16px + env(safe-area-inset-right))";
         container.style.bottom = "calc(16px + env(safe-area-inset-bottom))";
         container.style.width = `${bubbleSize}px`;
         container.style.height = `${bubbleSize}px`;
+        container.style.borderRadius = "50%";
         iframe.style.borderRadius = "999px";
         iframe.style.boxShadow = "0 25px 50px -12px rgba(0,0,0,0.35)";
         iframe.style.pointerEvents = "none";
         overlay.style.display = "block";
         postToWidget("minimize");
-        scheduleNudge();
       }
     }
 
@@ -277,7 +194,6 @@ export function WidgetTestEmbed() {
     iframe.addEventListener("load", onIframeLoad);
 
     applyExpandedStyles(false);
-    scheduleNudge();
 
     return () => {
       iframe.removeEventListener("load", onIframeLoad);
@@ -285,8 +201,6 @@ export function WidgetTestEmbed() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("message", onMessage);
       overlay.removeEventListener("click", onOverlayClick);
-      if (nudgeTimer !== undefined) window.clearTimeout(nudgeTimer);
-      nudge.remove();
       container.remove();
     };
   }, [config]);
