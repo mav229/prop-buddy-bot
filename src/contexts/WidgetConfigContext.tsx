@@ -22,6 +22,7 @@ export interface WidgetConfig {
   // Logo
   logoUrl: string;
   launcherLogoUrl: string;
+  launcherStyle: "nohalo" | "clean" | "new" | "transparent" | "original";
   showLogo: boolean;
   logoSize: number;
   logoBorderRadius: number;
@@ -125,6 +126,7 @@ const defaultConfig: WidgetConfig = {
   // Logo
   logoUrl: "",
   launcherLogoUrl: "",
+  launcherStyle: "nohalo",
   showLogo: true,
   logoSize: 48,
   logoBorderRadius: 12,
