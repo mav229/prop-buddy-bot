@@ -136,36 +136,36 @@
   backface-visibility: hidden;
 }
 
-/* Panel open - subtle fade + glide */
+/* Panel open - fade + pop + glide */
 @keyframes panel-open {
-  from {
+  0% {
     opacity: 0;
-    transform: translateY(12px);
+    transform: scale(0.95) translateY(8px);
   }
-  to {
+  100% {
     opacity: 1;
-    transform: translateY(0);
+    transform: scale(1) translateY(0);
   }
 }
 
 .panel-open {
-  animation: panel-open 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: panel-open 0.2s ease-out forwards;
 }
 
-/* Panel close - subtle fade + glide */
+/* Panel close - fade + pop + glide */
 @keyframes panel-close {
-  from {
+  0% {
     opacity: 1;
-    transform: translateY(0);
+    transform: scale(1) translateY(0);
   }
-  to {
+  100% {
     opacity: 0;
-    transform: translateY(8px);
+    transform: scale(0.95) translateY(8px);
   }
 }
 
 .panel-close {
-  animation: panel-close 0.22s cubic-bezier(0.4, 0, 1, 1) forwards;
+  animation: panel-close 0.15s ease-in forwards;
   pointer-events: none;
 }
 
@@ -209,7 +209,7 @@
 .launcher-btn {
   width: 64px !important;
   height: 64px !important;
-  border-radius: 0 !important;
+  border-radius: 50% !important;
   border: none !important;
   padding: 0 !important;
   margin: 0 !important;
@@ -217,7 +217,7 @@
   background: transparent !important;
   background-color: transparent !important;
   outline: none !important;
-  overflow: visible !important;
+  overflow: hidden !important;
   -webkit-tap-highlight-color: transparent;
   box-shadow: none !important;
   transition: transform 0.2s ease-out;
@@ -235,15 +235,15 @@
 }
 
 .launcher-btn img {
-  width: 64px !important;
-  height: 64px !important;
-  object-fit: contain !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
   display: block;
   background: transparent !important;
   background-color: transparent !important;
   border: none !important;
   box-shadow: none !important;
-  border-radius: 0 !important;
+  border-radius: 50% !important;
 }
 
 /* Card hover (smooth GPU accelerated) */

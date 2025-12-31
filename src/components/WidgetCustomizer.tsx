@@ -866,27 +866,6 @@ export const WidgetCustomizer = () => {
           </CardContent>
         </Card>
 
-        {/* Live Preview */}
-        <Card className="border-border/50 bg-card/50 backdrop-blur-sm sticky top-4">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Eye className="w-4 h-4" />
-              Live Preview
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4">
-            <div 
-              className="relative rounded-xl overflow-hidden shadow-2xl bg-gray-100"
-              style={{ 
-                width: `${Math.min(config.widgetWidth, 380)}px`, 
-                height: `${Math.min(config.widgetHeight, 550)}px`,
-                margin: "0 auto"
-              }}
-            >
-              <EmbeddableChat isWidget={true} />
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
