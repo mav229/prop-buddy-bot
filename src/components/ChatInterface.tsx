@@ -1,5 +1,5 @@
 import { useRef, useEffect } from "react";
-import { Bot, RefreshCw, Settings, AlertTriangle } from "lucide-react";
+import { Bot, RefreshCw, Settings, AlertTriangle, Monitor } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
@@ -34,6 +34,11 @@ export const ChatInterface = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            <Link to="/embed-checker">
+              <Button variant="ghost" size="icon" title="Embed checker">
+                <Monitor className="w-4 h-4" />
+              </Button>
+            </Link>
             <Button
               variant="ghost"
               size="icon"
