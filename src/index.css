@@ -204,20 +204,20 @@
   30% { opacity: 1; }
 }
 
-/* ===== PURE PNG LAUNCHER (no background) ===== */
+/* ===== PURE PNG LAUNCHER (zero background) ===== */
 
 .launcher-btn {
-  width: 64px;
-  height: 64px;
-  border-radius: 32px;
+  width: 64px !important;
+  height: 64px !important;
+  border-radius: 0 !important;
   border: none !important;
-  padding: 0;
-  margin: 0;
+  padding: 0 !important;
+  margin: 0 !important;
   cursor: pointer;
   background: transparent !important;
   background-color: transparent !important;
-  outline: none;
-  overflow: hidden;
+  outline: none !important;
+  overflow: visible !important;
   -webkit-tap-highlight-color: transparent;
   box-shadow: none !important;
   transition: transform 0.2s ease-out;
@@ -227,6 +227,7 @@
   transform: scale(1.05);
   box-shadow: none !important;
   background: transparent !important;
+  background-color: transparent !important;
 }
 
 .launcher-btn:active {
@@ -234,14 +235,15 @@
 }
 
 .launcher-btn img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  width: 64px !important;
+  height: 64px !important;
+  object-fit: contain !important;
   display: block;
   background: transparent !important;
+  background-color: transparent !important;
   border: none !important;
   box-shadow: none !important;
-  border-radius: 32px;
+  border-radius: 0 !important;
 }
 
 /* Card hover (smooth GPU accelerated) */
