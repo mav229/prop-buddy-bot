@@ -577,7 +577,36 @@ export const WidgetCustomizer = () => {
 
               {/* Logo Tab */}
               <TabsContent value="logo" className="space-y-4 mt-4">
-                <Section title="Logo Settings" icon={Image}>
+                {/* LAUNCHER ICON - Most Important */}
+                <Section title="🚀 Launcher Icon (Floating Button)" icon={Image}>
+                  <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 mb-3">
+                    <p className="text-xs text-primary font-medium mb-1">Widget Launcher Icon</p>
+                    <p className="text-[11px] text-muted-foreground">This is the floating bubble icon users click to open the chat. Paste your Cloudinary URL here.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Launcher Logo URL (Cloudinary)</Label>
+                    <Input
+                      value={config.launcherLogoUrl}
+                      onChange={(e) => updateConfig({ launcherLogoUrl: e.target.value })}
+                      className="bg-background/50 border-primary/30 focus:border-primary"
+                      placeholder="https://res.cloudinary.com/your-cloud/image/upload/v123/logo.png"
+                    />
+                    {config.launcherLogoUrl && (
+                      <div className="flex items-center gap-3 p-2 rounded-lg bg-card/50 border border-border/30">
+                        <img 
+                          src={config.launcherLogoUrl} 
+                          alt="Launcher preview" 
+                          className="w-12 h-12 object-contain rounded"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                        <span className="text-xs text-muted-foreground">Preview</span>
+                      </div>
+                    )}
+                  </div>
+                </Section>
+
+                {/* Header Logo */}
+                <Section title="Header Logo" icon={Image} defaultOpen={false}>
                   <div className="flex items-center justify-between mb-3">
                     <Label className="text-sm">Show Logo</Label>
                     <Switch
@@ -593,15 +622,6 @@ export const WidgetCustomizer = () => {
                         onChange={(e) => updateConfig({ logoUrl: e.target.value })}
                         className="bg-background/50"
                         placeholder="https://example.com/logo.png"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Launcher Logo URL</Label>
-                      <Input
-                        value={config.launcherLogoUrl}
-                        onChange={(e) => updateConfig({ launcherLogoUrl: e.target.value })}
-                        className="bg-background/50"
-                        placeholder="https://example.com/launcher-logo.png"
                       />
                     </div>
                     <div className="space-y-2">
