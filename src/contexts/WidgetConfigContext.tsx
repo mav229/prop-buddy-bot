@@ -125,7 +125,8 @@ const defaultConfig: WidgetConfig = {
   
   // Logo
   logoUrl: "",
-  launcherLogoUrl: "",
+  // Default launcher image (your Cloudinary asset)
+  launcherLogoUrl: "https://res.cloudinary.com/dzozyqlqr/image/upload/v1767166947/Untitled_design_5_pjs1rs.png",
   launcherStyle: "nohalo",
   showLogo: true,
   logoSize: 48,
