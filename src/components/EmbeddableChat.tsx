@@ -7,9 +7,22 @@ import { ChatSkeleton, CardSkeleton } from "./ChatSkeleton";
 import { TypingIndicator } from "./TypingIndicator";
 import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
 import scholarisLogo from "@/assets/scholaris-logo.png";
-import scholarisLauncher from "@/assets/scholaris-launcher-new.png";
+import scholarisLauncherNew from "@/assets/scholaris-launcher-new.png";
+import scholarisLauncherNohalo from "@/assets/scholaris-launcher-nohalo.png";
+import scholarisLauncherClean from "@/assets/scholaris-launcher-clean.png";
+import scholarisLauncherTransparent from "@/assets/scholaris-launcher-transparent.png";
+import scholarisLauncherOriginal from "@/assets/scholaris-launcher.png";
 import propscholarLogo from "@/assets/propscholar-logo.jpg";
 import { cn } from "@/lib/utils";
+
+// Map launcher style to asset
+const launcherAssets: Record<string, string> = {
+  nohalo: scholarisLauncherNohalo,
+  clean: scholarisLauncherClean,
+  new: scholarisLauncherNew,
+  transparent: scholarisLauncherTransparent,
+  original: scholarisLauncherOriginal,
+};
 
 // Image with minimal loading (no blur/pulse placeholder)
 function BlurImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
@@ -59,7 +72,8 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   }, []);
 
   const headerLogo = config.logoUrl || propscholarLogo;
-  const launcherLogo = config.launcherLogoUrl || scholarisLauncher;
+  // Use custom URL if set, otherwise pick from built-in styles
+  const launcherLogo = config.launcherLogoUrl || launcherAssets[config.launcherStyle] || launcherAssets.nohalo;
 
   const handleOpen = useCallback(() => {
     // Play soft chime sound with fade-in for smoother experience

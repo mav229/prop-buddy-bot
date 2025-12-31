@@ -581,10 +581,27 @@ export const WidgetCustomizer = () => {
                 <Section title="🚀 Launcher Icon (Floating Button)" icon={Image}>
                   <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 mb-3">
                     <p className="text-xs text-primary font-medium mb-1">Widget Launcher Icon</p>
-                    <p className="text-[11px] text-muted-foreground">This is the floating bubble icon users click to open the chat. Paste your Cloudinary URL here.</p>
+                    <p className="text-[11px] text-muted-foreground">Choose a built-in style or paste a custom Cloudinary URL.</p>
                   </div>
+
+                  {/* Launcher Style Dropdown */}
+                  <div className="space-y-2 mb-4">
+                    <Label className="text-sm font-medium">Launcher Style</Label>
+                    <select
+                      value={config.launcherStyle}
+                      onChange={(e) => updateConfig({ launcherStyle: e.target.value as any })}
+                      className="w-full h-10 px-3 rounded-md border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      <option value="nohalo">No Halo (default)</option>
+                      <option value="clean">Clean</option>
+                      <option value="new">New (with glow)</option>
+                      <option value="transparent">Transparent</option>
+                      <option value="original">Original</option>
+                    </select>
+                  </div>
+
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Launcher Logo URL (Cloudinary)</Label>
+                    <Label className="text-sm font-medium">Custom Launcher URL (overrides style)</Label>
                     <Input
                       value={config.launcherLogoUrl}
                       onChange={(e) => updateConfig({ launcherLogoUrl: e.target.value })}
@@ -601,7 +618,7 @@ export const WidgetCustomizer = () => {
                             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                           />
                         </div>
-                        <span className="text-xs text-muted-foreground">Preview</span>
+                        <span className="text-xs text-muted-foreground">Custom Preview</span>
                       </div>
                     )}
                   </div>
