@@ -128,15 +128,16 @@ export const EmbedCustomization = () => {
     iframe.style.display = 'block';
     iframe.style.overflow = 'hidden';
     iframe.style.borderRadius = '32px';
-    iframe.style.background = 'transparent';
+    // Dark fallback prevents the browser from showing a white iframe before the app paints
+    iframe.style.background = '#0b1020';
     iframe.style.pointerEvents = 'none';
     iframe.style.boxShadow = 'none';
     iframe.style.transition = 'border-radius 220ms ease, box-shadow 220ms ease';
     iframe.style.position = 'relative';
 
-    // Force key iframe styles (prevents host CSS from breaking click + transparency)
-    setImp(iframe, 'background', 'transparent');
-    setImp(iframe, 'background-color', 'transparent');
+    // Force key iframe styles (prevents host CSS from breaking click + background)
+    setImp(iframe, 'background', '#0b1020');
+    setImp(iframe, 'background-color', '#0b1020');
     setImp(iframe, 'border', 'none');
     setImp(iframe, 'border-radius', '32px');
     setImp(iframe, 'pointer-events', 'none');
