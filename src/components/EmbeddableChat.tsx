@@ -219,7 +219,10 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
             boxShadow: "none",
             padding: 0,
             margin: 0,
-            borderRadius: 0,
+            borderRadius: "50%",
+            overflow: "hidden",
+            width: 64,
+            height: 64,
           }}
         >
           <img 
@@ -227,14 +230,14 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
             alt="Chat" 
             draggable={false}
             style={{
-              width: 64,
-              height: 64,
-              objectFit: "contain",
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
               background: "transparent",
               backgroundColor: "transparent",
               border: "none",
               boxShadow: "none",
-              borderRadius: 0,
+              borderRadius: "50%",
             }}
           />
         </button>
