@@ -47,7 +47,7 @@
 
 @layer base {
   * { @apply border-border; }
-  html, body, #root { height: 100%; width: 100%; }
+  html, body, #root { height: 100%; width: 100%; background: #0b1020; }
   body {
     margin: 0;
     @apply bg-background text-foreground antialiased;
