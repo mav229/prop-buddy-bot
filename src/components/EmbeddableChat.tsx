@@ -7,7 +7,7 @@ import { ChatSkeleton, CardSkeleton } from "./ChatSkeleton";
 import { TypingIndicator } from "./TypingIndicator";
 import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
 import scholarisLogo from "@/assets/scholaris-logo.png";
-import scholarisLauncher from "@/assets/scholaris-launcher-nohalo.png";
+import scholarisLauncher from "@/assets/scholaris-launcher-new.png";
 import propscholarLogo from "@/assets/propscholar-logo.jpg";
 import { cn } from "@/lib/utils";
 
@@ -193,15 +193,24 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const lastAssistantMessage = messages.filter(m => m.role === "assistant").slice(-1)[0];
   const lastUserMessage = messages.filter(m => m.role === "user").slice(-1)[0];
 
-  // Minimized launcher - simple PNG only
+  // Minimized launcher - pure PNG only, no background
   if (isWidget && isMinimized) {
     return (
       <div 
-        className={inIframe ? "w-full h-full flex items-end justify-end" : "fixed bottom-4 right-4 z-[9999]"}
+        className={inIframe ? "w-full h-full flex items-end justify-end p-4" : "fixed bottom-4 right-4 z-[9999]"}
         style={{ background: "transparent" }}
       >
-        <button onClick={handleOpen} className="launcher-btn">
-          <img src={launcherLogo} alt="Scholaris chat launcher" />
+        <button 
+          onClick={handleOpen} 
+          className="w-16 h-16 cursor-pointer transition-transform duration-200 hover:scale-105"
+          style={{ background: "transparent", border: "none", padding: 0 }}
+        >
+          <img 
+            src={launcherLogo} 
+            alt="Chat" 
+            className="w-full h-full object-contain"
+            style={{ background: "transparent" }}
+          />
         </button>
       </div>
     );
