@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useLayoutEffect, useState, useCallback } from "react";
 import { X, MessageCircle, Send, Search, Home, HelpCircle, ExternalLink, ChevronRight, ShoppingBag, Clock, AlertTriangle, RefreshCw } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { ChatMessage } from "./ChatMessage";
@@ -82,29 +82,19 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     setTimeout(() => {
       setIsClosing(false);
       setIsMinimized(true);
-    }, 300);
+    }, 150); // Match panel-close animation duration
   }, []);
 
-  useEffect(() => {
+  // Use useLayoutEffect to set background BEFORE paint (prevents white flash)
+  useLayoutEffect(() => {
     if (!isWidget) return;
 
-    // Manage iframe page background:
-    // - Minimized: fully transparent (launcher PNG only)
-    // - Expanded: match widget background to avoid a "white sheet" peeking through during scale/transition
-    const prevHtmlBg = document.documentElement.style.background;
-    const prevHtmlBgColor = document.documentElement.style.backgroundColor;
-    const prevBodyBg = document.body.style.background;
-    const prevBodyBgColor = document.body.style.backgroundColor;
-
     const root = document.getElementById("root");
-    const prevRootBg = root?.style.background ?? "";
-    const prevRootBgColor = root?.style.backgroundColor ?? "";
 
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
 
     const applyBg = (bg: string) => {
-      // Set BOTH background AND backgroundColor for better cross-browser consistency
       document.documentElement.style.background = bg;
       document.documentElement.style.backgroundColor = bg;
       document.body.style.background = bg;
@@ -115,37 +105,13 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       }
     };
 
-    // initial
+    // Apply background synchronously before paint
     applyBg(isMinimized ? "transparent" : config.backgroundColor);
 
     return () => {
-      document.documentElement.style.background = prevHtmlBg;
-      document.documentElement.style.backgroundColor = prevHtmlBgColor;
-      document.body.style.background = prevBodyBg;
-      document.body.style.backgroundColor = prevBodyBgColor;
-      if (root) {
-        root.style.background = prevRootBg;
-        root.style.backgroundColor = prevRootBgColor;
-      }
       document.documentElement.style.overflow = "";
       document.body.style.overflow = "";
     };
-  }, [isWidget]);
-
-  useEffect(() => {
-    if (!isWidget) return;
-    const root = document.getElementById("root");
-
-    const bg = isMinimized ? "transparent" : config.backgroundColor;
-
-    document.documentElement.style.background = bg;
-    document.documentElement.style.backgroundColor = bg;
-    document.body.style.background = bg;
-    document.body.style.backgroundColor = bg;
-    if (root) {
-      root.style.background = bg;
-      root.style.backgroundColor = bg;
-    }
   }, [isWidget, isMinimized, config.backgroundColor]);
 
 
