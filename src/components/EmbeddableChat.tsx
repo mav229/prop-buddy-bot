@@ -105,8 +105,9 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       }
     };
 
-    // Apply background synchronously before paint
-    applyBg(isMinimized ? "transparent" : config.backgroundColor);
+    // Apply a non-transparent background to avoid any iframe white fallback flashes
+    // (some browsers render transparent iframe documents as white during transitions).
+    applyBg(config.backgroundColor);
 
     return () => {
       document.documentElement.style.overflow = "";

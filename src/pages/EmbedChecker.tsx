@@ -188,7 +188,7 @@ function MinimalIframeEmbed() {
             height: "100%",
             border: "none",
             display: "block",
-            background: "transparent",
+            background: "#0b1020",
             borderRadius: dims.borderRadius,
           }}
         />
