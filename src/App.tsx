@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Admin from "./pages/Admin";
 import Embed from "./pages/Embed";
 import Widget from "./pages/Widget";
+import EmbedChecker from "./pages/EmbedChecker";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
             <Route path="/admin" element={<Admin />} />
             <Route path="/embed" element={<Embed />} />
             <Route path="/widget" element={<Widget />} />
+            <Route path="/embed-checker" element={<EmbedChecker />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
