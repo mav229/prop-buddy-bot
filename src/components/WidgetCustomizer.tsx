@@ -593,12 +593,14 @@ export const WidgetCustomizer = () => {
                     />
                     {config.launcherLogoUrl && (
                       <div className="flex items-center gap-3 p-2 rounded-lg bg-card/50 border border-border/30">
-                        <img 
-                          src={config.launcherLogoUrl} 
-                          alt="Launcher preview" 
-                          className="w-12 h-12 object-contain rounded"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                        />
+                        <div className="w-12 h-12 rounded-full overflow-hidden bg-transparent flex items-center justify-center">
+                          <img 
+                            src={config.launcherLogoUrl} 
+                            alt="Launcher preview" 
+                            className="w-full h-full object-cover"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        </div>
                         <span className="text-xs text-muted-foreground">Preview</span>
                       </div>
                     )}
