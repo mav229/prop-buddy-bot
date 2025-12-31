@@ -88,43 +88,66 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   useEffect(() => {
     if (!isWidget) return;
 
-    // Keep the widget iframe background fully transparent (launcher should be PNG only)
-    const prevHtmlBg = document.documentElement.style.backgroundColor;
-    const prevBodyBg = document.body.style.backgroundColor;
-    const prevHtmlBgProp = document.documentElement.style.background;
-    const prevBodyBgProp = document.body.style.background;
+    // Manage iframe page background:
+    // - Minimized: fully transparent (launcher PNG only)
+    // - Expanded: match widget background to avoid a "white sheet" peeking through during scale/transition
+    const prevHtmlBg = document.documentElement.style.background;
+    const prevHtmlBgColor = document.documentElement.style.backgroundColor;
+    const prevBodyBg = document.body.style.background;
+    const prevBodyBgColor = document.body.style.backgroundColor;
 
-    // Set BOTH background AND backgroundColor to transparent for all browsers
-    document.documentElement.style.backgroundColor = "transparent";
-    document.documentElement.style.background = "transparent";
-    document.body.style.backgroundColor = "transparent";
-    document.body.style.background = "transparent";
-
-    // Also target #root if it exists
     const root = document.getElementById("root");
-    const prevRootBg = root?.style.backgroundColor || "";
-    const prevRootBgProp = root?.style.background || "";
-    if (root) {
-      root.style.backgroundColor = "transparent";
-      root.style.background = "transparent";
-    }
+    const prevRootBg = root?.style.background ?? "";
+    const prevRootBgColor = root?.style.backgroundColor ?? "";
 
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
 
-    return () => {
-      document.documentElement.style.backgroundColor = prevHtmlBg;
-      document.documentElement.style.background = prevHtmlBgProp;
-      document.body.style.backgroundColor = prevBodyBg;
-      document.body.style.background = prevBodyBgProp;
+    const applyBg = (bg: string) => {
+      // Set BOTH background AND backgroundColor for better cross-browser consistency
+      document.documentElement.style.background = bg;
+      document.documentElement.style.backgroundColor = bg;
+      document.body.style.background = bg;
+      document.body.style.backgroundColor = bg;
       if (root) {
-        root.style.backgroundColor = prevRootBg;
-        root.style.background = prevRootBgProp;
+        root.style.background = bg;
+        root.style.backgroundColor = bg;
+      }
+    };
+
+    // initial
+    applyBg(isMinimized ? "transparent" : config.backgroundColor);
+
+    return () => {
+      document.documentElement.style.background = prevHtmlBg;
+      document.documentElement.style.backgroundColor = prevHtmlBgColor;
+      document.body.style.background = prevBodyBg;
+      document.body.style.backgroundColor = prevBodyBgColor;
+      if (root) {
+        root.style.background = prevRootBg;
+        root.style.backgroundColor = prevRootBgColor;
       }
       document.documentElement.style.overflow = "";
       document.body.style.overflow = "";
     };
   }, [isWidget]);
+
+  useEffect(() => {
+    if (!isWidget) return;
+    const root = document.getElementById("root");
+
+    const bg = isMinimized ? "transparent" : config.backgroundColor;
+
+    document.documentElement.style.background = bg;
+    document.documentElement.style.backgroundColor = bg;
+    document.body.style.background = bg;
+    document.body.style.backgroundColor = bg;
+    if (root) {
+      root.style.background = bg;
+      root.style.backgroundColor = bg;
+    }
+  }, [isWidget, isMinimized, config.backgroundColor]);
+
 
   useEffect(() => {
     const timer = setTimeout(() => setIsReady(true), 400);
