@@ -22,6 +22,7 @@ interface ChatSession {
   }[];
   first_message: string;
   last_activity: string;
+  started_at: string;
   source: "discord" | "web";
   userId?: string;
 }
@@ -59,6 +60,7 @@ export const ChatHistoryView = () => {
             messages: [],
             first_message: "",
             last_activity: msg.created_at,
+            started_at: msg.created_at,
             source: isDiscord ? "discord" : "web",
             userId,
           });
@@ -72,6 +74,9 @@ export const ChatHistoryView = () => {
         
         if (new Date(msg.created_at) > new Date(session.last_activity)) {
           session.last_activity = msg.created_at;
+        }
+        if (new Date(msg.created_at) < new Date(session.started_at)) {
+          session.started_at = msg.created_at;
         }
       });
 
@@ -192,7 +197,12 @@ export const ChatHistoryView = () => {
                   </div>
                   <div className="flex items-center gap-3 ml-4">
                     <p className="text-xs text-muted-foreground">
-                      {session.messages.length} msgs • {new Date(session.last_activity).toLocaleDateString()}
+                      {session.messages.length} msgs • {new Date(session.started_at).toLocaleDateString()}{" "}
+                      {session.source === "web" && (
+                        <span className="text-primary">
+                          {new Date(session.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
                     </p>
                     <div className="text-xs text-muted-foreground">
                       {expandedSession === session.session_id ? "▼" : "▶"}
