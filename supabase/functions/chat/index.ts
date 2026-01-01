@@ -67,6 +67,12 @@ ANSWERING QUESTIONS:
 - Be confident about trust questions
 - NEVER make up facts
 
+ACTIVE COUPONS & DISCOUNTS:
+{coupons_context}
+
+When users ask about discounts, deals, coupon codes, or savings - share the active coupons above!
+Present them nicely with the code, discount, and benefits. If no coupons are active, let them know to check back soon.
+
 KNOWLEDGE BASE:
 {knowledge_base}
 
@@ -100,6 +106,17 @@ serve(async (req) => {
       console.error("Error fetching knowledge base:", kbError);
     }
 
+    // Fetch active coupons
+    const { data: coupons, error: couponsError } = await supabase
+      .from("coupons")
+      .select("code, discount_type, discount_value, description, benefits, min_purchase, valid_until")
+      .eq("is_active", true)
+      .or("valid_until.is.null,valid_until.gt." + new Date().toISOString());
+
+    if (couponsError) {
+      console.error("Error fetching coupons:", couponsError);
+    }
+
     // Format knowledge base for context
     let knowledgeContext = "";
     if (knowledgeEntries && knowledgeEntries.length > 0) {
@@ -110,7 +127,29 @@ serve(async (req) => {
       knowledgeContext = "No knowledge base entries available yet. Inform users that the knowledge base is being set up.";
     }
 
-    const systemPromptWithKnowledge = SYSTEM_PROMPT.replace("{knowledge_base}", knowledgeContext);
+    // Format coupons for context
+    let couponsContext = "";
+    if (coupons && coupons.length > 0) {
+      couponsContext = coupons
+        .map((c) => {
+          const discount = c.discount_type === "percentage" 
+            ? `${c.discount_value}% off` 
+            : `$${c.discount_value} off`;
+          let info = `• Code: ${c.code} - ${discount}`;
+          if (c.description) info += `\n  Description: ${c.description}`;
+          if (c.benefits) info += `\n  Benefits: ${c.benefits}`;
+          if (c.min_purchase && c.min_purchase > 0) info += `\n  Min purchase: $${c.min_purchase}`;
+          if (c.valid_until) info += `\n  Expires: ${new Date(c.valid_until).toLocaleDateString()}`;
+          return info;
+        })
+        .join("\n\n");
+    } else {
+      couponsContext = "No active coupons at the moment.";
+    }
+
+    const systemPromptWithKnowledge = SYSTEM_PROMPT
+      .replace("{knowledge_base}", knowledgeContext)
+      .replace("{coupons_context}", couponsContext);
 
     // Note: Chat history storage is handled by the frontend useChat hook
     // to avoid duplicate entries
