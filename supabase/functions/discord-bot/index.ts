@@ -162,6 +162,12 @@ SMART FOLLOW-UPS:
 - Format: "By the way, you might also want to know about [topic]! Want me to explain?"
 - Examples: After explaining payouts → mention withdrawal process; After explaining rules → mention trading tips
 
+ACTIVE COUPONS & DISCOUNTS:
+{coupons_context}
+
+When users ask about discounts, deals, coupon codes, promo codes, or savings - share the active coupons above!
+Present them nicely with the code, discount percentage, and benefits. Make it exciting! 🎉
+
 KNOWLEDGE BASE:
 {knowledge_base}
 
@@ -391,6 +397,45 @@ async function getLearnedCorrections(
   }
 }
 
+// Fetch active coupons for the bot to share
+async function getActiveCoupons(supabase: any): Promise<string> {
+  try {
+    const { data: coupons, error } = await supabase
+      .from("coupons")
+      .select("code, discount_type, discount_value, description, benefits, min_purchase, valid_until")
+      .eq("is_active", true)
+      .or("valid_until.is.null,valid_until.gt." + new Date().toISOString());
+
+    if (error) {
+      console.error("Error fetching coupons:", error);
+      return "No active coupons at the moment.";
+    }
+
+    if (!coupons || coupons.length === 0) {
+      return "No active coupons at the moment.";
+    }
+
+    console.log(`Found ${coupons.length} active coupon(s)`);
+    
+    return coupons
+      .map((c: any) => {
+        const discount = c.discount_type === "percentage" 
+          ? `${c.discount_value}% off` 
+          : `$${c.discount_value} off`;
+        let info = `• Code: **${c.code}** - ${discount}`;
+        if (c.description) info += `\n  Description: ${c.description}`;
+        if (c.benefits) info += `\n  Benefits: ${c.benefits}`;
+        if (c.min_purchase && c.min_purchase > 0) info += `\n  Min purchase: $${c.min_purchase}`;
+        if (c.valid_until) info += `\n  Expires: ${new Date(c.valid_until).toLocaleDateString()}`;
+        return info;
+      })
+      .join("\n\n");
+  } catch (e) {
+    console.error("Error fetching coupons:", e);
+    return "No active coupons at the moment.";
+  }
+}
+
 async function getAIResponse(
   message: string,
   knowledgeContext: string,
@@ -398,7 +443,8 @@ async function getAIResponse(
   userName?: string,
   repliedTo?: ReplyContext,
   userProfile?: DiscordUserProfile | null,
-  learnedCorrections: string = ""
+  learnedCorrections: string = "",
+  couponsContext: string = "No active coupons at the moment."
 ): Promise<string> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
@@ -408,7 +454,8 @@ async function getAIResponse(
 
   let systemPrompt = SYSTEM_PROMPT
     .replace("{knowledge_base}", knowledgeContext)
-    .replace("{learned_corrections}", learnedCorrections);
+    .replace("{learned_corrections}", learnedCorrections)
+    .replace("{coupons_context}", couponsContext);
   
   // Add user profile context
   if (userProfile) {
@@ -773,7 +820,10 @@ serve(async (req) => {
           // Fetch learned corrections for auto-learning
           const learnedCorrections = await getLearnedCorrections(supabase, String(question || ""));
 
-          const aiResponse = await getAIResponse(String(question || ""), knowledgeContext, userHistory, userName, undefined, userProfile, learnedCorrections);
+          // Fetch active coupons
+          const couponsContext = await getActiveCoupons(supabase);
+
+          const aiResponse = await getAIResponse(String(question || ""), knowledgeContext, userHistory, userName, undefined, userProfile, learnedCorrections, couponsContext);
 
           // Store conversation if we have user ID
           if (userId) {
@@ -918,7 +968,10 @@ serve(async (req) => {
         // Fetch learned corrections for auto-learning
         const learnedCorrections = await getLearnedCorrections(supabase, cleanContent);
         
-        const aiResponse = await getAIResponse(cleanContent, knowledgeContext, userHistory, userName, replyContext, userProfile, learnedCorrections);
+        // Fetch active coupons
+        const couponsContext = await getActiveCoupons(supabase);
+        
+        const aiResponse = await getAIResponse(cleanContent, knowledgeContext, userHistory, userName, replyContext, userProfile, learnedCorrections, couponsContext);
 
         await sendDiscordMessage(channelId, aiResponse, DISCORD_BOT_TOKEN, messageId);
 
@@ -990,7 +1043,10 @@ serve(async (req) => {
         // Fetch learned corrections for auto-learning
         const learnedCorrections = await getLearnedCorrections(supabase, cleanContent);
         
-        const aiResponse = await getAIResponse(cleanContent, knowledgeContext, userHistory, userName, replyContext, userProfile, learnedCorrections);
+        // Fetch active coupons
+        const couponsContext = await getActiveCoupons(supabase);
+        
+        const aiResponse = await getAIResponse(cleanContent, knowledgeContext, userHistory, userName, replyContext, userProfile, learnedCorrections, couponsContext);
 
         await sendDiscordMessage(channelId, aiResponse, DISCORD_BOT_TOKEN, messageId);
 
@@ -1070,7 +1126,10 @@ serve(async (req) => {
       // Fetch learned corrections for auto-learning
       const learnedCorrections = await getLearnedCorrections(supabase, content);
 
-      const aiResponse = await getAIResponse(content, knowledgeContext, userHistory, userName, replyContext, userProfile, learnedCorrections);
+      // Fetch active coupons
+      const couponsContext = await getActiveCoupons(supabase);
+
+      const aiResponse = await getAIResponse(content, knowledgeContext, userHistory, userName, replyContext, userProfile, learnedCorrections, couponsContext);
       await sendDiscordMessage(channelId, aiResponse, DISCORD_BOT_TOKEN, messageId);
 
       // Store in user-specific chat history
@@ -1156,6 +1215,9 @@ serve(async (req) => {
       // Fetch learned corrections for auto-learning
       const learnedCorrections = await getLearnedCorrections(supabase, message);
 
+      // Fetch active coupons
+      const couponsContext = await getActiveCoupons(supabase);
+
       const aiResponse = await getAIResponse(
         message,
         knowledgeContext,
@@ -1163,7 +1225,8 @@ serve(async (req) => {
         username,
         replyContext,
         userProfile,
-        learnedCorrections
+        learnedCorrections,
+        couponsContext
       );
 
       // Store conversation for memory
@@ -1197,7 +1260,10 @@ serve(async (req) => {
       // Fetch learned corrections for auto-learning
       const learnedCorrections = await getLearnedCorrections(supabase, testMessage);
 
-      const aiResponse = await getAIResponse(testMessage, knowledgeContext, [], undefined, undefined, undefined, learnedCorrections);
+      // Fetch active coupons
+      const couponsContext = await getActiveCoupons(supabase);
+
+      const aiResponse = await getAIResponse(testMessage, knowledgeContext, [], undefined, undefined, undefined, learnedCorrections, couponsContext);
 
       return new Response(
         JSON.stringify({ success: true, question: testMessage, response: aiResponse }),
