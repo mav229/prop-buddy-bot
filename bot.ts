@@ -267,10 +267,16 @@ function connect(): void {
         // Send initial heartbeat
         sendHeartbeat();
 
+        // Check WebSocket is still open before sending
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          console.log("WebSocket not open, skipping Identify/Resume");
+          break;
+        }
+
         // Identify or Resume
         if (sessionId && sequence) {
           // Resume
-          ws!.send(
+          ws.send(
             JSON.stringify({
               op: 6,
               d: {
@@ -283,7 +289,7 @@ function connect(): void {
           console.log("Sent Resume");
         } else {
           // Identify
-          ws!.send(
+          ws.send(
             JSON.stringify({
               op: 2,
               d: {
@@ -330,7 +336,9 @@ function connect(): void {
       case 7:
         // Reconnect
         console.log("Received Reconnect, reconnecting...");
-        ws!.close();
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.close();
+        }
         setTimeout(connect, 1000);
         break;
 
@@ -340,7 +348,9 @@ function connect(): void {
         sessionId = null;
         resumeGatewayUrl = null;
         sequence = null;
-        ws!.close();
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.close();
+        }
         setTimeout(connect, 5000);
         break;
     }
