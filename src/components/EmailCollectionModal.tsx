@@ -67,7 +67,7 @@ export const EmailCollectionModal = ({
         .from("coupons")
         .select("code, discount_type, discount_value, description, benefits")
         .eq("is_active", true)
-        .or(`valid_until.is.null,valid_until.gt.${now}`)
+        .or(`valid_until.is.null,valid_until.gte.${now}`)
         .limit(1);
 
       if (coupons && coupons.length > 0) {
@@ -113,24 +113,24 @@ export const EmailCollectionModal = ({
       <div 
         className={cn(
           "w-full rounded-2xl overflow-hidden",
-          "bg-white/95 backdrop-blur-xl",
-          "border border-black/[0.04]",
-          "shadow-[0_2px_20px_rgba(0,0,0,0.08)]"
+          "bg-white/70 backdrop-blur-2xl",
+          "border border-white/30",
+          "shadow-[0_8px_32px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.4)]"
         )}
       >
         {!submitted ? (
           /* Email Input State */
           <form onSubmit={handleSubmit} className="p-4">
             <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center flex-shrink-0">
-                <Gift className="w-4 h-4 text-white" strokeWidth={1.5} />
+              <div className="w-9 h-9 rounded-full bg-black/5 backdrop-blur-sm border border-black/10 flex items-center justify-center flex-shrink-0">
+                <Gift className="w-4 h-4 text-black/70" strokeWidth={1.5} />
               </div>
               
               <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-light text-gray-900 tracking-[-0.01em]">
+                <p className="text-[13px] font-light text-black/90 tracking-[-0.01em]">
                   Unlock a special discount
                 </p>
-                <p className="text-[11px] font-light text-gray-500 mt-0.5 tracking-[-0.01em]">
+                <p className="text-[11px] font-light text-black/50 mt-0.5 tracking-[-0.01em]">
                   Enter your email to get an exclusive code
                 </p>
                 
@@ -144,10 +144,10 @@ export const EmailCollectionModal = ({
                     }}
                     placeholder="your@email.com"
                     className={cn(
-                      "flex-1 min-w-0 px-3 py-2 rounded-lg text-[12px] font-light",
-                      "bg-gray-50 border border-gray-100",
-                      "placeholder:text-gray-400 text-gray-900",
-                      "focus:outline-none focus:ring-1 focus:ring-gray-200 focus:border-gray-200",
+                      "flex-1 min-w-0 px-3 py-2 rounded-xl text-[12px] font-light",
+                      "bg-white/50 backdrop-blur-sm border border-black/10",
+                      "placeholder:text-black/30 text-black/90",
+                      "focus:outline-none focus:ring-1 focus:ring-black/20 focus:border-black/20",
                       "transition-all duration-200"
                     )}
                     autoFocus
@@ -156,8 +156,9 @@ export const EmailCollectionModal = ({
                     type="submit"
                     disabled={isSubmitting}
                     className={cn(
-                      "px-4 py-2 rounded-lg text-[12px] font-light text-white",
-                      "bg-gray-900 hover:bg-gray-800",
+                      "px-4 py-2 rounded-xl text-[12px] font-light text-white",
+                      "bg-black/90 hover:bg-black",
+                      "backdrop-blur-sm",
                       "transition-all duration-200",
                       "disabled:opacity-50 disabled:cursor-not-allowed",
                       "flex items-center gap-1.5"
@@ -172,16 +173,16 @@ export const EmailCollectionModal = ({
                 </div>
                 
                 {error && (
-                  <p className="text-[10px] text-red-500 mt-1.5 font-light">{error}</p>
+                  <p className="text-[10px] text-red-600/80 mt-1.5 font-light">{error}</p>
                 )}
               </div>
               
               <button
                 type="button"
                 onClick={onClose}
-                className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors flex-shrink-0"
+                className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/5 transition-colors flex-shrink-0"
               >
-                <X className="w-3.5 h-3.5 text-gray-400" strokeWidth={1.5} />
+                <X className="w-3.5 h-3.5 text-black/40" strokeWidth={1.5} />
               </button>
             </div>
           </form>
@@ -189,37 +190,37 @@ export const EmailCollectionModal = ({
           /* Coupon Success State */
           <div className="p-4">
             <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center flex-shrink-0">
-                <Check className="w-4 h-4 text-white" strokeWidth={2} />
+              <div className="w-9 h-9 rounded-full bg-black/5 backdrop-blur-sm border border-black/10 flex items-center justify-center flex-shrink-0">
+                <Check className="w-4 h-4 text-black/70" strokeWidth={2} />
               </div>
               
               <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-light text-gray-900 tracking-[-0.01em]">
+                <p className="text-[13px] font-light text-black/90 tracking-[-0.01em]">
                   Your discount code
                 </p>
-                <p className="text-[11px] font-light text-gray-500 mt-0.5 tracking-[-0.01em]">
+                <p className="text-[11px] font-light text-black/50 mt-0.5 tracking-[-0.01em]">
                   {formatDiscount(coupon)} • {coupon.description || "Apply at checkout"}
                 </p>
                 
                 <div className="mt-3 flex items-center gap-2">
                   <div 
                     className={cn(
-                      "flex-1 px-3 py-2 rounded-lg",
-                      "bg-gray-50 border border-dashed border-gray-200"
+                      "flex-1 px-3 py-2 rounded-xl",
+                      "bg-white/50 backdrop-blur-sm border border-dashed border-black/20"
                     )}
                   >
-                    <code className="text-[13px] font-medium tracking-wider text-gray-900">
+                    <code className="text-[13px] font-medium tracking-wider text-black/90">
                       {coupon.code}
                     </code>
                   </div>
                   <button
                     onClick={handleCopy}
                     className={cn(
-                      "px-3 py-2 rounded-lg text-[12px] font-light",
-                      "transition-all duration-200 flex items-center gap-1.5",
+                      "px-3 py-2 rounded-xl text-[12px] font-light",
+                      "backdrop-blur-sm transition-all duration-200 flex items-center gap-1.5",
                       copied 
-                        ? "bg-emerald-50 text-emerald-600"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        ? "bg-black/10 text-black/70"
+                        : "bg-black/5 text-black/60 hover:bg-black/10"
                     )}
                   >
                     {copied ? (
@@ -239,9 +240,9 @@ export const EmailCollectionModal = ({
               
               <button
                 onClick={onClose}
-                className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors flex-shrink-0"
+                className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/5 transition-colors flex-shrink-0"
               >
-                <X className="w-3.5 h-3.5 text-gray-400" strokeWidth={1.5} />
+                <X className="w-3.5 h-3.5 text-black/40" strokeWidth={1.5} />
               </button>
             </div>
           </div>
@@ -249,24 +250,24 @@ export const EmailCollectionModal = ({
           /* No Coupon - Thanks State */
           <div className="p-4">
             <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center flex-shrink-0">
-                <Gift className="w-4 h-4 text-white" strokeWidth={1.5} />
+              <div className="w-9 h-9 rounded-full bg-black/5 backdrop-blur-sm border border-black/10 flex items-center justify-center flex-shrink-0">
+                <Gift className="w-4 h-4 text-black/70" strokeWidth={1.5} />
               </div>
               
               <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-light text-gray-900 tracking-[-0.01em]">
+                <p className="text-[13px] font-light text-black/90 tracking-[-0.01em]">
                   Thanks for subscribing
                 </p>
-                <p className="text-[11px] font-light text-gray-500 mt-0.5 tracking-[-0.01em]">
+                <p className="text-[11px] font-light text-black/50 mt-0.5 tracking-[-0.01em]">
                   We'll notify you of future deals
                 </p>
               </div>
               
               <button
                 onClick={onClose}
-                className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors flex-shrink-0"
+                className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/5 transition-colors flex-shrink-0"
               >
-                <X className="w-3.5 h-3.5 text-gray-400" strokeWidth={1.5} />
+                <X className="w-3.5 h-3.5 text-black/40" strokeWidth={1.5} />
               </button>
             </div>
           </div>
