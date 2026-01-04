@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { playSound } from "@/hooks/useSounds";
+import { extractValidEmail } from "@/lib/emailValidation";
 
 export interface Message {
   id: string;
@@ -13,9 +14,6 @@ export interface Message {
 const INPUT_COST_PER_MILLION = 0.15; // $0.15 per 1M input tokens
 const OUTPUT_COST_PER_MILLION = 0.60; // $0.60 per 1M output tokens
 const SESSION_COST_LIMIT = 0.40; // $0.40 per session
-
-// Email regex pattern for detection
-const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i;
 
 export const useChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -48,15 +46,14 @@ export const useChat = () => {
     setUserMessageCount((prev) => prev + 1);
     setIsLoading(true);
 
-    // Detect and log email in user message
-    const emailMatch = content.match(EMAIL_REGEX);
-    if (emailMatch && !emailCollectedInChat) {
-      const detectedEmail = emailMatch[0];
-      console.log("Email detected in chat:", detectedEmail);
+    // Detect and log email in user message (with strict validation)
+    const validEmail = extractValidEmail(content);
+    if (validEmail && !emailCollectedInChat) {
+      console.log("Valid email detected in chat:", validEmail);
       
       // Save to widget_leads
       supabase.from("widget_leads").insert({
-        email: detectedEmail,
+        email: validEmail,
         session_id: sessionIdRef.current,
         source: "chat_discount_request",
       }).then(({ error }) => {
