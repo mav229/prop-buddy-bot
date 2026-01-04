@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { X, Gift, Copy, Check, ExternalLink, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
