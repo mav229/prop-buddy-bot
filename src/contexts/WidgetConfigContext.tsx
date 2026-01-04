@@ -103,6 +103,11 @@ export interface WidgetConfig {
   
   // URL Blocklist
   blockedUrls: string[];
+  
+  // Embed Settings (unified)
+  embedWidth: number;
+  embedHeight: number;
+  customDomain: string;
 }
 
 const defaultConfig: WidgetConfig = {
@@ -125,7 +130,6 @@ const defaultConfig: WidgetConfig = {
   
   // Logo
   logoUrl: "",
-  // Default launcher image (your Cloudinary asset)
   launcherLogoUrl: "https://res.cloudinary.com/dzozyqlqr/image/upload/v1767166947/Untitled_design_5_pjs1rs.png",
   launcherStyle: "nohalo",
   showLogo: true,
@@ -213,13 +217,19 @@ const defaultConfig: WidgetConfig = {
   
   // URL Blocklist
   blockedUrls: [],
+  
+  // Embed Settings
+  embedWidth: 384,
+  embedHeight: 600,
+  customDomain: "",
 };
 
 interface WidgetConfigContextType {
   config: WidgetConfig;
   updateConfig: (updates: Partial<WidgetConfig>) => void;
   resetConfig: () => void;
-  saveConfig: () => void;
+  saveConfig: () => Promise<void>;
+  isSaving: boolean;
 }
 
 const WidgetConfigContext = createContext<WidgetConfigContextType | undefined>(undefined);
@@ -230,6 +240,7 @@ const DB_ROW_ID = "default";
 export const WidgetConfigProvider = ({ children }: { children: ReactNode }) => {
   const [config, setConfig] = useState<WidgetConfig>(defaultConfig);
   const [loaded, setLoaded] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const saveTimer = useRef<number | undefined>(undefined);
 
   // Load config from backend on mount (public read, no auth required)
@@ -265,22 +276,26 @@ export const WidgetConfigProvider = ({ children }: { children: ReactNode }) => {
     load();
   }, []);
 
-  // Persist to backend (debounced). Backend accepts only from admins; if it fails we still keep localStorage
-  const persistToBackend = async (cfg: WidgetConfig) => {
+  // Persist to backend (debounced)
+  const persistToBackend = async (cfg: WidgetConfig): Promise<boolean> => {
     try {
       const { error } = await supabase
         .from("widget_config" as any)
         .upsert({ id: DB_ROW_ID, config: cfg as any } as any, { onConflict: "id" });
       if (error) {
         console.warn("Failed to persist widget config to backend:", error.message);
+        return false;
       }
+      return true;
     } catch (e) {
       console.warn("Error persisting widget config:", e);
+      return false;
+    } finally {
+      // Always persist to localStorage as fallback
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+      } catch {}
     }
-    // Always persist to localStorage as fallback
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
-    } catch {}
   };
 
   const updateConfig = (updates: Partial<WidgetConfig>) => {
@@ -301,9 +316,11 @@ export const WidgetConfigProvider = ({ children }: { children: ReactNode }) => {
     persistToBackend(defaultConfig);
   };
 
-  const saveConfig = () => {
+  const saveConfig = async (): Promise<void> => {
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
-    persistToBackend(config);
+    setIsSaving(true);
+    await persistToBackend(config);
+    setIsSaving(false);
   };
 
   // Listen for config updates from parent window (for iframe widgets receiving real-time pushes)
@@ -320,7 +337,7 @@ export const WidgetConfigProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   return (
-    <WidgetConfigContext.Provider value={{ config, updateConfig, resetConfig, saveConfig }}>
+    <WidgetConfigContext.Provider value={{ config, updateConfig, resetConfig, saveConfig, isSaving }}>
       {children}
     </WidgetConfigContext.Provider>
   );
@@ -334,7 +351,8 @@ export const useWidgetConfig = () => {
       config: defaultConfig,
       updateConfig: () => {},
       resetConfig: () => {},
-      saveConfig: () => {},
+      saveConfig: async () => {},
+      isSaving: false,
     };
   }
   return context;
