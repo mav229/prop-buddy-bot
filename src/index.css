@@ -47,13 +47,23 @@
 
 @layer base {
   * { @apply border-border; }
-  html, body, #root { height: 100%; width: 100%; background: #0b1020; }
+  html, body, #root { height: 100%; width: 100%; }
   body {
     margin: 0;
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', -apple-system, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
+}
+
+/* Widget-specific transparent background - applied via JS class */
+html.widget-mode,
+html.widget-mode body,
+html.widget-mode #root,
+body.widget-mode,
+body.widget-mode #root {
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 /* ===== GLASSMORPHIC WIDGET STYLES ===== */
