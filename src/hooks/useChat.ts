@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { playSound } from "@/hooks/useSounds";
 
 export interface Message {
   id: string;
@@ -146,6 +147,9 @@ export const useChat = () => {
 
       // Store both messages in history
       if (assistantContent) {
+        // Play receive sound when bot finishes responding
+        playSound("receive", 0.1);
+        
         // Store user message
         await supabase.from("chat_history").insert({
           session_id: sessionIdRef.current,

@@ -7,6 +7,7 @@ import { ChatSkeleton, CardSkeleton } from "./ChatSkeleton";
 import { TypingIndicator } from "./TypingIndicator";
 import { EmailCollectionModal } from "./EmailCollectionModal";
 import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
+import { playSound, preloadAllSounds } from "@/hooks/useSounds";
 import scholarisLogo from "@/assets/scholaris-logo.png";
 import scholarisLauncherNew from "@/assets/scholaris-launcher-new.png";
 import scholarisLauncherNohalo from "@/assets/scholaris-launcher-nohalo.png";
@@ -126,18 +127,8 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const launcherLogo = config.launcherLogoUrl || launcherAssets[config.launcherStyle] || launcherAssets.nohalo;
 
   const handleOpen = useCallback(() => {
-    // Play soft chime sound with fade-in for smoother experience
-    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
-    audio.volume = 0;
-    audio.play().then(() => {
-      // Smooth fade-in over 150ms
-      let vol = 0;
-      const fadeIn = setInterval(() => {
-        vol = Math.min(vol + 0.02, 0.15);
-        audio.volume = vol;
-        if (vol >= 0.15) clearInterval(fadeIn);
-      }, 10);
-    }).catch(() => {});
+    playSound("open", 0.12);
+    preloadAllSounds(); // Preload other sounds after first interaction
     setIsMinimized(false);
   }, []);
   
@@ -222,6 +213,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   }, [isMinimized, isWidget, inIframe]);
 
   const handleSendMessage = (msg: string) => {
+    playSound("send", 0.08);
     sendMessage(msg);
     setActiveTab("messages");
   };
