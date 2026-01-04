@@ -3,6 +3,7 @@ import { Gift, Copy, Check, Loader2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { playSound } from "@/hooks/useSounds";
+import { validateEmail } from "@/lib/emailValidation";
 
 interface EmailCollectionModalProps {
   isOpen: boolean;
@@ -40,14 +41,12 @@ export const EmailCollectionModal = ({
     }
   }, [isOpen]);
 
-  const validateEmail = (email: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateEmail(email)) {
-      setError("Please enter a valid email");
+    
+    const validation = validateEmail(email);
+    if (!validation.isValid) {
+      setError(validation.error || "Please enter a valid email");
       return;
     }
 
@@ -55,11 +54,11 @@ export const EmailCollectionModal = ({
     setError(null);
 
     try {
-      // Save email to widget_leads
+      // Save email to widget_leads (use validated email)
       const { error: insertError } = await supabase
         .from("widget_leads")
         .insert({
-          email: email.trim().toLowerCase(),
+          email: validation.email!,
           session_id: sessionId,
           source: "discount_popup",
           page_url: window.location.href,
