@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Gift, Copy, Check, Loader2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { playSound } from "@/hooks/useSounds";
 
 interface EmailCollectionModalProps {
   isOpen: boolean;
@@ -31,6 +32,13 @@ export const EmailCollectionModal = ({
   const [noCoupon, setNoCoupon] = useState(false);
   const [copied, setCopied] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  // Play notification sound when popup appears
+  useEffect(() => {
+    if (isOpen) {
+      playSound("notification", 0.1);
+    }
+  }, [isOpen]);
 
   const validateEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -113,9 +121,9 @@ export const EmailCollectionModal = ({
       <div 
         className={cn(
           "w-full rounded-2xl overflow-hidden",
-          "bg-white/70 backdrop-blur-2xl",
-          "border border-white/30",
-          "shadow-[0_8px_32px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.4)]"
+          "bg-white/40 backdrop-blur-3xl backdrop-saturate-150",
+          "border border-white/20",
+          "shadow-[0_8px_40px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.5)]"
         )}
       >
         {!submitted ? (
