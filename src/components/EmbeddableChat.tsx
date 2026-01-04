@@ -59,7 +59,7 @@ const EMAIL_POPUP_MESSAGE_THRESHOLD = 2;
 
 export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   // All hooks must be called first, before any conditional logic
-  const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, userMessageCount, sessionId } = useChat();
+  const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, userMessageCount, sessionId, emailCollectedInChat } = useChat();
   const { config } = useWidgetConfig();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
@@ -87,8 +87,17 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     } catch {}
   }, []);
 
-  // Show email popup after threshold messages
+  // Show email popup after threshold messages (skip if email collected in chat)
   useEffect(() => {
+    // If email was collected via chat discount flow, mark as collected and skip popup
+    if (emailCollectedInChat && !emailCollected) {
+      setEmailCollected(true);
+      try {
+        localStorage.setItem(EMAIL_POPUP_STORAGE_KEY, "true");
+      } catch {}
+      return;
+    }
+    
     if (emailCollected || showEmailPopup) return;
     
     // Check if dismissed recently (24 hours)
@@ -105,7 +114,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     if (userMessageCount >= EMAIL_POPUP_MESSAGE_THRESHOLD) {
       setShowEmailPopup(true);
     }
-  }, [userMessageCount, emailCollected, showEmailPopup]);
+  }, [userMessageCount, emailCollected, showEmailPopup, emailCollectedInChat]);
 
   const handleEmailPopupClose = useCallback(() => {
     setShowEmailPopup(false);

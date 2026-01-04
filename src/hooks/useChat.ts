@@ -14,6 +14,9 @@ const INPUT_COST_PER_MILLION = 0.15; // $0.15 per 1M input tokens
 const OUTPUT_COST_PER_MILLION = 0.60; // $0.60 per 1M output tokens
 const SESSION_COST_LIMIT = 0.40; // $0.40 per session
 
+// Email regex pattern for detection
+const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i;
+
 export const useChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -21,6 +24,7 @@ export const useChat = () => {
   const [isRateLimited, setIsRateLimited] = useState(false);
   const [sessionCost, setSessionCost] = useState(0);
   const [userMessageCount, setUserMessageCount] = useState(0);
+  const [emailCollectedInChat, setEmailCollectedInChat] = useState(false);
   const sessionIdRef = useRef<string>(crypto.randomUUID());
 
   const sendMessage = useCallback(async (content: string) => {
@@ -43,6 +47,27 @@ export const useChat = () => {
     setMessages((prev) => [...prev, userMessage]);
     setUserMessageCount((prev) => prev + 1);
     setIsLoading(true);
+
+    // Detect and log email in user message
+    const emailMatch = content.match(EMAIL_REGEX);
+    if (emailMatch && !emailCollectedInChat) {
+      const detectedEmail = emailMatch[0];
+      console.log("Email detected in chat:", detectedEmail);
+      
+      // Save to widget_leads
+      supabase.from("widget_leads").insert({
+        email: detectedEmail,
+        session_id: sessionIdRef.current,
+        source: "chat_discount_request",
+      }).then(({ error }) => {
+        if (error) {
+          console.error("Error saving email lead:", error);
+        } else {
+          console.log("Email lead saved successfully");
+          setEmailCollectedInChat(true);
+        }
+      });
+    }
 
     try {
       const chatUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
@@ -187,6 +212,7 @@ export const useChat = () => {
     setSessionCost(0);
     setIsRateLimited(false);
     setUserMessageCount(0);
+    setEmailCollectedInChat(false);
     sessionIdRef.current = crypto.randomUUID();
   }, []);
 
@@ -200,5 +226,6 @@ export const useChat = () => {
     sessionCost,
     userMessageCount,
     sessionId: sessionIdRef.current,
+    emailCollectedInChat,
   };
 };
