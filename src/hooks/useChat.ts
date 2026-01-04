@@ -19,6 +19,7 @@ export const useChat = () => {
   const [error, setError] = useState<string | null>(null);
   const [isRateLimited, setIsRateLimited] = useState(false);
   const [sessionCost, setSessionCost] = useState(0);
+  const [userMessageCount, setUserMessageCount] = useState(0);
   const sessionIdRef = useRef<string>(crypto.randomUUID());
 
   const sendMessage = useCallback(async (content: string) => {
@@ -39,6 +40,7 @@ export const useChat = () => {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    setUserMessageCount((prev) => prev + 1);
     setIsLoading(true);
 
     try {
@@ -180,6 +182,7 @@ export const useChat = () => {
     setMessages([]);
     setSessionCost(0);
     setIsRateLimited(false);
+    setUserMessageCount(0);
     sessionIdRef.current = crypto.randomUUID();
   }, []);
 
@@ -191,5 +194,7 @@ export const useChat = () => {
     clearChat,
     isRateLimited,
     sessionCost,
+    userMessageCount,
+    sessionId: sessionIdRef.current,
   };
 };

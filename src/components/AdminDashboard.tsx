@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { 
   Bot, LogOut, MessageSquare, Database, ArrowLeft, Brain, Users, 
-  LayoutDashboard, Settings, Code, Palette, Ticket, Menu, X 
+  LayoutDashboard, Settings, Code, Palette, Ticket, Menu, X, Mail 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,6 +16,7 @@ import { AnalyticsDashboard } from "./AnalyticsDashboard";
 import { EmbedCustomization } from "./EmbedCustomization";
 import { WidgetCustomizer } from "./WidgetCustomizer";
 import { CouponsManager } from "./CouponsManager";
+import { LeadsManager } from "./LeadsManager";
 import { Link } from "react-router-dom";
 
 // Discord icon component
@@ -31,6 +32,7 @@ const navItems = [
   { value: "training", label: "Training", icon: Brain },
   { value: "history", label: "History", icon: MessageSquare },
   { value: "discord-memory", label: "Users", icon: Users },
+  { value: "leads", label: "Leads", icon: Mail },
   { value: "coupons", label: "Coupons", icon: Ticket },
   { value: "customizer", label: "Customize", icon: Palette },
   { value: "embed", label: "Embed", icon: Code },
@@ -196,6 +198,10 @@ export const AdminDashboard = () => {
 
           <TabsContent value="discord-memory">
             <DiscordMemoryView />
+          </TabsContent>
+
+          <TabsContent value="leads">
+            <LeadsManager />
           </TabsContent>
 
           <TabsContent value="coupons">

@@ -5,6 +5,7 @@ import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { ChatSkeleton, CardSkeleton } from "./ChatSkeleton";
 import { TypingIndicator } from "./TypingIndicator";
+import { EmailCollectionModal } from "./EmailCollectionModal";
 import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
 import scholarisLogo from "@/assets/scholaris-logo.png";
 import scholarisLauncherNew from "@/assets/scholaris-launcher-new.png";
@@ -51,9 +52,13 @@ interface EmbeddableChatProps {
 
 type TabType = "home" | "messages" | "help";
 
+const EMAIL_POPUP_STORAGE_KEY = "scholaris-email-collected";
+const EMAIL_POPUP_DISMISSED_KEY = "scholaris-email-dismissed";
+const EMAIL_POPUP_MESSAGE_THRESHOLD = 2;
+
 export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   // All hooks must be called first, before any conditional logic
-  const { messages, isLoading, error, sendMessage, clearChat, isRateLimited } = useChat();
+  const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, userMessageCount, sessionId } = useChat();
   const { config } = useWidgetConfig();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
@@ -61,14 +66,59 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const [isMinimized, setIsMinimized] = useState<boolean>(isWidget);
   const [isClosing, setIsClosing] = useState(false);
   const [inIframe, setInIframe] = useState(false);
+  const [showEmailPopup, setShowEmailPopup] = useState(false);
+  const [emailCollected, setEmailCollected] = useState(false);
 
-  // Check if in iframe on mount
+  // Check if in iframe on mount and load email collection state
   useEffect(() => {
     try {
       setInIframe(window.self !== window.top);
     } catch {
       setInIframe(true);
     }
+    
+    // Check if email was already collected
+    try {
+      const collected = localStorage.getItem(EMAIL_POPUP_STORAGE_KEY);
+      if (collected === "true") {
+        setEmailCollected(true);
+      }
+    } catch {}
+  }, []);
+
+  // Show email popup after threshold messages
+  useEffect(() => {
+    if (emailCollected || showEmailPopup) return;
+    
+    // Check if dismissed recently (24 hours)
+    try {
+      const dismissed = localStorage.getItem(EMAIL_POPUP_DISMISSED_KEY);
+      if (dismissed) {
+        const dismissedTime = parseInt(dismissed, 10);
+        if (Date.now() - dismissedTime < 24 * 60 * 60 * 1000) {
+          return; // Still within 24 hour cooldown
+        }
+      }
+    } catch {}
+    
+    if (userMessageCount >= EMAIL_POPUP_MESSAGE_THRESHOLD) {
+      setShowEmailPopup(true);
+    }
+  }, [userMessageCount, emailCollected, showEmailPopup]);
+
+  const handleEmailPopupClose = useCallback(() => {
+    setShowEmailPopup(false);
+    // Save dismissal time for 24 hour cooldown
+    try {
+      localStorage.setItem(EMAIL_POPUP_DISMISSED_KEY, Date.now().toString());
+    } catch {}
+  }, []);
+
+  const handleEmailCollected = useCallback(() => {
+    setEmailCollected(true);
+    try {
+      localStorage.setItem(EMAIL_POPUP_STORAGE_KEY, "true");
+    } catch {}
   }, []);
 
   const headerLogo = config.logoUrl || propscholarLogo;
@@ -255,7 +305,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   return (
     <div
       className={cn(
-        "widget-glass flex flex-col",
+        "widget-glass flex flex-col relative",
         isWidget ? widgetFloatingFrame ? `fixed bottom-6 right-4 z-[9999] ${panelClass}` : `w-full h-full ${panelClass}` : "h-screen"
       )}
       style={{
@@ -268,6 +318,13 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         WebkitBackdropFilter: "blur(24px)",
       }}
     >
+      {/* Email Collection Modal */}
+      <EmailCollectionModal
+        isOpen={showEmailPopup}
+        onClose={handleEmailPopupClose}
+        onSuccess={handleEmailCollected}
+        sessionId={sessionId}
+      />
       {/* HEADER - Uses config colors */}
       <header
         className="flex-shrink-0 relative"
