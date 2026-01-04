@@ -3,6 +3,8 @@ import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import scholarisLogo from "@/assets/scholaris-logo.png";
 import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
+import { useEffect, useRef } from "react";
+import { playSound } from "@/hooks/useSounds";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
@@ -22,6 +24,18 @@ const TypingIndicator = () => (
 export const ChatMessage = ({ role, content, isStreaming, isWidget = false }: ChatMessageProps) => {
   const isUser = role === "user";
   const { config } = useWidgetConfig();
+  const hasPlayedCodeSound = useRef(false);
+
+  // Detect code blocks and play sound
+  useEffect(() => {
+    if (role === "assistant" && !isStreaming && !hasPlayedCodeSound.current) {
+      const hasCode = /```[\s\S]*?```|`[^`]+`/.test(content);
+      if (hasCode) {
+        hasPlayedCodeSound.current = true;
+        playSound("code", 0.06);
+      }
+    }
+  }, [content, isStreaming, role]);
 
   // Build inline styles from config when in widget mode
   const userBubbleStyle = isWidget ? {

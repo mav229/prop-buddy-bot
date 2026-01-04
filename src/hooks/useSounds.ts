@@ -2,14 +2,16 @@
 // Using short, subtle sounds that feel premium and unobtrusive
 
 const SOUNDS = {
-  // Soft pop for opening panels/modals
-  open: "https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3",
-  // Subtle notification for popups
-  notification: "https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3",
-  // Light click for sending messages
-  send: "https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3",
-  // Gentle chime for receiving messages
-  receive: "https://assets.mixkit.co/active_storage/sfx/2356/2356-preview.mp3",
+  // Soft whoosh for opening launcher/panels
+  open: "https://cdn.freesound.org/previews/242/242501_4284968-lq.mp3",
+  // Subtle notification chime
+  notification: "https://cdn.freesound.org/previews/536/536420_11943129-lq.mp3",
+  // Simple pop for sending messages
+  send: "https://cdn.freesound.org/previews/554/554053_9497060-lq.mp3",
+  // Gentle receive sound
+  receive: "https://cdn.freesound.org/previews/351/351565_5121236-lq.mp3",
+  // Code/typing sound
+  code: "https://cdn.freesound.org/previews/256/256116_3263906-lq.mp3",
 } as const;
 
 type SoundType = keyof typeof SOUNDS;
@@ -66,6 +68,7 @@ export const useSounds = () => {
     playNotification: () => playSound("notification", 0.1),
     playSend: () => playSound("send", 0.08),
     playReceive: () => playSound("receive", 0.1),
+    playCode: () => playSound("code", 0.06),
     preload: preloadAllSounds,
   };
 };
