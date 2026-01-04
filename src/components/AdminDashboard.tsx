@@ -1,6 +1,11 @@
-import { Bot, LogOut, MessageSquare, Database, ArrowLeft, Brain, Users, LayoutDashboard, Settings, Code, Palette, Ticket } from "lucide-react";
+import { useState } from "react";
+import { 
+  Bot, LogOut, MessageSquare, Database, ArrowLeft, Brain, Users, 
+  LayoutDashboard, Settings, Code, Palette, Ticket, Menu, X 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
 import { KnowledgeBaseManager } from "./KnowledgeBaseManager";
 import { ChatHistoryView } from "./ChatHistoryView";
@@ -20,19 +25,80 @@ const DiscordIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const navItems = [
+  { value: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { value: "knowledge", label: "Knowledge", icon: Database },
+  { value: "training", label: "Training", icon: Brain },
+  { value: "history", label: "History", icon: MessageSquare },
+  { value: "discord-memory", label: "Users", icon: Users },
+  { value: "coupons", label: "Coupons", icon: Ticket },
+  { value: "customizer", label: "Customize", icon: Palette },
+  { value: "embed", label: "Embed", icon: Code },
+  { value: "discord", label: "Settings", icon: Settings },
+];
+
 export const AdminDashboard = () => {
   const { user, signOut } = useAuth();
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
   };
 
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    setMobileMenuOpen(false);
+  };
+
+  const MobileNav = () => (
+    <div className="flex flex-col gap-1 p-2">
+      {navItems.map((item) => (
+        <button
+          key={item.value}
+          onClick={() => handleTabChange(item.value)}
+          className={`flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
+            activeTab === item.value
+              ? "bg-foreground text-background"
+              : "hover:bg-card/50 text-foreground"
+          }`}
+        >
+          <item.icon className="w-5 h-5" />
+          <span className="font-medium">{item.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border/50 bg-card/30 backdrop-blur-xl px-6 py-4 sticky top-0 z-50">
+      <header className="border-b border-border/50 bg-card/30 backdrop-blur-xl px-4 sm:px-6 py-4 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            {/* Mobile menu button */}
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="lg:hidden">
+                  <Menu className="w-5 h-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 p-0">
+                <div className="flex items-center gap-3 p-4 border-b border-border/50">
+                  <div className="w-10 h-10 rounded-xl bg-foreground flex items-center justify-center">
+                    <Bot className="w-5 h-5 text-background" />
+                  </div>
+                  <div>
+                    <h1 className="font-display text-lg font-bold">Command Center</h1>
+                    <p className="text-xs text-muted-foreground truncate max-w-[160px]">
+                      {user?.email}
+                    </p>
+                  </div>
+                </div>
+                <MobileNav />
+              </SheetContent>
+            </Sheet>
+
             <Link
               to="/"
               className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
@@ -40,10 +106,10 @@ export const AdminDashboard = () => {
               <ArrowLeft className="w-4 h-4" />
             </Link>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-foreground flex items-center justify-center">
-                <Bot className="w-5 h-5 text-background" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-foreground flex items-center justify-center">
+                <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-background" />
               </div>
-              <div>
+              <div className="hidden sm:block">
                 <h1 className="font-display text-xl font-bold tracking-tight">
                   Command Center
                 </h1>
@@ -58,54 +124,59 @@ export const AdminDashboard = () => {
             variant="ghost" 
             onClick={handleSignOut}
             className="text-muted-foreground hover:text-foreground"
+            size="sm"
           >
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
+            <LogOut className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Sign Out</span>
           </Button>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        <Tabs defaultValue="dashboard" className="space-y-8">
-          <TabsList className="bg-card/50 border border-border/50 p-1.5 rounded-xl backdrop-blur-sm">
-            <TabsTrigger value="dashboard" className="gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-lg">
-              <LayoutDashboard className="w-4 h-4" />
-              Dashboard
-            </TabsTrigger>
-            <TabsTrigger value="knowledge" className="gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-lg">
-              <Database className="w-4 h-4" />
-              Knowledge
-            </TabsTrigger>
-            <TabsTrigger value="training" className="gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-lg">
-              <Brain className="w-4 h-4" />
-              Training
-            </TabsTrigger>
-            <TabsTrigger value="history" className="gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-lg">
-              <MessageSquare className="w-4 h-4" />
-              History
-            </TabsTrigger>
-            <TabsTrigger value="discord-memory" className="gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-lg">
-              <Users className="w-4 h-4" />
-              Users
-            </TabsTrigger>
-            <TabsTrigger value="coupons" className="gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-lg">
-              <Ticket className="w-4 h-4" />
-              Coupons
-            </TabsTrigger>
-            <TabsTrigger value="customizer" className="gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-lg">
-              <Palette className="w-4 h-4" />
-              Customize
-            </TabsTrigger>
-            <TabsTrigger value="embed" className="gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-lg">
-              <Code className="w-4 h-4" />
-              Embed
-            </TabsTrigger>
-            <TabsTrigger value="discord" className="gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-lg">
-              <Settings className="w-4 h-4" />
-              Settings
-            </TabsTrigger>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 sm:space-y-8">
+          {/* Desktop Tab Navigation */}
+          <TabsList className="hidden lg:flex bg-card/50 border border-border/50 p-1.5 rounded-xl backdrop-blur-sm flex-wrap gap-1">
+            {navItems.map((item) => (
+              <TabsTrigger 
+                key={item.value}
+                value={item.value} 
+                className="gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-lg"
+              >
+                <item.icon className="w-4 h-4" />
+                {item.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
+
+          {/* Mobile current tab indicator */}
+          <div className="lg:hidden flex items-center justify-between bg-card/50 border border-border/50 p-3 rounded-xl">
+            <div className="flex items-center gap-2">
+              {(() => {
+                const current = navItems.find(i => i.value === activeTab);
+                if (!current) return null;
+                return (
+                  <>
+                    <current.icon className="w-5 h-5 text-primary" />
+                    <span className="font-medium">{current.label}</span>
+                  </>
+                );
+              })()}
+            </div>
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="sm">
+                  Change
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="h-auto max-h-[80vh] rounded-t-2xl">
+                <div className="py-2">
+                  <h3 className="font-semibold text-center mb-4">Navigation</h3>
+                  <MobileNav />
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
 
           <TabsContent value="dashboard">
             <AnalyticsDashboard />
