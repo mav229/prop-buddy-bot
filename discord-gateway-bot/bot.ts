@@ -39,10 +39,71 @@ Deno.serve({ port: PORT }, (req) => {
 
 let ws: WebSocket | null = null;
 let heartbeatInterval: number | null = null;
+let heartbeatIntervalMs: number | null = null;
 let sessionId: string | null = null;
 let resumeGatewayUrl: string | null = null;
 let sequence: number | null = null;
 let botUserId: string | null = null;
+
+let reconnectTimer: number | null = null;
+let reconnectAttempt = 0;
+let lastHeartbeatAckAt = Date.now();
+
+const BASE_RECONNECT_DELAY_MS = 2_000;
+const MAX_RECONNECT_DELAY_MS = 60_000;
+
+function clearHeartbeat() {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
+  heartbeatIntervalMs = null;
+}
+
+function safeCloseWs(reason: string) {
+  try {
+    if (!ws) return;
+    if (ws.readyState === WebSocket.CLOSING || ws.readyState === WebSocket.CLOSED) return;
+    console.log(`Closing WebSocket (${reason})...`);
+    ws.close();
+  } catch (e) {
+    console.error("safeCloseWs error:", e);
+  }
+}
+
+function safeWsSend(payload: unknown) {
+  try {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+    ws.send(JSON.stringify(payload));
+    return true;
+  } catch (e) {
+    console.error("WebSocket send error:", e);
+    return false;
+  }
+}
+
+function scheduleReconnect(reason: string, delayMs?: number) {
+  // Debounce reconnect attempts (prevents multiple concurrent connect() loops)
+  if (reconnectTimer) return;
+
+  const computedDelay = Math.min(
+    MAX_RECONNECT_DELAY_MS,
+    Math.round(BASE_RECONNECT_DELAY_MS * Math.pow(2, reconnectAttempt))
+  );
+  const jitter = Math.floor(Math.random() * 500);
+  const finalDelay = (delayMs ?? computedDelay) + jitter;
+
+  reconnectAttempt = Math.min(reconnectAttempt + 1, 10);
+
+  console.log(`Scheduling reconnect in ${finalDelay}ms (${reason})`);
+  clearHeartbeat();
+  safeCloseWs(reason);
+
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connect();
+  }, finalDelay);
+}
 
 // Get AI response by calling the discord-bot edge function
 async function getAIResponse(
@@ -78,14 +139,14 @@ async function getAIResponse(
     if (!response.ok) {
       const errorText = await response.text();
       console.error("discord-bot function error:", response.status, errorText);
-      return "Sorry, I'm having trouble processing your request right now. 😅";
+      return "Sorry, I'm having trouble processing your request right now.";
     }
 
     const data = await response.json();
     return data.response || "Sorry, I couldn't generate a response.";
   } catch (e) {
     console.error("AI request error:", e);
-    return "Sorry, I encountered an error while processing your question. 😅";
+    return "Sorry, I encountered an error while processing your question.";
   }
 }
 
@@ -225,15 +286,19 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
   }
   
   if (!questionToAsk) {
-    await sendMessage(channelId, "Hey! 👋 What would you like to know? Just include your question and I'll help you out! 🎯", messageId);
+    await sendMessage(channelId, "Hey! What would you like to know? Just include your question and I'll help you out!", messageId);
     return;
   }
 
   // Show typing indicator
-  await fetch(`${DISCORD_API_BASE}/channels/${channelId}/typing`, {
-    method: "POST",
-    headers: { "Authorization": `Bot ${DISCORD_BOT_TOKEN}` },
-  });
+  try {
+    await fetch(`${DISCORD_API_BASE}/channels/${channelId}/typing`, {
+      method: "POST",
+      headers: { "Authorization": `Bot ${DISCORD_BOT_TOKEN}` },
+    });
+  } catch (e) {
+    console.error("Typing indicator error:", e);
+  }
 
   // Get AI response via edge function with user context
   const response = await getAIResponse(
@@ -252,126 +317,177 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
 
 // Send heartbeat
 function sendHeartbeat(): void {
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ op: 1, d: sequence }));
+  const now = Date.now();
+
+  // If ACKs stop arriving, the socket is usually wedged; reconnect.
+  if (heartbeatIntervalMs) {
+    const staleAfter = heartbeatIntervalMs * 2 + 10_000;
+    if (now - lastHeartbeatAckAt > staleAfter) {
+      console.error(
+        `Heartbeat appears stalled (last ACK ${now - lastHeartbeatAckAt}ms ago). Reconnecting...`
+      );
+      scheduleReconnect("heartbeat_stalled", 1_000);
+      return;
+    }
+  }
+
+  if (!safeWsSend({ op: 1, d: sequence })) {
+    console.log("Heartbeat skipped (socket not open)");
+  } else {
     console.log("Heartbeat sent");
   }
 }
 
 // Connect to Discord Gateway
 function connect(): void {
+  // Prevent multiple concurrent connections
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+    console.log("connect() called but socket is already OPEN/CONNECTING; skipping.");
+    return;
+  }
+
   const url = resumeGatewayUrl || DISCORD_GATEWAY_URL;
   console.log(`Connecting to Discord Gateway: ${url}`);
-  
+
   ws = new WebSocket(url);
 
   ws.onopen = () => {
     console.log("WebSocket connected");
+    // Connection came back; reset backoff
+    reconnectAttempt = 0;
+    lastHeartbeatAckAt = Date.now();
   };
 
   ws.onmessage = async (event) => {
-    const payload = JSON.parse(event.data);
-    const { op, t, s, d } = payload;
+    try {
+      const payload = JSON.parse(event.data);
+      const { op, t, s, d } = payload;
 
-    // Update sequence number
-    if (s) sequence = s;
+      // Update sequence number
+      if (typeof s === "number") sequence = s;
 
-    switch (op) {
-      case 10: // Hello
-        const heartbeatIntervalMs = d.heartbeat_interval;
-        console.log(`Received Hello, heartbeat interval: ${heartbeatIntervalMs}ms`);
+      switch (op) {
+        case 10: {
+          // Hello
+          const interval = d?.heartbeat_interval;
+          if (typeof interval !== "number") {
+            console.error("Invalid HELLO payload (missing heartbeat_interval)");
+            scheduleReconnect("invalid_hello", 2_000);
+            return;
+          }
 
-        // Start heartbeat
-        if (heartbeatInterval) clearInterval(heartbeatInterval);
-        heartbeatInterval = setInterval(sendHeartbeat, heartbeatIntervalMs);
+          heartbeatIntervalMs = interval;
+          console.log(`Received Hello, heartbeat interval: ${heartbeatIntervalMs}ms`);
 
-        // Send initial heartbeat
-        sendHeartbeat();
+          // Start heartbeat
+          clearHeartbeat();
+          heartbeatInterval = setInterval(sendHeartbeat, heartbeatIntervalMs);
 
-        // Identify or Resume
-        if (sessionId && sequence) {
-          // Resume
-          ws!.send(JSON.stringify({
-            op: 6,
-            d: {
-              token: DISCORD_BOT_TOKEN,
-              session_id: sessionId,
-              seq: sequence,
-            },
-          }));
-          console.log("Sent Resume");
-        } else {
-          // Identify
-          ws!.send(JSON.stringify({
-            op: 2,
-            d: {
-              token: DISCORD_BOT_TOKEN,
-              intents: INTENTS,
-              properties: {
-                os: "linux",
-                browser: "lovable-bot",
-                device: "lovable-bot",
+          // Send initial heartbeat
+          sendHeartbeat();
+
+          // Identify or Resume
+          const canResume = !!sessionId && typeof sequence === "number" && sequence !== null;
+          if (canResume) {
+            const ok = safeWsSend({
+              op: 6,
+              d: {
+                token: DISCORD_BOT_TOKEN,
+                session_id: sessionId,
+                seq: sequence,
               },
-            },
-          }));
-          console.log("Sent Identify");
+            });
+            console.log(ok ? "Sent Resume" : "Resume skipped (socket not open)");
+          } else {
+            const ok = safeWsSend({
+              op: 2,
+              d: {
+                token: DISCORD_BOT_TOKEN,
+                intents: INTENTS,
+                properties: {
+                  os: "linux",
+                  browser: "lovable-bot",
+                  device: "lovable-bot",
+                },
+              },
+            });
+            console.log(ok ? "Sent Identify" : "Identify skipped (socket not open)");
+          }
+          break;
         }
-        break;
 
-      case 11: // Heartbeat ACK
-        console.log("Heartbeat ACK received");
-        break;
+        case 11:
+          // Heartbeat ACK
+          lastHeartbeatAckAt = Date.now();
+          console.log("Heartbeat ACK received");
+          break;
 
-      case 0: // Dispatch
-        switch (t) {
-          case "READY":
-            sessionId = d.session_id;
-            resumeGatewayUrl = d.resume_gateway_url;
-            botUserId = d.user?.id;
-            console.log(`Ready! Bot user ID: ${botUserId}, Session: ${sessionId}`);
-            break;
+        case 0:
+          // Dispatch
+          switch (t) {
+            case "READY":
+              sessionId = d?.session_id ?? null;
+              resumeGatewayUrl = d?.resume_gateway_url ?? null;
+              botUserId = d?.user?.id ?? null;
+              console.log(`Ready! Bot user ID: ${botUserId}, Session: ${sessionId}`);
+              reconnectAttempt = 0;
+              lastHeartbeatAckAt = Date.now();
+              break;
 
-          case "RESUMED":
-            console.log("Session resumed successfully");
-            break;
+            case "RESUMED":
+              console.log("Session resumed successfully");
+              reconnectAttempt = 0;
+              lastHeartbeatAckAt = Date.now();
+              break;
 
-          case "MESSAGE_CREATE":
-            await handleMessage(d);
-            break;
-        }
-        break;
+            case "MESSAGE_CREATE":
+              await handleMessage(d);
+              break;
+          }
+          break;
 
-      case 7: // Reconnect
-        console.log("Received Reconnect, reconnecting...");
-        ws!.close();
-        setTimeout(connect, 1000);
-        break;
+        case 7:
+          // Reconnect
+          console.log("Received Reconnect opcode, reconnecting...");
+          scheduleReconnect("opcode_7", 1_000);
+          break;
 
-      case 9: // Invalid Session
-        console.log("Invalid session, reconnecting fresh...");
-        sessionId = null;
-        resumeGatewayUrl = null;
-        sequence = null;
-        ws!.close();
-        setTimeout(connect, 5000);
-        break;
+        case 9:
+          // Invalid Session
+          console.log("Invalid session, reconnecting fresh...");
+          sessionId = null;
+          resumeGatewayUrl = null;
+          sequence = null;
+          scheduleReconnect("invalid_session", 5_000);
+          break;
+      }
+    } catch (e) {
+      console.error("Gateway message handling error:", e);
+      scheduleReconnect("gateway_message_error", 2_000);
     }
   };
 
   ws.onerror = (error) => {
     console.error("WebSocket error:", error);
+    scheduleReconnect("ws_error", 2_000);
   };
 
   ws.onclose = (event) => {
     console.log(`WebSocket closed: ${event.code} ${event.reason}`);
-    if (heartbeatInterval) {
-      clearInterval(heartbeatInterval);
-      heartbeatInterval = null;
-    }
-    // Reconnect after delay
-    setTimeout(connect, 5000);
+    clearHeartbeat();
+    scheduleReconnect(`ws_close_${event.code}`, 5_000);
   };
 }
+
+addEventListener("unhandledrejection", (ev) => {
+  console.error("Unhandled promise rejection:", ev.reason);
+  scheduleReconnect("unhandledrejection", 2_000);
+});
+
+addEventListener("error", (ev) => {
+  console.error("Uncaught error:", (ev as ErrorEvent).error ?? ev);
+  scheduleReconnect("uncaught_error", 2_000);
+});
 
 // Start the bot
 console.log("Starting Discord Gateway Bot (@mention only)...");
