@@ -52,6 +52,37 @@ let lastHeartbeatAckAt = Date.now();
 const BASE_RECONNECT_DELAY_MS = 2_000;
 const MAX_RECONNECT_DELAY_MS = 60_000;
 
+let botIdentityInitPromise: Promise<void> | null = null;
+
+async function ensureBotIdentity(): Promise<void> {
+  if (botUserId) return;
+  if (!botIdentityInitPromise) {
+    botIdentityInitPromise = (async () => {
+      try {
+        const res = await fetch(`${DISCORD_API_BASE}/users/@me`, {
+          headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+        });
+        if (!res.ok) {
+          console.error("Failed to fetch bot identity:", res.status, await res.text());
+          return;
+        }
+        const me = await res.json();
+        botUserId = typeof me?.id === "string" ? me.id : null;
+        console.log(
+          botUserId
+            ? `Fetched bot identity via REST: ${me?.username ?? "unknown"} (${botUserId})`
+            : "Fetched bot identity via REST but missing id"
+        );
+      } catch (e) {
+        console.error("Error fetching bot identity:", e);
+      }
+    })();
+  }
+
+  await botIdentityInitPromise;
+}
+
+
 function clearHeartbeat() {
   if (heartbeatInterval) {
     clearInterval(heartbeatInterval);
@@ -254,6 +285,10 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
 
   // Ignore bot messages
   if (author?.bot) return;
+
+  // Ensure we know our own bot user ID (needed for mention detection)
+  await ensureBotIdentity();
+  if (!botUserId) return;
 
   // We require channel/message/user to reply, but content can be missing if MESSAGE CONTENT INTENT isn't available.
   if (!channelId || !messageId || !author?.id) return;
@@ -462,9 +497,17 @@ function connect(): void {
               lastHeartbeatAckAt = Date.now();
               break;
 
-            case "MESSAGE_CREATE":
+            case "MESSAGE_CREATE": {
+              const channelId = typeof d?.channel_id === "string" ? d.channel_id : "unknown";
+              const authorName = d?.author?.username ?? d?.author?.global_name ?? "unknown";
+              const contentLen = typeof d?.content === "string" ? d.content.length : 0;
+              const mentionsLen = Array.isArray(d?.mentions) ? d.mentions.length : 0;
+              console.log(
+                `[DISPATCH] MESSAGE_CREATE channel=${channelId} author=${authorName} content_len=${contentLen} mentions=${mentionsLen}`
+              );
               await handleMessage(d);
               break;
+            }
           }
           break;
 
@@ -512,8 +555,11 @@ addEventListener("error", (ev) => {
 });
 
 // Start the bot
-console.log("Starting Discord Gateway Bot (@mention only)...");
-connect();
+(async () => {
+  console.log("Starting Discord Gateway Bot (@mention only)...");
+  await ensureBotIdentity();
+  connect();
+})();
 
 // Keep the process alive
 setInterval(() => {
