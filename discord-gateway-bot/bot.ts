@@ -39,102 +39,10 @@ Deno.serve({ port: PORT }, (req) => {
 
 let ws: WebSocket | null = null;
 let heartbeatInterval: number | null = null;
-let heartbeatIntervalMs: number | null = null;
 let sessionId: string | null = null;
 let resumeGatewayUrl: string | null = null;
 let sequence: number | null = null;
 let botUserId: string | null = null;
-
-let reconnectTimer: number | null = null;
-let reconnectAttempt = 0;
-let lastHeartbeatAckAt = Date.now();
-
-const BASE_RECONNECT_DELAY_MS = 2_000;
-const MAX_RECONNECT_DELAY_MS = 60_000;
-
-let botIdentityInitPromise: Promise<void> | null = null;
-
-async function ensureBotIdentity(): Promise<void> {
-  if (botUserId) return;
-  if (!botIdentityInitPromise) {
-    botIdentityInitPromise = (async () => {
-      try {
-        const res = await fetch(`${DISCORD_API_BASE}/users/@me`, {
-          headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
-        });
-        if (!res.ok) {
-          console.error("Failed to fetch bot identity:", res.status, await res.text());
-          return;
-        }
-        const me = await res.json();
-        botUserId = typeof me?.id === "string" ? me.id : null;
-        console.log(
-          botUserId
-            ? `Fetched bot identity via REST: ${me?.username ?? "unknown"} (${botUserId})`
-            : "Fetched bot identity via REST but missing id"
-        );
-      } catch (e) {
-        console.error("Error fetching bot identity:", e);
-      }
-    })();
-  }
-
-  await botIdentityInitPromise;
-}
-
-
-function clearHeartbeat() {
-  if (heartbeatInterval) {
-    clearInterval(heartbeatInterval);
-    heartbeatInterval = null;
-  }
-  heartbeatIntervalMs = null;
-}
-
-function safeCloseWs(reason: string) {
-  try {
-    if (!ws) return;
-    if (ws.readyState === WebSocket.CLOSING || ws.readyState === WebSocket.CLOSED) return;
-    console.log(`Closing WebSocket (${reason})...`);
-    ws.close();
-  } catch (e) {
-    console.error("safeCloseWs error:", e);
-  }
-}
-
-function safeWsSend(payload: unknown) {
-  try {
-    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
-    ws.send(JSON.stringify(payload));
-    return true;
-  } catch (e) {
-    console.error("WebSocket send error:", e);
-    return false;
-  }
-}
-
-function scheduleReconnect(reason: string, delayMs?: number) {
-  // Debounce reconnect attempts (prevents multiple concurrent connect() loops)
-  if (reconnectTimer) return;
-
-  const computedDelay = Math.min(
-    MAX_RECONNECT_DELAY_MS,
-    Math.round(BASE_RECONNECT_DELAY_MS * Math.pow(2, reconnectAttempt))
-  );
-  const jitter = Math.floor(Math.random() * 500);
-  const finalDelay = (delayMs ?? computedDelay) + jitter;
-
-  reconnectAttempt = Math.min(reconnectAttempt + 1, 10);
-
-  console.log(`Scheduling reconnect in ${finalDelay}ms (${reason})`);
-  clearHeartbeat();
-  safeCloseWs(reason);
-
-  reconnectTimer = setTimeout(() => {
-    reconnectTimer = null;
-    connect();
-  }, finalDelay);
-}
 
 // Get AI response by calling the discord-bot edge function
 async function getAIResponse(
@@ -170,14 +78,14 @@ async function getAIResponse(
     if (!response.ok) {
       const errorText = await response.text();
       console.error("discord-bot function error:", response.status, errorText);
-      return "Sorry, I'm having trouble processing your request right now.";
+      return "Sorry, I'm having trouble processing your request right now. 😅";
     }
 
     const data = await response.json();
     return data.response || "Sorry, I couldn't generate a response.";
   } catch (e) {
     console.error("AI request error:", e);
-    return "Sorry, I encountered an error while processing your question.";
+    return "Sorry, I encountered an error while processing your question. 😅";
   }
 }
 
@@ -286,35 +194,15 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
   // Ignore bot messages
   if (author?.bot) return;
 
-  // Ensure we know our own bot user ID (needed for mention detection)
-  await ensureBotIdentity();
-  if (!botUserId) return;
+  // Only respond if bot is @mentioned
+  if (!content || !channelId || !messageId || !author?.id) return;
+  if (!isBotMentioned(content, mentions || [])) return;
 
-  // We require channel/message/user to reply, but content can be missing if MESSAGE CONTENT INTENT isn't available.
-  if (!channelId || !messageId || !author?.id) return;
-
-  // Some deployments/users report MESSAGE_CREATE events where `content` is empty/undefined.
-  // In that case, fetch the message via REST so we can still detect mentions and read the text.
-  let effectiveContent = typeof content === "string" ? content : "";
-  let effectiveMentions = mentions ?? [];
-
-  if (!effectiveContent) {
-    const fetched = await fetchMessage(channelId, messageId);
-    if (fetched) {
-      effectiveContent = (fetched.content as string) ?? "";
-      effectiveMentions = (fetched.mentions as Array<{ id: string }> | undefined) ?? effectiveMentions;
-    }
-  }
-
-  if (!isBotMentioned(effectiveContent, effectiveMentions)) return;
-
-  console.log(
-    `Bot mentioned by ${author.username ?? "unknown"} (${author.id}) in channel ${channelId}`
-  );
+  console.log(`Bot mentioned by ${author.username} (${author.id}) in channel ${channelId}`);
 
   // Clean the message (remove mention)
-  const cleanedMessage = cleanMention(effectiveContent);
-
+  const cleanedMessage = cleanMention(content);
+  
   // Fetch replied-to message if this is a reply
   let repliedToContent: string | undefined;
   let repliedToAuthor: string | undefined;
@@ -328,34 +216,24 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
       console.log(`Replied-to message: "${repliedToContent}" by ${repliedToAuthor}`);
     }
   }
-
+  
   // If user just mentioned bot with no text but replied to a message, use that as the question
   let questionToAsk = cleanedMessage;
   if (!questionToAsk && repliedToContent) {
-    console.log(
-      `User just tagged bot - using replied message as question: "${repliedToContent}"`
-    );
+    console.log(`User just tagged bot - using replied message as question: "${repliedToContent}"`);
     questionToAsk = `Please answer this question: "${repliedToContent}"`;
   }
-
+  
   if (!questionToAsk) {
-    await sendMessage(
-      channelId,
-      "Hey! What would you like to know? Just include your question and I'll help you out!",
-      messageId
-    );
+    await sendMessage(channelId, "Hey! 👋 What would you like to know? Just include your question and I'll help you out! 🎯", messageId);
     return;
   }
 
   // Show typing indicator
-  try {
-    await fetch(`${DISCORD_API_BASE}/channels/${channelId}/typing`, {
-      method: "POST",
-      headers: { "Authorization": `Bot ${DISCORD_BOT_TOKEN}` },
-    });
-  } catch (e) {
-    console.error("Typing indicator error:", e);
-  }
+  await fetch(`${DISCORD_API_BASE}/channels/${channelId}/typing`, {
+    method: "POST",
+    headers: { "Authorization": `Bot ${DISCORD_BOT_TOKEN}` },
+  });
 
   // Get AI response via edge function with user context
   const response = await getAIResponse(
@@ -374,200 +252,130 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
 
 // Send heartbeat
 function sendHeartbeat(): void {
-  const now = Date.now();
-
-  // If ACKs stop arriving, the socket is usually wedged; reconnect.
-  if (heartbeatIntervalMs) {
-    const staleAfter = heartbeatIntervalMs * 2 + 10_000;
-    if (now - lastHeartbeatAckAt > staleAfter) {
-      console.error(
-        `Heartbeat appears stalled (last ACK ${now - lastHeartbeatAckAt}ms ago). Reconnecting...`
-      );
-      scheduleReconnect("heartbeat_stalled", 1_000);
-      return;
-    }
-  }
-
-  if (!safeWsSend({ op: 1, d: sequence })) {
-    console.log("Heartbeat skipped (socket not open)");
-  } else {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ op: 1, d: sequence }));
     console.log("Heartbeat sent");
   }
 }
 
 // Connect to Discord Gateway
 function connect(): void {
-  // Prevent multiple concurrent connections
-  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-    console.log("connect() called but socket is already OPEN/CONNECTING; skipping.");
-    return;
-  }
-
   const url = resumeGatewayUrl || DISCORD_GATEWAY_URL;
   console.log(`Connecting to Discord Gateway: ${url}`);
-
+  
   ws = new WebSocket(url);
 
   ws.onopen = () => {
     console.log("WebSocket connected");
-    // Connection came back; reset backoff
-    reconnectAttempt = 0;
-    lastHeartbeatAckAt = Date.now();
   };
 
   ws.onmessage = async (event) => {
-    try {
-      const payload = JSON.parse(event.data);
-      const { op, t, s, d } = payload;
+    const payload = JSON.parse(event.data);
+    const { op, t, s, d } = payload;
 
-      // Update sequence number
-      if (typeof s === "number") sequence = s;
+    // Update sequence number
+    if (s) sequence = s;
 
-      switch (op) {
-        case 10: {
-          // Hello
-          const interval = d?.heartbeat_interval;
-          if (typeof interval !== "number") {
-            console.error("Invalid HELLO payload (missing heartbeat_interval)");
-            scheduleReconnect("invalid_hello", 2_000);
-            return;
-          }
+    switch (op) {
+      case 10: // Hello
+        const heartbeatIntervalMs = d.heartbeat_interval;
+        console.log(`Received Hello, heartbeat interval: ${heartbeatIntervalMs}ms`);
 
-          heartbeatIntervalMs = interval;
-          console.log(`Received Hello, heartbeat interval: ${heartbeatIntervalMs}ms`);
+        // Start heartbeat
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
+        heartbeatInterval = setInterval(sendHeartbeat, heartbeatIntervalMs);
 
-          // Start heartbeat
-          clearHeartbeat();
-          heartbeatInterval = setInterval(sendHeartbeat, heartbeatIntervalMs);
+        // Send initial heartbeat
+        sendHeartbeat();
 
-          // Send initial heartbeat
-          sendHeartbeat();
-
-          // Identify or Resume
-          const canResume = !!sessionId && typeof sequence === "number" && sequence !== null;
-          if (canResume) {
-            const ok = safeWsSend({
-              op: 6,
-              d: {
-                token: DISCORD_BOT_TOKEN,
-                session_id: sessionId,
-                seq: sequence,
+        // Identify or Resume
+        if (sessionId && sequence) {
+          // Resume
+          ws!.send(JSON.stringify({
+            op: 6,
+            d: {
+              token: DISCORD_BOT_TOKEN,
+              session_id: sessionId,
+              seq: sequence,
+            },
+          }));
+          console.log("Sent Resume");
+        } else {
+          // Identify
+          ws!.send(JSON.stringify({
+            op: 2,
+            d: {
+              token: DISCORD_BOT_TOKEN,
+              intents: INTENTS,
+              properties: {
+                os: "linux",
+                browser: "lovable-bot",
+                device: "lovable-bot",
               },
-            });
-            console.log(ok ? "Sent Resume" : "Resume skipped (socket not open)");
-          } else {
-            const ok = safeWsSend({
-              op: 2,
-              d: {
-                token: DISCORD_BOT_TOKEN,
-                intents: INTENTS,
-                properties: {
-                  os: "linux",
-                  browser: "lovable-bot",
-                  device: "lovable-bot",
-                },
-              },
-            });
-            console.log(
-              ok
-                ? `Sent Identify (intents=${INTENTS})`
-                : "Identify skipped (socket not open)"
-            );
-          }
-          break;
+            },
+          }));
+          console.log("Sent Identify");
         }
+        break;
 
-        case 11:
-          // Heartbeat ACK
-          lastHeartbeatAckAt = Date.now();
-          console.log("Heartbeat ACK received");
-          break;
+      case 11: // Heartbeat ACK
+        console.log("Heartbeat ACK received");
+        break;
 
-        case 0:
-          // Dispatch
-          switch (t) {
-            case "READY": {
-              sessionId = d?.session_id ?? null;
-              resumeGatewayUrl = d?.resume_gateway_url ?? null;
-              botUserId = d?.user?.id ?? null;
-              const guildCount = Array.isArray(d?.guilds) ? d.guilds.length : "unknown";
-              console.log(
-                `Ready! Bot user ID: ${botUserId}, Session: ${sessionId}, Guilds: ${guildCount}`
-              );
-              reconnectAttempt = 0;
-              lastHeartbeatAckAt = Date.now();
-              break;
-            }
+      case 0: // Dispatch
+        switch (t) {
+          case "READY":
+            sessionId = d.session_id;
+            resumeGatewayUrl = d.resume_gateway_url;
+            botUserId = d.user?.id;
+            console.log(`Ready! Bot user ID: ${botUserId}, Session: ${sessionId}`);
+            break;
 
-            case "RESUMED":
-              console.log("Session resumed successfully");
-              reconnectAttempt = 0;
-              lastHeartbeatAckAt = Date.now();
-              break;
+          case "RESUMED":
+            console.log("Session resumed successfully");
+            break;
 
-            case "MESSAGE_CREATE": {
-              const channelId = typeof d?.channel_id === "string" ? d.channel_id : "unknown";
-              const authorName = d?.author?.username ?? d?.author?.global_name ?? "unknown";
-              const contentLen = typeof d?.content === "string" ? d.content.length : 0;
-              const mentionsLen = Array.isArray(d?.mentions) ? d.mentions.length : 0;
-              console.log(
-                `[DISPATCH] MESSAGE_CREATE channel=${channelId} author=${authorName} content_len=${contentLen} mentions=${mentionsLen}`
-              );
-              await handleMessage(d);
-              break;
-            }
-          }
-          break;
+          case "MESSAGE_CREATE":
+            await handleMessage(d);
+            break;
+        }
+        break;
 
-        case 7:
-          // Reconnect
-          console.log("Received Reconnect opcode, reconnecting...");
-          scheduleReconnect("opcode_7", 1_000);
-          break;
+      case 7: // Reconnect
+        console.log("Received Reconnect, reconnecting...");
+        ws!.close();
+        setTimeout(connect, 1000);
+        break;
 
-        case 9:
-          // Invalid Session
-          console.log("Invalid session, reconnecting fresh...");
-          sessionId = null;
-          resumeGatewayUrl = null;
-          sequence = null;
-          scheduleReconnect("invalid_session", 5_000);
-          break;
-      }
-    } catch (e) {
-      console.error("Gateway message handling error:", e);
-      scheduleReconnect("gateway_message_error", 2_000);
+      case 9: // Invalid Session
+        console.log("Invalid session, reconnecting fresh...");
+        sessionId = null;
+        resumeGatewayUrl = null;
+        sequence = null;
+        ws!.close();
+        setTimeout(connect, 5000);
+        break;
     }
   };
 
   ws.onerror = (error) => {
     console.error("WebSocket error:", error);
-    scheduleReconnect("ws_error", 2_000);
   };
 
   ws.onclose = (event) => {
     console.log(`WebSocket closed: ${event.code} ${event.reason}`);
-    clearHeartbeat();
-    scheduleReconnect(`ws_close_${event.code}`, 5_000);
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
+    }
+    // Reconnect after delay
+    setTimeout(connect, 5000);
   };
 }
 
-addEventListener("unhandledrejection", (ev) => {
-  console.error("Unhandled promise rejection:", ev.reason);
-  scheduleReconnect("unhandledrejection", 2_000);
-});
-
-addEventListener("error", (ev) => {
-  console.error("Uncaught error:", (ev as ErrorEvent).error ?? ev);
-  scheduleReconnect("uncaught_error", 2_000);
-});
-
 // Start the bot
-(async () => {
-  console.log(`Starting Discord Gateway Bot (@mention only)... intents=${INTENTS}`);
-  await ensureBotIdentity();
-  connect();
-})();
+console.log("Starting Discord Gateway Bot (@mention only)...");
+connect();
 
 // Keep the process alive
 setInterval(() => {
