@@ -255,15 +255,31 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
   // Ignore bot messages
   if (author?.bot) return;
 
-  // Only respond if bot is @mentioned
-  if (!content || !channelId || !messageId || !author?.id) return;
-  if (!isBotMentioned(content, mentions || [])) return;
+  // We require channel/message/user to reply, but content can be missing if MESSAGE CONTENT INTENT isn't available.
+  if (!channelId || !messageId || !author?.id) return;
 
-  console.log(`Bot mentioned by ${author.username} (${author.id}) in channel ${channelId}`);
+  // Some deployments/users report MESSAGE_CREATE events where `content` is empty/undefined.
+  // In that case, fetch the message via REST so we can still detect mentions and read the text.
+  let effectiveContent = typeof content === "string" ? content : "";
+  let effectiveMentions = mentions ?? [];
+
+  if (!effectiveContent) {
+    const fetched = await fetchMessage(channelId, messageId);
+    if (fetched) {
+      effectiveContent = (fetched.content as string) ?? "";
+      effectiveMentions = (fetched.mentions as Array<{ id: string }> | undefined) ?? effectiveMentions;
+    }
+  }
+
+  if (!isBotMentioned(effectiveContent, effectiveMentions)) return;
+
+  console.log(
+    `Bot mentioned by ${author.username ?? "unknown"} (${author.id}) in channel ${channelId}`
+  );
 
   // Clean the message (remove mention)
-  const cleanedMessage = cleanMention(content);
-  
+  const cleanedMessage = cleanMention(effectiveContent);
+
   // Fetch replied-to message if this is a reply
   let repliedToContent: string | undefined;
   let repliedToAuthor: string | undefined;
@@ -277,16 +293,22 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
       console.log(`Replied-to message: "${repliedToContent}" by ${repliedToAuthor}`);
     }
   }
-  
+
   // If user just mentioned bot with no text but replied to a message, use that as the question
   let questionToAsk = cleanedMessage;
   if (!questionToAsk && repliedToContent) {
-    console.log(`User just tagged bot - using replied message as question: "${repliedToContent}"`);
+    console.log(
+      `User just tagged bot - using replied message as question: "${repliedToContent}"`
+    );
     questionToAsk = `Please answer this question: "${repliedToContent}"`;
   }
-  
+
   if (!questionToAsk) {
-    await sendMessage(channelId, "Hey! What would you like to know? Just include your question and I'll help you out!", messageId);
+    await sendMessage(
+      channelId,
+      "Hey! What would you like to know? Just include your question and I'll help you out!",
+      messageId
+    );
     return;
   }
 
