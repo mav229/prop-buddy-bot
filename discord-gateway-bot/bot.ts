@@ -468,7 +468,11 @@ function connect(): void {
                 },
               },
             });
-            console.log(ok ? "Sent Identify" : "Identify skipped (socket not open)");
+            console.log(
+              ok
+                ? `Sent Identify (intents=${INTENTS})`
+                : "Identify skipped (socket not open)"
+            );
           }
           break;
         }
@@ -482,14 +486,18 @@ function connect(): void {
         case 0:
           // Dispatch
           switch (t) {
-            case "READY":
+            case "READY": {
               sessionId = d?.session_id ?? null;
               resumeGatewayUrl = d?.resume_gateway_url ?? null;
               botUserId = d?.user?.id ?? null;
-              console.log(`Ready! Bot user ID: ${botUserId}, Session: ${sessionId}`);
+              const guildCount = Array.isArray(d?.guilds) ? d.guilds.length : "unknown";
+              console.log(
+                `Ready! Bot user ID: ${botUserId}, Session: ${sessionId}, Guilds: ${guildCount}`
+              );
               reconnectAttempt = 0;
               lastHeartbeatAckAt = Date.now();
               break;
+            }
 
             case "RESUMED":
               console.log("Session resumed successfully");
@@ -556,7 +564,7 @@ addEventListener("error", (ev) => {
 
 // Start the bot
 (async () => {
-  console.log("Starting Discord Gateway Bot (@mention only)...");
+  console.log(`Starting Discord Gateway Bot (@mention only)... intents=${INTENTS}`);
   await ensureBotIdentity();
   connect();
 })();
