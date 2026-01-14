@@ -146,11 +146,12 @@ export const AnalyticsDashboard = () => {
     try {
       setLoading(true);
       
+      // Fetch data with increased limits (default is 1000)
       const [usersRes, messagesRes, kbRes, feedbackRes] = await Promise.all([
         supabase.from("discord_users").select("*", { count: "exact" }),
-        supabase.from("chat_history").select("*"),
+        supabase.from("chat_history").select("*").limit(10000),
         supabase.from("knowledge_base").select("*", { count: "exact" }),
-        supabase.from("training_feedback").select("*"),
+        supabase.from("training_feedback").select("*").limit(5000),
       ]);
 
       const messages = messagesRes.data || [];
