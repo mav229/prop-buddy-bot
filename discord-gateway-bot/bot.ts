@@ -254,30 +254,90 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
 function sendHeartbeat(): void {
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ op: 1, d: sequence }));
-    console.log("Heartbeat sent");
+    // Too chatty to log every heartbeat; uncomment if needed.
+    // console.log("Heartbeat sent");
+  }
+}
+
+let reconnectTimeout: number | null = null;
+let reconnectAttempts = 0;
+let pendingReconnect: { delayMs: number; reason: string } | null = null;
+let isConnecting = false;
+
+function clearReconnectTimeout(): void {
+  if (reconnectTimeout) {
+    clearTimeout(reconnectTimeout);
+    reconnectTimeout = null;
+  }
+}
+
+function computeBackoffMs(baseMs = 5000): number {
+  const exp = Math.min(60_000, baseMs * Math.pow(2, Math.min(reconnectAttempts, 6)));
+  const jitter = Math.floor(Math.random() * 1_000);
+  return exp + jitter;
+}
+
+function scheduleReconnect(reason: string, delayMs?: number): void {
+  clearReconnectTimeout();
+  const ms = delayMs ?? computeBackoffMs();
+  reconnectTimeout = setTimeout(() => {
+    pendingReconnect = null;
+    connect();
+  }, ms);
+  console.log(`[Reconnect] scheduled in ${ms}ms (${reason})`);
+}
+
+function safeClose(code = 1000, reason = "closing"): void {
+  try {
+    if (!ws) return;
+    if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+      ws.close(code, reason);
+    }
+  } catch (e) {
+    console.warn("safeClose error:", e);
   }
 }
 
 // Connect to Discord Gateway
 function connect(): void {
+  if (isConnecting) {
+    console.log("connect() ignored - already connecting");
+    return;
+  }
+
+  isConnecting = true;
+  clearReconnectTimeout();
+
   const url = resumeGatewayUrl || DISCORD_GATEWAY_URL;
   console.log(`Connecting to Discord Gateway: ${url}`);
-  
+
+  // Ensure we never keep multiple sockets around
+  safeClose(1000, "reconnecting");
+
   ws = new WebSocket(url);
 
   ws.onopen = () => {
     console.log("WebSocket connected");
+    isConnecting = false;
+    reconnectAttempts = 0;
   };
 
   ws.onmessage = async (event) => {
-    const payload = JSON.parse(event.data);
+    let payload: any;
+    try {
+      payload = JSON.parse(event.data);
+    } catch (e) {
+      console.error("Failed to parse gateway payload:", e);
+      return;
+    }
+
     const { op, t, s, d } = payload;
 
     // Update sequence number
     if (s) sequence = s;
 
     switch (op) {
-      case 10: // Hello
+      case 10: { // Hello
         const heartbeatIntervalMs = d.heartbeat_interval;
         console.log(`Received Hello, heartbeat interval: ${heartbeatIntervalMs}ms`);
 
@@ -288,10 +348,9 @@ function connect(): void {
         // Send initial heartbeat
         sendHeartbeat();
 
-        // Identify or Resume - ALWAYS check readyState before sending
+        // Identify or Resume (DO NOT spam identify; this is rate-limited by Discord)
         if (ws && ws.readyState === WebSocket.OPEN) {
           if (sessionId && sequence) {
-            // Resume
             ws.send(JSON.stringify({
               op: 6,
               d: {
@@ -302,7 +361,6 @@ function connect(): void {
             }));
             console.log("Sent Resume");
           } else {
-            // Identify
             ws.send(JSON.stringify({
               op: 2,
               d: {
@@ -318,12 +376,13 @@ function connect(): void {
             console.log("Sent Identify");
           }
         } else {
-          console.warn("WebSocket not OPEN when trying to identify/resume, will reconnect...");
+          console.warn("WebSocket not OPEN when trying to identify/resume");
         }
         break;
+      }
 
       case 11: // Heartbeat ACK
-        console.log("Heartbeat ACK received");
+        // console.log("Heartbeat ACK received");
         break;
 
       case 0: // Dispatch
@@ -346,23 +405,25 @@ function connect(): void {
         break;
 
       case 7: // Reconnect
-        console.log("Received Reconnect, reconnecting...");
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.close();
-        }
-        setTimeout(connect, 1000);
+        console.log("Received Reconnect (op 7), reconnecting...");
+        pendingReconnect = { delayMs: 2500, reason: "gateway_op7_reconnect" };
+        safeClose(1000, "gateway_reconnect");
         break;
 
-      case 9: // Invalid Session
-        console.log("Invalid session, reconnecting fresh...");
+      case 9: { // Invalid Session
+        console.log("Invalid session (op 9), reconnecting fresh...");
         sessionId = null;
         resumeGatewayUrl = null;
         sequence = null;
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.close();
-        }
-        setTimeout(connect, 5000);
+
+        // Discord recommends waiting 1-5s before re-identify; add jitter.
+        pendingReconnect = {
+          delayMs: 2000 + Math.floor(Math.random() * 3000),
+          reason: "gateway_invalid_session",
+        };
+        safeClose(1000, "invalid_session");
         break;
+      }
     }
   };
 
@@ -372,14 +433,38 @@ function connect(): void {
 
   ws.onclose = (event) => {
     console.log(`WebSocket closed: ${event.code} ${event.reason}`);
+    isConnecting = false;
+
     if (heartbeatInterval) {
       clearInterval(heartbeatInterval);
       heartbeatInterval = null;
     }
-    // Reconnect after delay
-    setTimeout(connect, 5000);
+
+    // Prevent rapid reconnect storms (this is what triggers Discord's "1000 connections" safety)
+    reconnectAttempts += 1;
+
+    // If an op handler set a specific reconnect delay, prefer it.
+    let delayMs = pendingReconnect?.delayMs;
+    let reason = pendingReconnect?.reason ?? `close_${event.code}`;
+    pendingReconnect = null;
+
+    // Fatal / configuration errors: back off HARD to avoid getting token reset.
+    if (event.code === 4004) {
+      reason = "auth_failed_4004";
+      delayMs = 10 * 60_000; // 10 minutes
+      console.error("Gateway auth failed (4004). Check that DISCORD_BOT_TOKEN is valid.");
+    } else if (event.code === 4014) {
+      reason = "disallowed_intents_4014";
+      delayMs = 10 * 60_000; // 10 minutes
+      console.error(
+        "Gateway disallowed intents (4014). Enable MESSAGE CONTENT INTENT in the Discord Developer Portal."
+      );
+    }
+
+    scheduleReconnect(reason, delayMs);
   };
 }
+
 
 // Start the bot
 console.log("Starting Discord Gateway Bot (@mention only)...");
