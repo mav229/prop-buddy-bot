@@ -288,33 +288,37 @@ function connect(): void {
         // Send initial heartbeat
         sendHeartbeat();
 
-        // Identify or Resume
-        if (sessionId && sequence) {
-          // Resume
-          ws!.send(JSON.stringify({
-            op: 6,
-            d: {
-              token: DISCORD_BOT_TOKEN,
-              session_id: sessionId,
-              seq: sequence,
-            },
-          }));
-          console.log("Sent Resume");
-        } else {
-          // Identify
-          ws!.send(JSON.stringify({
-            op: 2,
-            d: {
-              token: DISCORD_BOT_TOKEN,
-              intents: INTENTS,
-              properties: {
-                os: "linux",
-                browser: "lovable-bot",
-                device: "lovable-bot",
+        // Identify or Resume - ALWAYS check readyState before sending
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          if (sessionId && sequence) {
+            // Resume
+            ws.send(JSON.stringify({
+              op: 6,
+              d: {
+                token: DISCORD_BOT_TOKEN,
+                session_id: sessionId,
+                seq: sequence,
               },
-            },
-          }));
-          console.log("Sent Identify");
+            }));
+            console.log("Sent Resume");
+          } else {
+            // Identify
+            ws.send(JSON.stringify({
+              op: 2,
+              d: {
+                token: DISCORD_BOT_TOKEN,
+                intents: INTENTS,
+                properties: {
+                  os: "linux",
+                  browser: "lovable-bot",
+                  device: "lovable-bot",
+                },
+              },
+            }));
+            console.log("Sent Identify");
+          }
+        } else {
+          console.warn("WebSocket not OPEN when trying to identify/resume, will reconnect...");
         }
         break;
 
@@ -343,7 +347,9 @@ function connect(): void {
 
       case 7: // Reconnect
         console.log("Received Reconnect, reconnecting...");
-        ws!.close();
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.close();
+        }
         setTimeout(connect, 1000);
         break;
 
@@ -352,7 +358,9 @@ function connect(): void {
         sessionId = null;
         resumeGatewayUrl = null;
         sequence = null;
-        ws!.close();
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.close();
+        }
         setTimeout(connect, 5000);
         break;
     }
