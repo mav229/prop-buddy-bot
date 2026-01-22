@@ -289,17 +289,19 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     } catch {}
   }, [isMinimized, isWidget, inIframe]);
 
-  const handleSendMessage = (msg: string) => {
+  const handleSendMessage = useCallback((msg: string) => {
     playSound("send", 0.08);
     sendMessage(msg);
     setActiveTab("messages");
 
     // Open ticket form immediately from the user's message (most reliable trigger).
-    if (isTicketTrigger(msg) && !showTicketModal) {
-      console.log("[Ticket] Trigger detected from user message -> opening modal", { msg });
+    const triggered = isTicketTrigger(msg);
+    console.log("[Ticket] Check trigger:", { msg, triggered, showTicketModal });
+    if (triggered) {
+      console.log("[Ticket] Opening modal now!");
       setShowTicketModal(true);
     }
-  };
+  }, [sendMessage, isTicketTrigger, showTicketModal]);
 
   // Strip markdown from text for preview display
   const stripMarkdown = (text: string) => {
