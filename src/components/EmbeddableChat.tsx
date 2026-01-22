@@ -85,11 +85,12 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     .find((m) => m.role === "user")?.id;
 
   const shouldSuggestTicket = !!lastUserMessageText &&
-    /\b(urgent|ticket|support|help|critical|issue|problem)\b/i.test(lastUserMessageText);
+    /(urgent|ticket|support|critical|issue|problem|\bhelp\b|real\s+agent|live\s+agent|human\s+agent|real\s+person|representative|talk\s+to\s+(a\s+)?human|speak\s+to\s+(a\s+)?human)/i.test(
+      lastUserMessageText
+    );
 
   // If user explicitly asks for a ticket/urgent help, open the ticket modal immediately.
   useEffect(() => {
-    if (!isWidget) return;
     if (!shouldSuggestTicket) return;
     if (!lastUserMessageId) return;
     if (showTicketModal) return;
@@ -97,7 +98,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
 
     setLastTicketAutoOpenedForMessageId(lastUserMessageId);
     setShowTicketModal(true);
-  }, [isWidget, shouldSuggestTicket, lastUserMessageId, showTicketModal, lastTicketAutoOpenedForMessageId]);
+  }, [shouldSuggestTicket, lastUserMessageId, showTicketModal, lastTicketAutoOpenedForMessageId]);
 
   // Check if in iframe on mount and load email collection state
   useEffect(() => {
