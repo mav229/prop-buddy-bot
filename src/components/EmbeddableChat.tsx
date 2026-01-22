@@ -402,18 +402,18 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       />
       
       {/* Ticket Creation Modal */}
-      <TicketModal
+<TicketModal
         isOpen={showTicketModal}
         onClose={() => setShowTicketModal(false)}
-        onSuccess={(ticketId) => {
+        onSuccess={(ticketNumber) => {
           setShowTicketModal(false);
           setActiveTab("messages");
           appendAssistantMessage(
-            `Your ticket has been opened${ticketId ? ` (Ref: #${ticketId.slice(0, 8).toUpperCase()})` : ""}.\n\nIn the meantime, if you have any questions, just reply here and I’ll help.`
+            `Your ticket has been created${ticketNumber ? ` (Ticket #${ticketNumber})` : ""}! Check your email for confirmation.\n\nIn the meantime, if you have any questions, just reply here and I'll help.`
           );
         }}
         sessionId={sessionId}
-        chatHistory={messages.map(m => `${m.role}: ${m.content}`).join('\n').slice(-1000)}
+        chatHistory={messages.map(m => ({ role: m.role, content: m.content }))}
       />
       {/* HEADER - Uses config colors */}
       <header
