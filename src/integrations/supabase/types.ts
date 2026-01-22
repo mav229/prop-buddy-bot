@@ -176,6 +176,45 @@ export type Database = {
         }
         Relationships: []
       }
+      support_tickets: {
+        Row: {
+          chat_history: string | null
+          created_at: string
+          email: string
+          id: string
+          phone: string
+          problem: string
+          session_id: string | null
+          source: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          chat_history?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          phone: string
+          problem: string
+          session_id?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          chat_history?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          phone?: string
+          problem?: string
+          session_id?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       training_feedback: {
         Row: {
           bot_answer: string
