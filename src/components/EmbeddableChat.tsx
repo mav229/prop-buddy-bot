@@ -61,7 +61,7 @@ const EMAIL_POPUP_MESSAGE_THRESHOLD = 2;
 
 export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   // All hooks must be called first, before any conditional logic
-  const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, userMessageCount, sessionId, emailCollectedInChat } = useChat();
+  const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, userMessageCount, sessionId, emailCollectedInChat, appendAssistantMessage } = useChat();
   const { config } = useWidgetConfig();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
@@ -360,6 +360,13 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       <TicketModal
         isOpen={showTicketModal}
         onClose={() => setShowTicketModal(false)}
+        onSuccess={(ticketId) => {
+          setShowTicketModal(false);
+          setActiveTab("messages");
+          appendAssistantMessage(
+            `Your ticket has been opened${ticketId ? ` (Ref: #${ticketId.slice(0, 8).toUpperCase()})` : ""}.\n\nIn the meantime, if you have any questions, just reply here and I’ll help.`
+          );
+        }}
         sessionId={sessionId}
         chatHistory={messages.map(m => `${m.role}: ${m.content}`).join('\n').slice(-1000)}
       />

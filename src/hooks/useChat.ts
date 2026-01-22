@@ -204,6 +204,16 @@ export const useChat = () => {
     }
   }, [messages, isRateLimited]);
 
+  const appendAssistantMessage = useCallback((content: string) => {
+    const msg: Message = {
+      id: crypto.randomUUID(),
+      role: "assistant",
+      content,
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, msg]);
+  }, []);
+
   const clearChat = useCallback(() => {
     setMessages([]);
     setSessionCost(0);
@@ -224,5 +234,6 @@ export const useChat = () => {
     userMessageCount,
     sessionId: sessionIdRef.current,
     emailCollectedInChat,
+    appendAssistantMessage,
   };
 };
