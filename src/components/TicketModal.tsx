@@ -2,13 +2,12 @@ import { useState, useEffect } from "react";
 import { X, Send, CheckCircle, Phone, Mail, MessageSquare, Loader2 } from "lucide-react";
 import { validateEmail } from "@/lib/emailValidation";
 import { playSound } from "@/hooks/useSounds";
-import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 interface TicketModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: () => void;
+  onSuccess?: (ticketId?: string) => void;
   sessionId: string;
   chatHistory?: string;
 }
@@ -36,6 +35,17 @@ export const TicketModal = ({ isOpen, onClose, onSuccess, sessionId, chatHistory
     // Basic phone validation - allows various formats
     const phoneRegex = /^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/;
     return phoneRegex.test(phoneNumber.replace(/\s/g, ""));
+  };
+
+  const closeAndReset = (force = false) => {
+    if (isSubmitting && !force) return;
+    setEmail("");
+    setPhone("");
+    setProblem("");
+    setError("");
+    setSubmitted(false);
+    setTicketId(null);
+    onClose();
   };
 
   const handleSubmit = async () => {
@@ -67,30 +77,39 @@ export const TicketModal = ({ isOpen, onClose, onSuccess, sessionId, chatHistory
     setIsSubmitting(true);
 
     try {
-      // Call the edge function to create ticket
-      const { data, error: fnError } = await supabase.functions.invoke("create-ticket", {
-        body: {
+      // Call backend function directly (same pattern as chat) so it works reliably in the public widget
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-ticket`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
           email: email.trim().toLowerCase(),
           phone: phone.trim(),
           problem: problem.trim(),
           session_id: sessionId,
           chat_history: chatHistory || null,
-        },
+        }),
       });
 
-      if (fnError) {
-        console.error("Ticket creation error:", fnError);
-        throw new Error(fnError.message || "Failed to create ticket");
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Failed to create ticket");
       }
 
-      if (data?.error) {
-        throw new Error(data.error);
-      }
+      if (data?.error) throw new Error(data.error);
 
       playSound("notification", 0.15);
-      setTicketId(data?.ticket_id || null);
+      const newTicketId: string | undefined = data?.ticket_id;
+      setTicketId(newTicketId || null);
       setSubmitted(true);
-      onSuccess?.();
+      onSuccess?.(newTicketId);
+      // Close immediately so the chat can show the confirmation message.
+      // Force-close even though we are mid-submit.
+      closeAndReset(true);
     } catch (err: any) {
       console.error("Ticket submission failed:", err);
       setError(err.message || "Failed to create ticket. Please try again.");
@@ -99,17 +118,7 @@ export const TicketModal = ({ isOpen, onClose, onSuccess, sessionId, chatHistory
     }
   };
 
-  const handleClose = () => {
-    if (!isSubmitting) {
-      setEmail("");
-      setPhone("");
-      setProblem("");
-      setError("");
-      setSubmitted(false);
-      setTicketId(null);
-      onClose();
-    }
-  };
+  const handleClose = () => closeAndReset(false);
 
   if (!isOpen) return null;
 
