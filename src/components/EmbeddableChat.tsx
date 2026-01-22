@@ -527,6 +527,30 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
               )}
               {error && <div className="text-ultra-thin text-[11px] px-3 py-2 rounded-lg bg-red-50/80 text-red-500">{error}</div>}
               
+              {/* Show ticket suggestion when user mentions urgent/help/ticket */}
+              {messages.length > 0 && 
+               messages.slice(-2).some(m => 
+                 m.role === "user" && 
+                 /\b(urgent|ticket|support|help me|critical|issue|problem)\b/i.test(m.content)
+               ) && !showTicketModal && (
+                <div className="px-3 py-3 rounded-xl bg-indigo-50/90 border border-indigo-200/50 content-fade">
+                  <div className="flex items-start gap-2">
+                    <Ticket className="w-4 h-4 text-indigo-500 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-thin text-[11px] text-indigo-700 mb-2">Need personalized help? Create a support ticket and we'll get back to you via email.</p>
+                      <button 
+                        onClick={() => setShowTicketModal(true)}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] text-white font-medium transition-colors"
+                        style={{ background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)" }}
+                      >
+                        <Ticket className="w-3 h-3" />
+                        Create Support Ticket
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               {isRateLimited && (
                 <div className="px-3 py-3 rounded-xl bg-amber-50/90 border border-amber-200/50 content-fade">
                   <div className="flex items-start gap-2">
