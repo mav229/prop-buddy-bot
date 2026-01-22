@@ -72,6 +72,9 @@ serve(async (req: Request): Promise<Response> => {
     // Forward to external backend if configured
     if (ticketBackendUrl) {
       try {
+        const safeSessionId = typeof session_id === "string" ? session_id : "";
+        const safeChatHistory = typeof chat_history === "string" ? chat_history : "";
+
         const externalResponse = await fetch(ticketBackendUrl, {
           method: "POST",
           headers: {
@@ -79,12 +82,16 @@ serve(async (req: Request): Promise<Response> => {
           },
           body: JSON.stringify({
             ticket_id: ticketId,
+            ticketId,
             email,
             phone,
             problem,
-            session_id,
-            chat_history,
+            session_id: safeSessionId,
+            sessionId: safeSessionId,
+            chat_history: safeChatHistory,
+            chatHistory: safeChatHistory,
             created_at: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
           }),
         });
 

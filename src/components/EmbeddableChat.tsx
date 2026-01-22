@@ -74,6 +74,9 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [lastTicketAutoOpenedForMessageId, setLastTicketAutoOpenedForMessageId] = useState<string | null>(null);
 
+  const ticketTriggerRegex =
+    /(urgent|ticket|support|critical|issue|problem|\bhelp\b|real\s+agent|live\s+agent|human\s+agent|real\s+person|representative|talk\s+to\s+(a\s+)?human|speak\s+to\s+(a\s+)?human)/i;
+
   const lastUserMessageText = messages
     .slice()
     .reverse()
@@ -85,9 +88,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     .find((m) => m.role === "user")?.id;
 
   const shouldSuggestTicket = !!lastUserMessageText &&
-    /(urgent|ticket|support|critical|issue|problem|\bhelp\b|real\s+agent|live\s+agent|human\s+agent|real\s+person|representative|talk\s+to\s+(a\s+)?human|speak\s+to\s+(a\s+)?human)/i.test(
-      lastUserMessageText
-    );
+    ticketTriggerRegex.test(lastUserMessageText);
 
   // If user explicitly asks for a ticket/urgent help, open the ticket modal immediately.
   useEffect(() => {
@@ -255,6 +256,12 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     playSound("send", 0.08);
     sendMessage(msg);
     setActiveTab("messages");
+
+    // Open ticket form immediately from the user's message (most reliable trigger).
+    if (ticketTriggerRegex.test(msg) && !showTicketModal) {
+      console.log("[Ticket] Trigger detected from user message -> opening modal");
+      setShowTicketModal(true);
+    }
   };
 
   // Strip markdown from text for preview display
