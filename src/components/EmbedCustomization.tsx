@@ -13,9 +13,15 @@ export const EmbedCustomization = () => {
   const [copied, setCopied] = useState<string | null>(null);
 
   const previewUrl = window.location.origin;
-  
-  // Host URL: use custom domain if set, otherwise current origin
-  const hostUrl = (config.customDomain?.trim() || previewUrl).replace(/\/+$/, "");
+
+  // IMPORTANT: preview URLs change. Default the embed host to the published URL unless a custom domain is set.
+  // Users can override this by saving a customDomain.
+  const publishedFallbackUrl = "https://prop-buddy-bot.lovable.app";
+  const isPreviewOrigin = window.location.hostname.includes("lovableproject.com") || window.location.hostname.startsWith("id-preview--");
+
+  const hostUrl = (
+    config.customDomain?.trim() || (isPreviewOrigin ? publishedFallbackUrl : previewUrl)
+  ).replace(/\/+$/, "");
 
   // Simple iFrame embed code
   const iframeCode = `<iframe 
@@ -237,7 +243,7 @@ export const EmbedCustomization = () => {
               className="bg-background/50"
             />
             <p className="text-xs text-muted-foreground">
-              Enter your published app URL. The embed code will load the chat from this URL.
+              Enter your published app URL (recommended). If you leave this blank while on a preview link, we’ll default to: {publishedFallbackUrl}
             </p>
           </div>
           <div className="grid grid-cols-2 gap-4">
