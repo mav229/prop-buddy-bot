@@ -404,19 +404,19 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
       />
       
       {/* Ticket Creation Modal */}
-<TicketModal
-        isOpen={showTicketModal}
-        onClose={() => setShowTicketModal(false)}
-        onSuccess={(ticketNumber) => {
-          setShowTicketModal(false);
-          setActiveTab("messages");
-          appendAssistantMessage(
-            `Your ticket has been created${ticketNumber ? ` (Ticket #${ticketNumber})` : ""}! Check your email for confirmation.\n\nIn the meantime, if you have any questions, just reply here and I'll help.`
-          );
-        }}
-        sessionId={sessionId}
-        chatHistory={messages.map(m => ({ role: m.role, content: m.content }))}
-      />
+       <TicketModal
+         isOpen={showTicketModal}
+         onClose={() => setShowTicketModal(false)}
+         onSuccess={(ticketNumber) => {
+           // Keep the modal open so the user sees the success state.
+           setActiveTab("messages");
+           appendAssistantMessage(
+             `Ticket #${ticketNumber ?? ""} created! Check your email for confirmation.`
+           );
+         }}
+         sessionId={sessionId}
+         chatHistory={messages.map((m) => ({ role: m.role, content: m.content }))}
+       />
       {/* HEADER - Uses config colors */}
       <header
         className="flex-shrink-0 relative"

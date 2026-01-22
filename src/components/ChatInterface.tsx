@@ -1,21 +1,75 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useCallback, useState } from "react";
 import { Bot, RefreshCw, Settings, AlertTriangle, Monitor } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { TicketModal } from "./TicketModal";
+
+const isTicketTrigger = (text?: string | null) => {
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  const compact = lower.replace(/[^a-z0-9]+/g, "");
+  const spaced = lower.replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+
+  const compactTriggers = [
+    "ticket",
+    "urgent",
+    "support",
+    "critical",
+    "issue",
+    "problem",
+    "help",
+    "realagent",
+    "liveagent",
+    "humanagent",
+    "realperson",
+    "representative",
+    "talktohuman",
+    "speakttohuman",
+    "speaktohuman",
+  ];
+
+  if (compactTriggers.some((t) => compact.includes(t))) return true;
+
+  const phraseTriggers = [
+    "real agent",
+    "live agent",
+    "human agent",
+    "talk to human",
+    "talk to a human",
+    "speak to human",
+    "speak to a human",
+  ];
+  return phraseTriggers.some((p) => spaced.includes(p));
+};
 
 export const ChatInterface = () => {
-  const { messages, isLoading, error, sendMessage, clearChat, isRateLimited } = useChat();
+  const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, sessionId } = useChat();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [showTicketModal, setShowTicketModal] = useState(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const handleSendMessage = useCallback(
+    (msg: string) => {
+      sendMessage(msg);
+      if (isTicketTrigger(msg)) setShowTicketModal(true);
+    },
+    [sendMessage]
+  );
+
   return (
     <div className="flex flex-col h-screen bg-background">
+      <TicketModal
+        isOpen={showTicketModal}
+        onClose={() => setShowTicketModal(false)}
+        sessionId={sessionId || "web"}
+        chatHistory={messages.map((m) => ({ role: m.role, content: m.content }))}
+      />
       {/* Header */}
       <header className="flex-shrink-0 glass-panel border-b border-border/50 px-6 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
@@ -139,7 +193,7 @@ export const ChatInterface = () => {
       {/* Input */}
       <div className="flex-shrink-0 px-6 pb-6">
         <div className="max-w-4xl mx-auto">
-          <ChatInput onSend={sendMessage} isLoading={isLoading} disabled={isRateLimited} />
+          <ChatInput onSend={handleSendMessage} isLoading={isLoading} disabled={isRateLimited} />
           <p className="text-xs text-muted-foreground text-center mt-3">
             PropScholar AI can only answer questions related to PropScholar
             products and services.

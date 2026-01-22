@@ -105,7 +105,7 @@ export const TicketModal = ({ isOpen, onClose, onSuccess, sessionId, chatHistory
   if (!isOpen) return null;
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md">
       <div 
         className="w-full max-w-[340px] rounded-2xl overflow-hidden shadow-2xl border border-white/10"
         style={{
