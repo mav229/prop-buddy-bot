@@ -1,11 +1,12 @@
 import { useRef, useEffect, useLayoutEffect, useState, useCallback } from "react";
-import { X, MessageCircle, Send, Search, Home, HelpCircle, ExternalLink, ChevronRight, ShoppingBag, Clock, AlertTriangle, RefreshCw } from "lucide-react";
+import { X, MessageCircle, Send, Search, Home, HelpCircle, ExternalLink, ChevronRight, ShoppingBag, Clock, AlertTriangle, RefreshCw, Ticket } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { ChatSkeleton, CardSkeleton } from "./ChatSkeleton";
 import { TypingIndicator } from "./TypingIndicator";
 import { EmailCollectionModal } from "./EmailCollectionModal";
+import { TicketModal } from "./TicketModal";
 import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
 import { playSound, preloadAllSounds } from "@/hooks/useSounds";
 import scholarisLogo from "@/assets/scholaris-logo.png";
@@ -69,6 +70,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const [inIframe, setInIframe] = useState(false);
   const [showEmailPopup, setShowEmailPopup] = useState(false);
   const [emailCollected, setEmailCollected] = useState(false);
+  const [showTicketModal, setShowTicketModal] = useState(false);
 
   // Check if in iframe on mount and load email collection state
   useEffect(() => {
@@ -326,6 +328,14 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         onSuccess={handleEmailCollected}
         sessionId={sessionId}
       />
+      
+      {/* Ticket Creation Modal */}
+      <TicketModal
+        isOpen={showTicketModal}
+        onClose={() => setShowTicketModal(false)}
+        sessionId={sessionId}
+        chatHistory={messages.map(m => `${m.role}: ${m.content}`).join('\n').slice(-1000)}
+      />
       {/* HEADER - Uses config colors */}
       <header
         className="flex-shrink-0 relative"
@@ -542,26 +552,38 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         {/* HELP */}
         {activeTab === "help" && (
           <div className="p-3 space-y-2 content-fade">
+            {/* Create Ticket Button */}
+            <button
+              onClick={() => setShowTicketModal(true)}
+              className="w-full px-4 py-3 flex items-center justify-between rounded-xl card-hover stagger-item stagger-1"
+              style={{ 
+                background: `linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)`,
+                boxShadow: `0 6px 20px -6px rgba(99, 102, 241, 0.4)`
+              }}
+            >
+              <div>
+                <span className="text-thin text-[13px] text-white block">Create Support Ticket</span>
+                <span className="text-ultra-thin text-[11px] text-white/50">Get help via email</span>
+              </div>
+              <Ticket className="w-4 h-4 text-white/70" strokeWidth={1.5} />
+            </button>
+
             {config.showSupportCard && (
               <a
                 href={`mailto:${config.supportEmail}`}
-                className="block w-full px-4 py-3 rounded-xl card-hover stagger-item stagger-1"
-                style={{ 
-                  background: `linear-gradient(135deg, ${config.supportCardGradientStart} 0%, ${config.supportCardGradientEnd} 100%)`,
-                  boxShadow: `0 6px 20px -6px ${config.supportCardGradientStart}66`
-                }}
+                className="block w-full px-4 py-3 rounded-xl card-hover stagger-item stagger-2 glass-card"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-thin text-[13px] text-white block">Open Support Ticket</span>
-                    <span className="text-ultra-thin text-[11px] text-white/50">{config.supportEmail}</span>
+                    <span className="text-thin text-[13px] text-gray-700 block">Email Us Directly</span>
+                    <span className="text-ultra-thin text-[11px] text-gray-400">{config.supportEmail}</span>
                   </div>
-                  <Send className="w-4 h-4 text-white/70" strokeWidth={1.5} />
+                  <Send className="w-4 h-4 text-indigo-400" strokeWidth={1.5} />
                 </div>
               </a>
             )}
 
-            <div className="rounded-xl overflow-hidden stagger-item stagger-2 glass-card">
+            <div className="rounded-xl overflow-hidden stagger-item stagger-3 glass-card">
               <div className="px-4 py-2.5" style={{ borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
                 <span className="text-ultra-thin text-[11px] text-gray-400 uppercase tracking-wide">Frequently Asked</span>
               </div>
