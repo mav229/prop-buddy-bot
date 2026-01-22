@@ -74,8 +74,45 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [lastTicketAutoOpenedForMessageId, setLastTicketAutoOpenedForMessageId] = useState<string | null>(null);
 
-  const ticketTriggerRegex =
-    /(urgent|ticket|support|critical|issue|problem|\bhelp\b|real\s+agent|live\s+agent|human\s+agent|real\s+person|representative|talk\s+to\s+(a\s+)?human|speak\s+to\s+(a\s+)?human)/i;
+  // Normalize to catch odd spacing/characters from mobile keyboards (e.g. "t icket")
+  const isTicketTrigger = useCallback((text?: string | null) => {
+    if (!text) return false;
+    const lower = text.toLowerCase();
+    const compact = lower.replace(/[^a-z0-9]+/g, "");
+    const spaced = lower.replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+
+    // Compact matches catch split words like "t icket" => "ticket"
+    const compactTriggers = [
+      "ticket",
+      "urgent",
+      "support",
+      "critical",
+      "issue",
+      "problem",
+      "help",
+      "realagent",
+      "liveagent",
+      "humanagent",
+      "realperson",
+      "representative",
+      "talktohuman",
+      "speakttohuman", // common typo
+      "speaktohuman",
+    ];
+    if (compactTriggers.some((t) => compact.includes(t))) return true;
+
+    // Spaced matches catch phrases
+    const phraseTriggers = [
+      "real agent",
+      "live agent",
+      "human agent",
+      "talk to human",
+      "talk to a human",
+      "speak to human",
+      "speak to a human",
+    ];
+    return phraseTriggers.some((p) => spaced.includes(p));
+  }, []);
 
   const lastUserMessageText = messages
     .slice()
@@ -88,7 +125,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     .find((m) => m.role === "user")?.id;
 
   const shouldSuggestTicket = !!lastUserMessageText &&
-    ticketTriggerRegex.test(lastUserMessageText);
+    isTicketTrigger(lastUserMessageText);
 
   // If user explicitly asks for a ticket/urgent help, open the ticket modal immediately.
   useEffect(() => {
@@ -258,8 +295,8 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     setActiveTab("messages");
 
     // Open ticket form immediately from the user's message (most reliable trigger).
-    if (ticketTriggerRegex.test(msg) && !showTicketModal) {
-      console.log("[Ticket] Trigger detected from user message -> opening modal");
+    if (isTicketTrigger(msg) && !showTicketModal) {
+      console.log("[Ticket] Trigger detected from user message -> opening modal", { msg });
       setShowTicketModal(true);
     }
   };
