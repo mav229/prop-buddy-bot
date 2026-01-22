@@ -37,24 +37,73 @@ export const EmbedCustomization = () => {
 <script>
 (function() {
   var GLOBAL_KEY = '__scholaris_widget_loaded__';
-  if (window[GLOBAL_KEY]) return;
+  // If a SPA removes the widget DOM, we should be able to re-mount.
+  var existing = document.getElementById('scholaris-widget-container');
+  if (window[GLOBAL_KEY] && existing) return;
   window[GLOBAL_KEY] = true;
 
   var host = '${hostUrl}';
   var configUrl = host + '/functions/v1/widget-config';
 
-  // Remove any existing widget
-  var old = document.getElementById('scholaris-widget-container');
-  if (old) old.remove();
+  var isMounting = false;
+  var remountTimer = null;
 
-  // Fetch live config
-  fetch(configUrl)
-    .then(function(r) { return r.json(); })
-    .then(function(data) { initWidget(data.config || {}); })
-    .catch(function() { initWidget({}); });
+  function scheduleRemount() {
+    if (remountTimer) return;
+    remountTimer = setTimeout(function() {
+      remountTimer = null;
+      if (!document.getElementById('scholaris-widget-container')) start();
+    }, 250);
+  }
+
+  function start() {
+    if (isMounting) return;
+    isMounting = true;
+
+    try {
+      // Remove any existing widget
+      var old = document.getElementById('scholaris-widget-container');
+      if (old) old.remove();
+
+      // Fetch live config
+      fetch(configUrl)
+        .then(function(r) { return r.json(); })
+        .then(function(data) { initWidget((data && data.config) || {}); isMounting = false; })
+        .catch(function(err) { console.warn('[Scholaris Widget] config fetch failed', err); initWidget({}); isMounting = false; });
+    } catch (e) {
+      console.warn('[Scholaris Widget] init failed', e);
+      isMounting = false;
+    }
+  }
+
+  // Ensure body exists before appending
+  if (!document.body) {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
+
+  // SPA guard: if something removes our container, re-mount.
+  function attachObserver() {
+    if (!window.MutationObserver || !document.body) return;
+    try {
+      var obs = new MutationObserver(function() {
+        if (isMounting) return;
+        if (!document.getElementById('scholaris-widget-container')) scheduleRemount();
+      });
+      obs.observe(document.body, { childList: true, subtree: true });
+    } catch (e) {}
+  }
+  if (!document.body) {
+    document.addEventListener('DOMContentLoaded', attachObserver);
+  } else {
+    attachObserver();
+  }
 
   function initWidget(cfg) {
-    var blockedUrls = cfg.blockedUrls || [];
+    var blockedUrls = (cfg.blockedUrls || [])
+      .map(function(x) { return (x || '').toString().trim(); })
+      .filter(function(x) { return !!x; });
     var launcherImg = cfg.launcherLogoUrl || '${config.launcherLogoUrl}';
     var requestedW = cfg.embedWidth || ${config.embedWidth};
     var requestedH = cfg.embedHeight || ${config.embedHeight};
@@ -63,7 +112,10 @@ export const EmbedCustomization = () => {
     var currentUrl = window.location.href;
     var currentPath = window.location.pathname;
     for (var i = 0; i < blockedUrls.length; i++) {
-      if (currentUrl.indexOf(blockedUrls[i]) !== -1 || currentPath.indexOf(blockedUrls[i]) !== -1) return;
+      if (currentUrl.indexOf(blockedUrls[i]) !== -1 || currentPath.indexOf(blockedUrls[i]) !== -1) {
+        console.warn('[Scholaris Widget] blocked by rule:', blockedUrls[i]);
+        return;
+      }
     }
 
     var allowedOrigin = '';

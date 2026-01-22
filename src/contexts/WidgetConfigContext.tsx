@@ -237,6 +237,20 @@ const WidgetConfigContext = createContext<WidgetConfigContextType | undefined>(u
 const STORAGE_KEY = "widget-config";
 const DB_ROW_ID = "default";
 
+const sanitizeConfig = (cfg: WidgetConfig): WidgetConfig => {
+  const blockedUrls = (cfg.blockedUrls || [])
+    .map((u) => (u || "").toString().trim())
+    .filter(Boolean);
+
+  const customDomain = (cfg.customDomain || "").toString().trim();
+
+  return {
+    ...cfg,
+    blockedUrls,
+    customDomain,
+  };
+};
+
 export const WidgetConfigProvider = ({ children }: { children: ReactNode }) => {
   const [config, setConfig] = useState<WidgetConfig>(defaultConfig);
   const [loaded, setLoaded] = useState(false);
@@ -254,12 +268,12 @@ export const WidgetConfigProvider = ({ children }: { children: ReactNode }) => {
           .maybeSingle() as { data: { config: any } | null; error: any };
 
         if (!error && data && data.config && typeof data.config === "object") {
-          setConfig((prev) => ({ ...prev, ...(data.config as Partial<WidgetConfig>) }));
+          setConfig((prev) => sanitizeConfig({ ...prev, ...(data.config as Partial<WidgetConfig>) } as WidgetConfig));
         } else {
           // Fallback to localStorage for backwards compat
           const stored = localStorage.getItem(STORAGE_KEY);
           if (stored) {
-            setConfig((prev) => ({ ...prev, ...JSON.parse(stored) }));
+            setConfig((prev) => sanitizeConfig({ ...prev, ...JSON.parse(stored) }));
           }
         }
       } catch {
@@ -267,7 +281,7 @@ export const WidgetConfigProvider = ({ children }: { children: ReactNode }) => {
         try {
           const stored = localStorage.getItem(STORAGE_KEY);
           if (stored) {
-            setConfig((prev) => ({ ...prev, ...JSON.parse(stored) }));
+            setConfig((prev) => sanitizeConfig({ ...prev, ...JSON.parse(stored) }));
           }
         } catch {}
       }
@@ -300,7 +314,7 @@ export const WidgetConfigProvider = ({ children }: { children: ReactNode }) => {
 
   const updateConfig = (updates: Partial<WidgetConfig>) => {
     setConfig((prev) => {
-      const next = { ...prev, ...updates };
+      const next = sanitizeConfig({ ...prev, ...updates } as WidgetConfig);
       // Debounced persist
       if (saveTimer.current) window.clearTimeout(saveTimer.current);
       saveTimer.current = window.setTimeout(() => {
@@ -319,7 +333,7 @@ export const WidgetConfigProvider = ({ children }: { children: ReactNode }) => {
   const saveConfig = async (): Promise<void> => {
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
     setIsSaving(true);
-    await persistToBackend(config);
+    await persistToBackend(sanitizeConfig(config));
     setIsSaving(false);
   };
 
