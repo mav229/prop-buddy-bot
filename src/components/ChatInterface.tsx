@@ -7,48 +7,34 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { InlineTicketForm } from "./InlineTicketForm";
 
-const isTicketTrigger = (text?: string | null) => {
+// Only trigger ticket after explicit strong request AND multiple failed attempts
+const STRONG_TICKET_TRIGGERS = [
+  "realagent", "liveagent", "humanagent", "realperson",
+  "talktohuman", "speaktohuman", "representative", "createticket"
+];
+
+const isStrongTicketTrigger = (text?: string | null) => {
+  if (!text) return false;
+  const compact = text.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  return STRONG_TICKET_TRIGGERS.some((t) => compact.includes(t));
+};
+
+// Count how many user messages contain "urgent", "help", "issue", etc.
+const SOFT_TRIGGERS = ["urgent", "help", "support", "issue", "problem", "critical"];
+
+const isSoftTicketTrigger = (text?: string | null) => {
   if (!text) return false;
   const lower = text.toLowerCase();
-  const compact = lower.replace(/[^a-z0-9]+/g, "");
-  const spaced = lower.replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
-
-  const compactTriggers = [
-    "ticket",
-    "urgent",
-    "support",
-    "critical",
-    "issue",
-    "problem",
-    "help",
-    "realagent",
-    "liveagent",
-    "humanagent",
-    "realperson",
-    "representative",
-    "talktohuman",
-    "speakttohuman",
-    "speaktohuman",
-  ];
-
-  if (compactTriggers.some((t) => compact.includes(t))) return true;
-
-  const phraseTriggers = [
-    "real agent",
-    "live agent",
-    "human agent",
-    "talk to human",
-    "talk to a human",
-    "speak to human",
-    "speak to a human",
-  ];
-  return phraseTriggers.some((p) => spaced.includes(p));
+  return SOFT_TRIGGERS.some((t) => lower.includes(t));
 };
+
+const SOFT_TRIGGER_THRESHOLD = 3; // Open ticket after 3 soft trigger messages
 
 export const ChatInterface = () => {
   const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, sessionId } = useChat();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [showTicketModal, setShowTicketModal] = useState(false);
+  const [softTriggerCount, setSoftTriggerCount] = useState(0);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -57,9 +43,23 @@ export const ChatInterface = () => {
   const handleSendMessage = useCallback(
     (msg: string) => {
       sendMessage(msg);
-      if (isTicketTrigger(msg)) setShowTicketModal(true);
+
+      // Strong triggers open ticket immediately
+      if (isStrongTicketTrigger(msg)) {
+        setShowTicketModal(true);
+        return;
+      }
+
+      // Soft triggers increment counter, open after threshold
+      if (isSoftTicketTrigger(msg)) {
+        const newCount = softTriggerCount + 1;
+        setSoftTriggerCount(newCount);
+        if (newCount >= SOFT_TRIGGER_THRESHOLD) {
+          setShowTicketModal(true);
+        }
+      }
     },
-    [sendMessage]
+    [sendMessage, softTriggerCount]
   );
 
   return (
