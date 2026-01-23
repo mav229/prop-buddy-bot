@@ -59,6 +59,29 @@ const EMAIL_POPUP_STORAGE_KEY = "scholaris-email-collected";
 const EMAIL_POPUP_DISMISSED_KEY = "scholaris-email-dismissed";
 const EMAIL_POPUP_MESSAGE_THRESHOLD = 2;
 
+// Only trigger ticket after explicit strong request AND multiple failed attempts
+const STRONG_TICKET_TRIGGERS = [
+  "realagent", "liveagent", "humanagent", "realperson",
+  "talktohuman", "speaktohuman", "representative", "createticket"
+];
+
+const isStrongTicketTrigger = (text?: string | null) => {
+  if (!text) return false;
+  const compact = text.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  return STRONG_TICKET_TRIGGERS.some((t) => compact.includes(t));
+};
+
+// Count how many user messages contain "urgent", "help", "issue", etc.
+const SOFT_TRIGGERS = ["urgent", "help", "support", "issue", "problem", "critical"];
+
+const isSoftTicketTrigger = (text?: string | null) => {
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  return SOFT_TRIGGERS.some((t) => lower.includes(t));
+};
+
+const SOFT_TRIGGER_THRESHOLD = 3; // Open ticket after 3 soft trigger messages
+
 export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   // All hooks must be called first, before any conditional logic
   const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, userMessageCount, sessionId, emailCollectedInChat, appendAssistantMessage } = useChat();
@@ -72,71 +95,30 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const [showEmailPopup, setShowEmailPopup] = useState(false);
   const [emailCollected, setEmailCollected] = useState(false);
   const [showTicketModal, setShowTicketModal] = useState(false);
-  const [lastTicketAutoOpenedForMessageId, setLastTicketAutoOpenedForMessageId] = useState<string | null>(null);
+  const [softTriggerCount, setSoftTriggerCount] = useState(0);
 
-  // Normalize to catch odd spacing/characters from mobile keyboards (e.g. "t icket")
+  // Legacy isTicketTrigger kept for compatibility but not used for auto-open anymore
   const isTicketTrigger = useCallback((text?: string | null) => {
     if (!text) return false;
-    const lower = text.toLowerCase();
-    const compact = lower.replace(/[^a-z0-9]+/g, "");
-    const spaced = lower.replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
-
-    // Compact matches catch split words like "t icket" => "ticket"
-    const compactTriggers = [
-      "ticket",
-      "urgent",
-      "support",
-      "critical",
-      "issue",
-      "problem",
-      "help",
-      "realagent",
-      "liveagent",
-      "humanagent",
-      "realperson",
-      "representative",
-      "talktohuman",
-      "speakttohuman", // common typo
-      "speaktohuman",
-    ];
-    if (compactTriggers.some((t) => compact.includes(t))) return true;
-
-    // Spaced matches catch phrases
-    const phraseTriggers = [
-      "real agent",
-      "live agent",
-      "human agent",
-      "talk to human",
-      "talk to a human",
-      "speak to human",
-      "speak to a human",
-    ];
-    return phraseTriggers.some((p) => spaced.includes(p));
+    return isStrongTicketTrigger(text);
   }, []);
 
-  const lastUserMessageText = messages
-    .slice()
-    .reverse()
-    .find((m) => m.role === "user")?.content;
-
-  const lastUserMessageId = messages
-    .slice()
-    .reverse()
-    .find((m) => m.role === "user")?.id;
-
-  const shouldSuggestTicket = !!lastUserMessageText &&
-    isTicketTrigger(lastUserMessageText);
-
-  // If user explicitly asks for a ticket/urgent help, open the ticket modal immediately.
+  // Check if in iframe on mount and load email collection state
   useEffect(() => {
-    if (!shouldSuggestTicket) return;
-    if (!lastUserMessageId) return;
-    if (showTicketModal) return;
-    if (lastTicketAutoOpenedForMessageId === lastUserMessageId) return;
-
-    setLastTicketAutoOpenedForMessageId(lastUserMessageId);
-    setShowTicketModal(true);
-  }, [shouldSuggestTicket, lastUserMessageId, showTicketModal, lastTicketAutoOpenedForMessageId]);
+    try {
+      setInIframe(window.self !== window.top);
+    } catch {
+      setInIframe(true);
+    }
+    
+    // Check if email was already collected
+    try {
+      const collected = localStorage.getItem(EMAIL_POPUP_STORAGE_KEY);
+      if (collected === "true") {
+        setEmailCollected(true);
+      }
+    } catch {}
+  }, []);
 
   // Check if in iframe on mount and load email collection state
   useEffect(() => {
@@ -294,14 +276,24 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     sendMessage(msg);
     setActiveTab("messages");
 
-    // Open ticket form immediately from the user's message (most reliable trigger).
-    const triggered = isTicketTrigger(msg);
-    console.log("[Ticket] Check trigger:", { msg, triggered, showTicketModal });
-    if (triggered) {
-      console.log("[Ticket] Opening modal now!");
+    // Strong triggers open ticket immediately
+    if (isStrongTicketTrigger(msg)) {
+      console.log("[Ticket] Strong trigger - opening modal now!");
       setShowTicketModal(true);
+      return;
     }
-  }, [sendMessage, isTicketTrigger, showTicketModal]);
+
+    // Soft triggers increment counter, open after threshold
+    if (isSoftTicketTrigger(msg)) {
+      const newCount = softTriggerCount + 1;
+      setSoftTriggerCount(newCount);
+      console.log("[Ticket] Soft trigger count:", newCount);
+      if (newCount >= SOFT_TRIGGER_THRESHOLD) {
+        console.log("[Ticket] Threshold reached - opening modal!");
+        setShowTicketModal(true);
+      }
+    }
+  }, [sendMessage, softTriggerCount]);
 
   // Strip markdown from text for preview display
   const stripMarkdown = (text: string) => {
@@ -608,12 +600,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
               )}
               {error && <div className="text-ultra-thin text-[11px] px-3 py-2 rounded-lg bg-red-50/80 text-red-500">{error}</div>}
               
-              {/* Ticket CTA when user asks for urgent/help/ticket */}
-              {shouldSuggestTicket && !showTicketModal && (
-                <div className="content-fade">
-                  <TicketSuggestionMessage onCreateTicket={() => setShowTicketModal(true)} />
-                </div>
-              )}
+              {/* Ticket CTA - shown only after threshold reached */}
               
               {isRateLimited && (
                 <div className="px-3 py-3 rounded-xl bg-amber-50/90 border border-amber-200/50 content-fade">
