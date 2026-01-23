@@ -5,7 +5,7 @@ import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { TicketModal } from "./TicketModal";
+import { InlineTicketForm } from "./InlineTicketForm";
 
 const isTicketTrigger = (text?: string | null) => {
   if (!text) return false;
@@ -64,12 +64,6 @@ export const ChatInterface = () => {
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      <TicketModal
-        isOpen={showTicketModal}
-        onClose={() => setShowTicketModal(false)}
-        sessionId={sessionId || "web"}
-        chatHistory={messages.map((m) => ({ role: m.role, content: m.content }))}
-      />
       {/* Header */}
       <header className="flex-shrink-0 glass-panel border-b border-border/50 px-6 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
@@ -156,6 +150,17 @@ export const ChatInterface = () => {
               }
             />
           ))}
+
+          {/* Inline Ticket Form */}
+          {showTicketModal && (
+            <div className="max-w-sm">
+              <InlineTicketForm
+                onClose={() => setShowTicketModal(false)}
+                sessionId={sessionId || "web"}
+                chatHistory={messages.map((m) => ({ role: m.role, content: m.content }))}
+              />
+            </div>
+          )}
 
           {error && (
             <div className="bg-destructive/10 border border-destructive/30 text-destructive rounded-lg px-4 py-3 text-sm">
