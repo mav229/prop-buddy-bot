@@ -26,11 +26,17 @@ export const ChatMessage = ({ role, content, isStreaming, isWidget = false }: Ch
   const { config } = useWidgetConfig();
   const hasPlayedCodeSound = useRef(false);
 
-  // Internal control markers that should never be shown to the user
-  const displayContent = content
-    .replace(/\[\[OPEN_TICKET_FORM\]\]/g, "")
-    .replace(/\[\[SUPPORT_TICKET_BUTTON\]\]/g, "")
-    .trim();
+  // Internal control markers that should never be shown to the user.
+  // We strip multiple variants to be robust across older builds / formatting quirks.
+  const stripInternalMarkers = (text: string) =>
+    (text || "")
+      .replace(/\[\[OPEN_TICKET_FORM\]\]/g, "")
+      .replace(/!!OPEN_TICKET_FORM!!/g, "")
+      .replace(/\[\[SUPPORT_TICKET_BUTTON\]\]/g, "")
+      .replace(/!!SUPPORT_TICKET_BUTTON!!/g, "")
+      .trim();
+
+  const displayContent = stripInternalMarkers(content);
 
   // Detect code blocks and play sound
   useEffect(() => {
