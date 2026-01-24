@@ -41,7 +41,7 @@ const navItems = [
   { value: "customizer", label: "Customize", icon: Palette },
   { value: "embed", label: "Embed", icon: Code },
   { value: "autobot", label: "Autobot", icon: Zap },
-  { value: "ps-mod", label: "PS MOD", icon: Shield },
+  { value: "ps-mod", label: "Schola", icon: Shield },
   { value: "discord", label: "Settings", icon: Settings },
 ];
 
