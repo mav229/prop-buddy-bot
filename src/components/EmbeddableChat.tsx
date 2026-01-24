@@ -71,29 +71,48 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const [showEmailPopup, setShowEmailPopup] = useState(false);
   const [emailCollected, setEmailCollected] = useState(false);
   const [showTicketForm, setShowTicketForm] = useState(false);
+  const [ticketSubmitted, setTicketSubmitted] = useState(false);
+  const lastTicketTriggerIdRef = useRef<string | null>(null);
 
-  // Phrases that auto-open the ticket form
-  const REAL_AGENT_PHRASES = ["real agent", "talk to human", "speak to human", "connect me to agent", "human agent", "live agent"];
-
-  // Check if message requests a real agent
-  const isRealAgentRequest = useCallback((msg: string) => {
-    const lower = msg.toLowerCase();
-    return REAL_AGENT_PHRASES.some(phrase => lower.includes(phrase));
-  }, []);
+  const OPEN_TICKET_FORM_MARKER = "[[OPEN_TICKET_FORM]]";
 
   // Handle successful ticket creation - bot confirms it
   const handleTicketSuccess = useCallback((ticketNumber?: string) => {
     setShowTicketForm(false);
+    setTicketSubmitted(true);
     if (ticketNumber) {
       appendAssistantMessage(`✅ **Your ticket #${ticketNumber} has been created!**
 
 
 Our support team will reach out to you within **4 hours**.
-
-
-In the meantime, feel free to ask me anything else! 🙂`);
+`);
     }
   }, [appendAssistantMessage]);
+
+  // Reset ticket state when chat resets
+  useEffect(() => {
+    if (messages.length === 0) {
+      setTicketSubmitted(false);
+      lastTicketTriggerIdRef.current = null;
+      setShowTicketForm(false);
+    }
+  }, [messages.length]);
+
+  // Open ticket form ONLY when bot emits marker
+  useEffect(() => {
+    if (isLoading) return;
+    if (ticketSubmitted || showTicketForm) return;
+    const lastTrigger = [...messages]
+      .reverse()
+      .find((m) => m.role === "assistant" && m.content.includes(OPEN_TICKET_FORM_MARKER));
+
+    if (!lastTrigger) return;
+    if (lastTicketTriggerIdRef.current === lastTrigger.id) return;
+    lastTicketTriggerIdRef.current = lastTrigger.id;
+
+    setActiveTab("messages");
+    setShowTicketForm(true);
+  }, [messages, ticketSubmitted, showTicketForm, isLoading]);
 
   // Check if in iframe on mount and load email collection state
   useEffect(() => {
@@ -250,13 +269,7 @@ In the meantime, feel free to ask me anything else! 🙂`);
     playSound("send", 0.08);
     sendMessage(msg);
     setActiveTab("messages");
-    
-    // Auto-open ticket form when user explicitly asks for a real agent
-    if (isRealAgentRequest(msg)) {
-      // Small delay to let the message appear first
-      setTimeout(() => setShowTicketForm(true), 300);
-    }
-  }, [sendMessage, isRealAgentRequest]);
+  }, [sendMessage]);
 
   // Strip markdown from text for preview display
   const stripMarkdown = (text: string) => {
