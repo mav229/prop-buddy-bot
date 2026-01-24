@@ -513,6 +513,116 @@ async function getAIResponse(
   }
 }
 
+// Autobot system prompt - more professional, human-like tone
+const AUTOBOT_SYSTEM_PROMPT = `You are a helpful PropScholar assistant with a professional, human-like tone. You respond naturally as if you're a knowledgeable team member who happens to be available.
+
+YOUR TONE:
+- Professional but warm - like a colleague helping out
+- Natural and conversational - not robotic or overly formal
+- Helpful and informative - get to the point
+- Use occasional emojis but sparingly (1-2 max per response)
+
+HOW TO RESPOND:
+- Keep responses concise and helpful
+- Get straight to answering the question
+- Sound like a real person, not an AI
+- If you don't know something, say so naturally: "I'm not 100% sure on that one - you might want to reach out to the team directly"
+
+EXAMPLES OF GOOD RESPONSES:
+- "Good question! The drawdown rules are..." ✓
+- "Hey! So for that, you'll want to..." ✓  
+- "That's actually pretty straightforward - here's how it works..." ✓
+
+RULES:
+- Never make up facts or policies
+- Use the knowledge base for accurate information
+- If asked about something not in your knowledge base, be honest about it
+- Keep it professional - you represent PropScholar
+
+ACTIVE COUPONS:
+{coupons_context}
+
+KNOWLEDGE BASE:
+{knowledge_base}
+
+{learned_corrections}`;
+
+async function getAutobotAIResponse(
+  message: string,
+  knowledgeContext: string,
+  conversationHistory: ConversationMessage[] = [],
+  userName?: string,
+  repliedTo?: ReplyContext,
+  userProfile?: DiscordUserProfile | null,
+  learnedCorrections: string = "",
+  couponsContext: string = "No active coupons at the moment."
+): Promise<string> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) {
+    console.error("LOVABLE_API_KEY not configured");
+    return "I'm having some technical difficulties - please try again in a moment.";
+  }
+
+  let systemPrompt = AUTOBOT_SYSTEM_PROMPT
+    .replace("{knowledge_base}", knowledgeContext)
+    .replace("{learned_corrections}", learnedCorrections)
+    .replace("{coupons_context}", couponsContext);
+  
+  // Add user profile context
+  if (userProfile) {
+    systemPrompt += buildUserContextPrompt(userProfile);
+  }
+  
+  // Add conversation history context
+  if (conversationHistory.length > 0 && userName) {
+    systemPrompt += `\n\nYou're continuing a conversation with ${userName}. Use this context to provide personalized responses.`;
+  }
+
+  // Build messages array with history
+  const messages: { role: string; content: string }[] = [
+    { role: "system", content: systemPrompt },
+  ];
+
+  // Add conversation history
+  for (const msg of conversationHistory) {
+    messages.push({ role: msg.role, content: msg.content });
+  }
+
+  // Build current message with reply context if present
+  let currentMessage = message;
+  if (repliedTo && repliedTo.content) {
+    currentMessage = `[User is replying to a message from ${repliedTo.authorName}: "${repliedTo.content}"]\n\nUser's message: ${message}`;
+  }
+
+  // Add current message
+  messages.push({ role: "user", content: currentMessage });
+
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("[Autobot] AI Gateway error:", response.status);
+      return "I'm having some technical difficulties - please try again in a moment.";
+    }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
+  } catch (error) {
+    console.error("[Autobot] Error calling AI:", error);
+    return "I'm having some technical difficulties - please try again in a moment.";
+  }
+}
+
 async function sendDiscordMessage(channelId: string, content: string, token: string, replyToMessageId?: string): Promise<void> {
   try {
     const chunks = [];
@@ -626,8 +736,7 @@ async function getMemberRoles(guildId: string, userId: string, token: string): P
 }
 
 async function registerGuildSlashCommands(token: string): Promise<void> {
-  // Register a single /ask command in the configured guild.
-  // Note: Application ID is the same as the bot user ID.
+  // Register /ask and /autobot commands in the configured guild.
   const applicationId = BOT_USER_ID;
 
   const commands = [
@@ -640,6 +749,23 @@ async function registerGuildSlashCommands(token: string): Promise<void> {
           name: "question",
           description: "Your PropScholar question",
           required: true,
+        },
+      ],
+    },
+    {
+      name: "autobot",
+      description: "Toggle the auto-reply bot on or off",
+      options: [
+        {
+          type: 3, // STRING
+          name: "action",
+          description: "Turn autobot on or off",
+          required: true,
+          choices: [
+            { name: "on", value: "on" },
+            { name: "off", value: "off" },
+            { name: "status", value: "status" },
+          ],
         },
       ],
     },
@@ -781,17 +907,109 @@ serve(async (req) => {
     // IMPORTANT: Discord requires a response within ~3 seconds.
     // We ACK immediately (type 5) and then post the real answer as a follow-up message.
     if (body.type === 2) {
-      const question =
-        body.data?.options?.find((o: any) => o?.name === "question")?.value ||
-        body.data?.options?.[0]?.value ||
-        "";
-
+      const commandName = body.data?.name;
       const applicationId = body.application_id;
       const interactionToken = body.token;
       
       // Get user info from interaction
       const userId = body.member?.user?.id || body.user?.id;
       const userName = body.member?.user?.username || body.user?.username || "User";
+
+      // Handle /autobot command
+      if (commandName === "autobot") {
+        const action = body.data?.options?.find((o: any) => o?.name === "action")?.value || "status";
+        
+        const run = (async () => {
+          try {
+            const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+            const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+            const supabase = createClient(supabaseUrl, supabaseKey);
+
+            // Get current settings
+            const { data: settings, error: fetchError } = await supabase
+              .from("autobot_settings")
+              .select("*")
+              .limit(1)
+              .single();
+
+            if (fetchError || !settings) {
+              await fetch(`${DISCORD_API_BASE}/webhooks/${applicationId}/${interactionToken}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ content: "⚠️ Autobot settings not found. Please configure in the admin dashboard first." }),
+              });
+              return;
+            }
+
+            if (action === "status") {
+              const statusEmoji = settings.is_enabled ? "🟢" : "🔴";
+              const statusText = settings.is_enabled ? "ACTIVE" : "INACTIVE";
+              await fetch(`${DISCORD_API_BASE}/webhooks/${applicationId}/${interactionToken}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                  content: `${statusEmoji} **Autobot Status: ${statusText}**\n\n• Delay: ${settings.delay_seconds}s\n• Bot Name: ${settings.bot_name}\n\nUse \`/autobot on\` or \`/autobot off\` to toggle.` 
+                }),
+              });
+              return;
+            }
+
+            const newEnabled = action === "on";
+            
+            // Update settings
+            const { error: updateError } = await supabase
+              .from("autobot_settings")
+              .update({ is_enabled: newEnabled })
+              .eq("id", settings.id);
+
+            if (updateError) {
+              await fetch(`${DISCORD_API_BASE}/webhooks/${applicationId}/${interactionToken}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ content: "⚠️ Failed to update autobot settings. Please try again." }),
+              });
+              return;
+            }
+
+            const emoji = newEnabled ? "🟢" : "🔴";
+            const message = newEnabled 
+              ? `${emoji} **Autobot is now ACTIVE!**\n\nI'll automatically respond to unanswered questions after ${settings.delay_seconds} seconds.`
+              : `${emoji} **Autobot is now INACTIVE.**\n\nI won't auto-reply to messages. Tag me with @Scholaris to ask questions!`;
+
+            await fetch(`${DISCORD_API_BASE}/webhooks/${applicationId}/${interactionToken}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ content: message }),
+            });
+          } catch (e) {
+            console.error("Autobot command error:", e);
+            try {
+              await fetch(`${DISCORD_API_BASE}/webhooks/${applicationId}/${interactionToken}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ content: "⚠️ An error occurred. Please try again." }),
+              });
+            } catch {
+              // ignore
+            }
+          }
+        })();
+
+        const waitUntil = (globalThis as any)?.EdgeRuntime?.waitUntil;
+        if (typeof waitUntil === "function") {
+          waitUntil(run);
+        }
+
+        return new Response(JSON.stringify({ type: 5 }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Handle /ask command
+      const question =
+        body.data?.options?.find((o: any) => o?.name === "question")?.value ||
+        body.data?.options?.[0]?.value ||
+        "";
 
       const run = (async () => {
         try {
@@ -1219,6 +1437,86 @@ serve(async (req) => {
       const couponsContext = await getActiveCoupons(supabase);
 
       const aiResponse = await getAIResponse(
+        message,
+        knowledgeContext,
+        userHistory,
+        username,
+        replyContext,
+        userProfile,
+        learnedCorrections,
+        couponsContext
+      );
+
+      // Store conversation for memory
+      if (discordUserId) {
+        await storeUserMessage(supabase, discordUserId, "user", message);
+        await storeUserMessage(supabase, discordUserId, "assistant", aiResponse);
+      }
+
+      return new Response(JSON.stringify({ success: true, response: aiResponse }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Handle autobot_message action (from gateway bot - professional human tone)
+    if (body.action === "autobot_message") {
+      const {
+        discordUserId,
+        username,
+        displayName,
+        message,
+        repliedToContent,
+        repliedToAuthor,
+      } = body;
+
+      console.log(`[Autobot] Message from ${username} (${discordUserId}): "${message}"`);
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      const { data: knowledgeEntries } = await supabase
+        .from("knowledge_base")
+        .select("title, content, category")
+        .order("category");
+
+      const knowledgeContext = knowledgeEntries?.length
+        ? knowledgeEntries
+            .map((e) => `[${e.category.toUpperCase()}] ${e.title}:\n${e.content}`)
+            .join("\n\n---\n\n")
+        : "No knowledge base entries available.";
+
+      // Get or create user profile
+      const userProfile = discordUserId
+        ? await getOrCreateUserProfile(
+            supabase,
+            discordUserId,
+            username || "User",
+            displayName
+          )
+        : null;
+
+      // Get user's conversation history
+      const userHistory = discordUserId
+        ? await getUserConversationHistory(supabase, discordUserId, 20)
+        : [];
+
+      // Build reply context if present
+      const replyContext = repliedToContent
+        ? {
+            content: repliedToContent,
+            authorName: repliedToAuthor || "Unknown User",
+          }
+        : undefined;
+
+      // Fetch learned corrections
+      const learnedCorrections = await getLearnedCorrections(supabase, message);
+
+      // Fetch active coupons
+      const couponsContext = await getActiveCoupons(supabase);
+
+      // Use autobot-specific AI response (more professional, human tone)
+      const aiResponse = await getAutobotAIResponse(
         message,
         knowledgeContext,
         userHistory,
