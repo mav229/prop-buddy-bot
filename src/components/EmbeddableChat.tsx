@@ -6,7 +6,7 @@ import { ChatInput } from "./ChatInput";
 import { ChatSkeleton, CardSkeleton } from "./ChatSkeleton";
 import { TypingIndicator } from "./TypingIndicator";
 import { EmailCollectionModal } from "./EmailCollectionModal";
-import { TicketModal } from "./TicketModal";
+import { InlineTicketForm } from "./InlineTicketForm";
 import { TicketSuggestionMessage } from "./TicketSuggestionMessage";
 import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
 import { playSound, preloadAllSounds } from "@/hooks/useSounds";
@@ -59,29 +59,6 @@ const EMAIL_POPUP_STORAGE_KEY = "scholaris-email-collected";
 const EMAIL_POPUP_DISMISSED_KEY = "scholaris-email-dismissed";
 const EMAIL_POPUP_MESSAGE_THRESHOLD = 2;
 
-// Only trigger ticket after explicit strong request AND multiple failed attempts
-const STRONG_TICKET_TRIGGERS = [
-  "realagent", "liveagent", "humanagent", "realperson",
-  "talktohuman", "speaktohuman", "representative", "createticket"
-];
-
-const isStrongTicketTrigger = (text?: string | null) => {
-  if (!text) return false;
-  const compact = text.toLowerCase().replace(/[^a-z0-9]+/g, "");
-  return STRONG_TICKET_TRIGGERS.some((t) => compact.includes(t));
-};
-
-// Count how many user messages contain "urgent", "help", "issue", etc.
-const SOFT_TRIGGERS = ["urgent", "help", "support", "issue", "problem", "critical"];
-
-const isSoftTicketTrigger = (text?: string | null) => {
-  if (!text) return false;
-  const lower = text.toLowerCase();
-  return SOFT_TRIGGERS.some((t) => lower.includes(t));
-};
-
-const SOFT_TRIGGER_THRESHOLD = 3; // Open ticket after 3 soft trigger messages
-
 export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   // All hooks must be called first, before any conditional logic
   const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, userMessageCount, sessionId, emailCollectedInChat, appendAssistantMessage } = useChat();
@@ -94,31 +71,26 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const [inIframe, setInIframe] = useState(false);
   const [showEmailPopup, setShowEmailPopup] = useState(false);
   const [emailCollected, setEmailCollected] = useState(false);
-  const [showTicketModal, setShowTicketModal] = useState(false);
-  const [softTriggerCount, setSoftTriggerCount] = useState(0);
+  const [showTicketForm, setShowTicketForm] = useState(false);
 
-  // Legacy isTicketTrigger kept for compatibility but not used for auto-open anymore
-  const isTicketTrigger = useCallback((text?: string | null) => {
-    if (!text) return false;
-    return isStrongTicketTrigger(text);
+  // Handle ticket button click from bot message
+  const handleTicketButtonClick = useCallback(() => {
+    setShowTicketForm(true);
   }, []);
 
-  // Check if in iframe on mount and load email collection state
-  useEffect(() => {
-    try {
-      setInIframe(window.self !== window.top);
-    } catch {
-      setInIframe(true);
+  // Handle successful ticket creation - bot confirms it
+  const handleTicketSuccess = useCallback((ticketNumber?: string) => {
+    setShowTicketForm(false);
+    if (ticketNumber) {
+      appendAssistantMessage(`✅ **Your ticket #${ticketNumber} has been created!**
+
+
+Our support team will reach out to you within **4 hours**.
+
+
+In the meantime, feel free to ask me anything else! 🙂`);
     }
-    
-    // Check if email was already collected
-    try {
-      const collected = localStorage.getItem(EMAIL_POPUP_STORAGE_KEY);
-      if (collected === "true") {
-        setEmailCollected(true);
-      }
-    } catch {}
-  }, []);
+  }, [appendAssistantMessage]);
 
   // Check if in iframe on mount and load email collection state
   useEffect(() => {
@@ -275,25 +247,8 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     playSound("send", 0.08);
     sendMessage(msg);
     setActiveTab("messages");
-
-    // Strong triggers open ticket immediately
-    if (isStrongTicketTrigger(msg)) {
-      console.log("[Ticket] Strong trigger - opening modal now!");
-      setShowTicketModal(true);
-      return;
-    }
-
-    // Soft triggers increment counter, open after threshold
-    if (isSoftTicketTrigger(msg)) {
-      const newCount = softTriggerCount + 1;
-      setSoftTriggerCount(newCount);
-      console.log("[Ticket] Soft trigger count:", newCount);
-      if (newCount >= SOFT_TRIGGER_THRESHOLD) {
-        console.log("[Ticket] Threshold reached - opening modal!");
-        setShowTicketModal(true);
-      }
-    }
-  }, [sendMessage, softTriggerCount]);
+    // No frontend ticket triggers - bot controls when to show the button via [[SUPPORT_TICKET_BUTTON]] marker
+  }, [sendMessage]);
 
   // Strip markdown from text for preview display
   const stripMarkdown = (text: string) => {
@@ -395,20 +350,19 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
         sessionId={sessionId}
       />
       
-      {/* Ticket Creation Modal */}
-       <TicketModal
-         isOpen={showTicketModal}
-         onClose={() => setShowTicketModal(false)}
-         onSuccess={(ticketNumber) => {
-           // Keep the modal open so the user sees the success state.
-           setActiveTab("messages");
-           appendAssistantMessage(
-             `Ticket #${ticketNumber ?? ""} created! Check your email for confirmation.`
-           );
-         }}
-         sessionId={sessionId}
-         chatHistory={messages.map((m) => ({ role: m.role, content: m.content }))}
-       />
+      {/* Inline Ticket Form - shown when bot offers support button */}
+      {showTicketForm && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }}>
+          <div className="w-full max-w-sm">
+            <InlineTicketForm
+              onClose={() => setShowTicketForm(false)}
+              onSuccess={handleTicketSuccess}
+              sessionId={sessionId}
+              chatHistory={messages.map((m) => ({ role: m.role, content: m.content }))}
+            />
+          </div>
+        </div>
+      )}
       {/* HEADER - Uses config colors */}
       <header
         className="flex-shrink-0 relative"
@@ -581,6 +535,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                       content={m.content}
                       isStreaming={isLoading && m.id === messages[messages.length - 1]?.id && m.role === "assistant"}
                       isWidget={true}
+                      onTicketButtonClick={handleTicketButtonClick}
                     />
                   ))}
                   {isLoading && messages[messages.length - 1]?.role === "user" && (
@@ -629,7 +584,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
           <div className="p-3 space-y-2 content-fade">
             {/* Create Ticket Button */}
             <button
-              onClick={() => setShowTicketModal(true)}
+              onClick={() => setShowTicketForm(true)}
               className="w-full px-4 py-3 flex items-center justify-between rounded-xl card-hover stagger-item stagger-1"
               style={{ 
                 background: `linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)`,

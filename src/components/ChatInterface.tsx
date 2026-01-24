@@ -7,34 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { InlineTicketForm } from "./InlineTicketForm";
 
-// Only trigger ticket after explicit strong request AND multiple failed attempts
-const STRONG_TICKET_TRIGGERS = [
-  "realagent", "liveagent", "humanagent", "realperson",
-  "talktohuman", "speaktohuman", "representative", "createticket"
-];
-
-const isStrongTicketTrigger = (text?: string | null) => {
-  if (!text) return false;
-  const compact = text.toLowerCase().replace(/[^a-z0-9]+/g, "");
-  return STRONG_TICKET_TRIGGERS.some((t) => compact.includes(t));
-};
-
-// Count how many user messages contain "urgent", "help", "issue", etc.
-const SOFT_TRIGGERS = ["urgent", "help", "support", "issue", "problem", "critical"];
-
-const isSoftTicketTrigger = (text?: string | null) => {
-  if (!text) return false;
-  const lower = text.toLowerCase();
-  return SOFT_TRIGGERS.some((t) => lower.includes(t));
-};
-
-const SOFT_TRIGGER_THRESHOLD = 3; // Open ticket after 3 soft trigger messages
-
 export const ChatInterface = () => {
-  const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, sessionId } = useChat();
+  const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, sessionId, appendAssistantMessage } = useChat();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [showTicketModal, setShowTicketModal] = useState(false);
-  const [softTriggerCount, setSoftTriggerCount] = useState(0);
+  const [showTicketForm, setShowTicketForm] = useState(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -43,24 +19,28 @@ export const ChatInterface = () => {
   const handleSendMessage = useCallback(
     (msg: string) => {
       sendMessage(msg);
-
-      // Strong triggers open ticket immediately
-      if (isStrongTicketTrigger(msg)) {
-        setShowTicketModal(true);
-        return;
-      }
-
-      // Soft triggers increment counter, open after threshold
-      if (isSoftTicketTrigger(msg)) {
-        const newCount = softTriggerCount + 1;
-        setSoftTriggerCount(newCount);
-        if (newCount >= SOFT_TRIGGER_THRESHOLD) {
-          setShowTicketModal(true);
-        }
-      }
     },
-    [sendMessage, softTriggerCount]
+    [sendMessage]
   );
+
+  // Handle ticket button click from bot message
+  const handleTicketButtonClick = () => {
+    setShowTicketForm(true);
+  };
+
+  // Handle successful ticket creation - bot confirms it
+  const handleTicketSuccess = (ticketNumber?: string) => {
+    setShowTicketForm(false);
+    if (ticketNumber) {
+      appendAssistantMessage(`✅ **Your ticket #${ticketNumber} has been created!**
+
+
+Our support team will reach out to you within **4 hours**.
+
+
+In the meantime, feel free to ask me anything else! 🙂`);
+    }
+  };
 
   return (
     <div className="flex flex-col h-screen bg-background">
@@ -148,14 +128,16 @@ export const ChatInterface = () => {
                 index === messages.length - 1 &&
                 message.role === "assistant"
               }
+              onTicketButtonClick={handleTicketButtonClick}
             />
           ))}
 
-          {/* Inline Ticket Form */}
-          {showTicketModal && (
+          {/* Inline Ticket Form - shown when bot offers support button */}
+          {showTicketForm && (
             <div className="max-w-sm">
               <InlineTicketForm
-                onClose={() => setShowTicketModal(false)}
+                onClose={() => setShowTicketForm(false)}
+                onSuccess={handleTicketSuccess}
                 sessionId={sessionId || "web"}
                 chatHistory={messages.map((m) => ({ role: m.role, content: m.content }))}
               />
