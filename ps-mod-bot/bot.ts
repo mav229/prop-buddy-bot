@@ -264,6 +264,26 @@ async function getAIResponse(
   }
 }
 
+// Trigger typing indicator in channel
+async function triggerTypingIndicator(channelId: string): Promise<void> {
+  try {
+    const response = await fetch(`${DISCORD_API}/channels/${channelId}/typing`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bot ${DISCORD_TOKEN}`,
+      },
+    });
+
+    if (!response.ok) {
+      console.error("[PS MOD] Failed to trigger typing:", response.status);
+    } else {
+      console.log("[PS MOD] Typing indicator triggered");
+    }
+  } catch (error) {
+    console.error("[PS MOD] Error triggering typing:", error);
+  }
+}
+
 async function sendMessage(channelId: string, content: string, replyTo?: string): Promise<void> {
   const chunks = content.match(/[\s\S]{1,1900}/g) || [content];
 
@@ -489,6 +509,9 @@ async function handleMessage(data: {
       console.log(`[PS MOD] Human replied, skipping auto-response`);
       return;
     }
+
+    // Trigger typing indicator so user sees "Schola is typing..."
+    await triggerTypingIndicator(data.channel_id);
 
     // Get AI response
     const response = await getAIResponse(data.content, data.channel_id, data.author.username);
