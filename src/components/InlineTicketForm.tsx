@@ -18,6 +18,7 @@ interface InlineTicketFormProps {
 }
 
 export const InlineTicketForm = ({ onClose, onSuccess, sessionId, chatHistory }: InlineTicketFormProps) => {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [problem, setProblem] = useState("");
@@ -45,6 +46,7 @@ export const InlineTicketForm = ({ onClose, onSuccess, sessionId, chatHistory }:
     try {
       const { data, error: fnError } = await supabase.functions.invoke("create-ticket", {
         body: {
+          name: name.trim(),
           email: email.trim().toLowerCase(),
           phone: phone.trim() || "",
           problem: problem.trim(),
@@ -118,6 +120,22 @@ export const InlineTicketForm = ({ onClose, onSuccess, sessionId, chatHistory }:
         <p className="text-[11px] text-blue-200/50">
           Fill in your details and we'll get back to you.
         </p>
+
+        {/* Name */}
+        <div>
+          <label className="flex items-center gap-1 text-[10px] text-blue-200/50 uppercase tracking-wider mb-1.5">
+            <MessageSquare className="w-2.5 h-2.5" />
+            Name <span className="text-blue-200/30">(optional)</span>
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Your name"
+            className="w-full px-3 py-2 rounded-lg text-xs text-white bg-blue-950/60 border border-blue-400/20 focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all placeholder:text-blue-200/30"
+            disabled={isSubmitting}
+          />
+        </div>
 
         {/* Email */}
         <div>
