@@ -1,5 +1,5 @@
 import { useRef, useEffect, useLayoutEffect, useState, useCallback } from "react";
-import { X, MessageCircle, Send, Search, Home, HelpCircle, ExternalLink, ChevronRight, ShoppingBag, Clock, AlertTriangle, RefreshCw, Ticket } from "lucide-react";
+import { X, MessageCircle, Send, Search, Home, HelpCircle, ExternalLink, ChevronRight, ShoppingBag, Clock, AlertTriangle, RefreshCw } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
@@ -7,7 +7,6 @@ import { ChatSkeleton, CardSkeleton } from "./ChatSkeleton";
 import { TypingIndicator } from "./TypingIndicator";
 import { EmailCollectionModal } from "./EmailCollectionModal";
 import { InlineTicketForm } from "./InlineTicketForm";
-import { TicketSuggestionMessage } from "./TicketSuggestionMessage";
 import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
 import { playSound, preloadAllSounds } from "@/hooks/useSounds";
 import scholarisLogo from "@/assets/scholaris-logo.png";
@@ -73,9 +72,13 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const [emailCollected, setEmailCollected] = useState(false);
   const [showTicketForm, setShowTicketForm] = useState(false);
 
-  // Handle ticket button click from bot message
-  const handleTicketButtonClick = useCallback(() => {
-    setShowTicketForm(true);
+  // Phrases that auto-open the ticket form
+  const REAL_AGENT_PHRASES = ["real agent", "talk to human", "speak to human", "connect me to agent", "human agent", "live agent"];
+
+  // Check if message requests a real agent
+  const isRealAgentRequest = useCallback((msg: string) => {
+    const lower = msg.toLowerCase();
+    return REAL_AGENT_PHRASES.some(phrase => lower.includes(phrase));
   }, []);
 
   // Handle successful ticket creation - bot confirms it
@@ -247,8 +250,13 @@ In the meantime, feel free to ask me anything else! 🙂`);
     playSound("send", 0.08);
     sendMessage(msg);
     setActiveTab("messages");
-    // No frontend ticket triggers - bot controls when to show the button via [[SUPPORT_TICKET_BUTTON]] marker
-  }, [sendMessage]);
+    
+    // Auto-open ticket form when user explicitly asks for a real agent
+    if (isRealAgentRequest(msg)) {
+      // Small delay to let the message appear first
+      setTimeout(() => setShowTicketForm(true), 300);
+    }
+  }, [sendMessage, isRealAgentRequest]);
 
   // Strip markdown from text for preview display
   const stripMarkdown = (text: string) => {
@@ -535,7 +543,6 @@ In the meantime, feel free to ask me anything else! 🙂`);
                       content={m.content}
                       isStreaming={isLoading && m.id === messages[messages.length - 1]?.id && m.role === "assistant"}
                       isWidget={true}
-                      onTicketButtonClick={handleTicketButtonClick}
                     />
                   ))}
                   {isLoading && messages[messages.length - 1]?.role === "user" && (
@@ -582,21 +589,7 @@ In the meantime, feel free to ask me anything else! 🙂`);
         {/* HELP */}
         {activeTab === "help" && (
           <div className="p-3 space-y-2 content-fade">
-            {/* Create Ticket Button */}
-            <button
-              onClick={() => setShowTicketForm(true)}
-              className="w-full px-4 py-3 flex items-center justify-between rounded-xl card-hover stagger-item stagger-1"
-              style={{ 
-                background: `linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)`,
-                boxShadow: `0 6px 20px -6px rgba(99, 102, 241, 0.4)`
-              }}
-            >
-              <div>
-                <span className="text-thin text-[13px] text-white block">Create Support Ticket</span>
-                <span className="text-ultra-thin text-[11px] text-white/50">Get help via email</span>
-              </div>
-              <Ticket className="w-4 h-4 text-white/70" strokeWidth={1.5} />
-            </button>
+            {/* Removed direct ticket button - only bot can trigger ticket form */}
 
             {config.showSupportCard && (
               <a

@@ -24,10 +24,10 @@ serve(async (req: Request): Promise<Response> => {
     const body: TicketRequest = await req.json();
     const { email, phone, problem, session_id, chat_history } = body;
 
-    // Validate required fields
-    if (!email || !phone || !problem) {
+    // Validate required fields (phone is optional)
+    if (!email || !problem) {
       return new Response(
-        JSON.stringify({ error: "Email, phone, and problem description are required" }),
+        JSON.stringify({ error: "Email and problem description are required" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -56,7 +56,7 @@ serve(async (req: Request): Promise<Response> => {
     const { error: dbError } = await supabase.from("support_tickets").insert({
       id: ticketId,
       email,
-      phone,
+      phone: phone || "",
       problem,
       session_id: session_id || null,
       chat_history: chat_history || null,
