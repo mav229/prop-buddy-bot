@@ -70,10 +70,12 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // Forward to external backend if configured
+    let externalTicketId: string | null = null;
     if (ticketBackendUrl) {
       try {
         const safeSessionId = typeof session_id === "string" ? session_id : "";
         const safeChatHistory = typeof chat_history === "string" ? chat_history : "";
+        const safePhone = typeof phone === "string" ? phone : "";
 
         const externalResponse = await fetch(ticketBackendUrl, {
           method: "POST",
@@ -83,9 +85,9 @@ serve(async (req: Request): Promise<Response> => {
           body: JSON.stringify({
             ticket_id: ticketId,
             ticketId,
-            email,
-            phone,
-            problem,
+            email: email || "",
+            phone: safePhone,
+            problem: problem || "",
             session_id: safeSessionId,
             sessionId: safeSessionId,
             chat_history: safeChatHistory,
@@ -96,10 +98,14 @@ serve(async (req: Request): Promise<Response> => {
         });
 
         if (!externalResponse.ok) {
-          console.error("External backend returned error:", await externalResponse.text());
+          const errorText = await externalResponse.text();
+          console.error("External backend returned error:", errorText);
           // Don't fail the request - ticket is still stored locally
         } else {
-          console.log("Ticket forwarded to external backend successfully");
+          const externalData = await externalResponse.json();
+          console.log("Ticket forwarded to external backend successfully:", externalData);
+          // Try to extract ticket ID from external response
+          externalTicketId = externalData?.ticket_id || externalData?.ticketId || externalData?.id || null;
         }
       } catch (externalError) {
         console.error("Failed to forward to external backend:", externalError);
@@ -108,6 +114,9 @@ serve(async (req: Request): Promise<Response> => {
     } else {
       console.log("No TICKET_BACKEND_URL configured - ticket stored locally only");
     }
+
+    // Use external ticket ID if available, otherwise fall back to local UUID
+    const finalTicketId = externalTicketId || ticketId;
 
     // Also store as a lead for tracking
     try {
@@ -124,7 +133,7 @@ serve(async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        ticket_id: ticketId,
+        ticket_id: finalTicketId,
         message: "Ticket created successfully" 
       }),
       { 

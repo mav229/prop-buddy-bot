@@ -551,10 +551,12 @@ Our support team will reach out to you within **4 hours**.
               ) : (
               <>
                   {messages.map((m, index) => {
-                    // Show agent button on assistant messages after 4 total messages, only if ticket not submitted
+                    // Count assistant replies up to this message index
+                    const assistantReplyCount = messages.slice(0, index + 1).filter(msg => msg.role === "assistant").length;
+                    // Show agent button on assistant messages after 4 assistant replies, only if ticket not submitted
                     const shouldShowAgentButton = 
                       m.role === "assistant" && 
-                      messages.length >= AGENT_BUTTON_MESSAGE_THRESHOLD && 
+                      assistantReplyCount >= AGENT_BUTTON_MESSAGE_THRESHOLD && 
                       !ticketSubmitted &&
                       !showTicketForm;
                     
