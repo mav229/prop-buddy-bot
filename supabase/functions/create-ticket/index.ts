@@ -71,30 +71,56 @@ serve(async (req: Request): Promise<Response> => {
 
     // Forward to external backend if configured
     let externalTicketId: string | null = null;
+    let externalTicketNumber: number | null = null;
+    
     if (ticketBackendUrl) {
       try {
-        const safeSessionId = typeof session_id === "string" ? session_id : "";
-        const safeChatHistory = typeof chat_history === "string" ? chat_history : "";
-        const safePhone = typeof phone === "string" ? phone : "";
+        const safePhone = typeof phone === "string" && phone.length > 0 ? phone : undefined;
+        const safeSessionId = typeof session_id === "string" && session_id.length > 0 ? session_id : undefined;
+        
+        // Parse chat_history string into array format expected by backend
+        let chatHistoryArray: Array<{ role: string; content: string }> | undefined;
+        if (typeof chat_history === "string" && chat_history.length > 0) {
+          try {
+            // Try to parse if it's already JSON
+            const parsed = JSON.parse(chat_history);
+            if (Array.isArray(parsed)) {
+              chatHistoryArray = parsed;
+            }
+          } catch {
+            // If not JSON, try to convert from text format
+            // Format: "User: message\nAssistant: response\n..."
+            const lines = chat_history.split('\n').filter(line => line.trim());
+            chatHistoryArray = lines.map(line => {
+              if (line.startsWith('User:')) {
+                return { role: 'user', content: line.replace('User:', '').trim() };
+              } else if (line.startsWith('Assistant:') || line.startsWith('Bot:')) {
+                return { role: 'bot', content: line.replace(/^(Assistant|Bot):/, '').trim() };
+              }
+              return { role: 'user', content: line.trim() };
+            });
+          }
+        }
+
+        // Build payload matching the expected API format
+        const payload: Record<string, unknown> = {
+          email: email || "",
+          problem: problem || "",
+        };
+        
+        if (safePhone) payload.phone = safePhone;
+        if (safeSessionId) payload.session_id = safeSessionId;
+        if (chatHistoryArray && chatHistoryArray.length > 0) payload.chat_history = chatHistoryArray;
+
+        console.log("Forwarding to external backend:", ticketBackendUrl);
+        console.log("Payload:", JSON.stringify(payload));
 
         const externalResponse = await fetch(ticketBackendUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            ticket_id: ticketId,
-            ticketId,
-            email: email || "",
-            phone: safePhone,
-            problem: problem || "",
-            session_id: safeSessionId,
-            sessionId: safeSessionId,
-            chat_history: safeChatHistory,
-            chatHistory: safeChatHistory,
-            created_at: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-          }),
+          body: JSON.stringify(payload),
         });
 
         if (!externalResponse.ok) {
@@ -104,8 +130,9 @@ serve(async (req: Request): Promise<Response> => {
         } else {
           const externalData = await externalResponse.json();
           console.log("Ticket forwarded to external backend successfully:", externalData);
-          // Try to extract ticket ID from external response
+          // Extract ticket ID and ticket number from response
           externalTicketId = externalData?.ticket_id || externalData?.ticketId || externalData?.id || null;
+          externalTicketNumber = externalData?.ticket_number || externalData?.ticketNumber || null;
         }
       } catch (externalError) {
         console.error("Failed to forward to external backend:", externalError);
@@ -115,8 +142,8 @@ serve(async (req: Request): Promise<Response> => {
       console.log("No TICKET_BACKEND_URL configured - ticket stored locally only");
     }
 
-    // Use external ticket ID if available, otherwise fall back to local UUID
-    const finalTicketId = externalTicketId || ticketId;
+    // Use external ticket number/ID if available, otherwise fall back to local UUID
+    const finalTicketId = externalTicketNumber ? `#${externalTicketNumber}` : (externalTicketId || ticketId);
 
     // Also store as a lead for tracking
     try {
