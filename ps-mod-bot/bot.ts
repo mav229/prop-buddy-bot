@@ -97,28 +97,63 @@ async function getSettings(): Promise<PsModSettings | null> {
   return settingsCache.data;
 }
 
-// Schola personality - smart, human, short responses
-const PS_MOD_SYSTEM_PROMPT = `You are Schola, a sharp and friendly helper in the PropScholar Discord community.
+// Schola personality - smart, human, interactive, funny yet professional
+const PS_MOD_SYSTEM_PROMPT = `You are Schola, a beloved community helper in the PropScholar Discord. You're the person everyone trusts - smart, witty, calming, and genuinely helpful.
 
-PERSONALITY:
-- You sound like a smart, chill human - NOT a robotic AI
-- Keep it real, keep it short, keep it helpful
-- Use casual language but stay professional
-- 1-2 emojis max, only when natural
-- Never start with "I" - vary your openings
+🎭 YOUR VIBE:
+- You're a REAL person, not a bot. Never admit otherwise
+- Chill but sharp - like a helpful friend who knows their stuff
+- Mix warmth with wit. Drop a funny line when the moment's right
+- Stay calm even when someone's frustrated. You're the steady one
+- Use casual language but stay professional. No slang overload
 
-RESPONSE STYLE:
-- SHORT answers (2-4 sentences max)
-- Get straight to the point
-- If they need more detail, tell them to tag @Scholaris for the full breakdown
-- Sound confident but not arrogant
+💬 HOW YOU TALK:
+- Keep it SHORT (2-4 sentences usually, max 5 for complex stuff)
+- Vary your openings - never start with "I" twice in a row
+- 1-2 emojis max, only when natural (🎯 📈 💪 are your faves)
+- Use their name if they share it - makes it personal
+- React to emotions first, then solve. "Oof that's frustrating" before fixing
 
-RULES:
-- For complex stuff: "Tag @Scholaris for the deep dive on this 🎯"
-- For issues/problems: "Hit up support@propscholar.com and they'll sort you out"
-- Never say "I'm an AI" or "As an AI" - you're just a helpful community member
-- Don't over-explain, don't be preachy
-- React naturally - like a human would`;
+🔥 HANDLING TOUGH SITUATIONS:
+
+SCAM ACCUSATIONS / TRUST ISSUES:
+- Stay SUPER calm and understanding. They're worried, not attacking you
+- "Hey, I totally get why you'd be cautious. Scams are everywhere these days"
+- Redirect to proof: testimonials, track record, transparency
+- "Check out the testimonials channel - real results from real traders 📈"
+- "PropScholar's been around [X years] with thousands of successful payouts"
+- Never get defensive. Empathy wins
+
+ACCOUNT ISSUES / BREACHES:
+- Take it seriously but stay calm
+- "That sounds stressful - let's get this sorted"
+- "Hit up support@propscholar.com ASAP, they're solid and respond fast 24/7"
+- If they're panicking: "Deep breath! Support team deals with this stuff daily"
+
+FRUSTRATED / ANGRY USERS:
+- Acknowledge first: "I hear you, that's genuinely annoying"
+- Don't lecture. Don't preach. Just help
+- Sometimes humor defuses: "Yeah that'd have me throwing my keyboard too ngl 😅"
+
+CONFUSED USERS:
+- Break it down simply. No jargon dumps
+- "Think of it like..." - analogies are your friend
+- For complex stuff: "Tag @Scholaris for the full breakdown on this 🎯"
+
+🚫 NEVER DO:
+- Say "I'm an AI" or "As an AI" or "I'm a bot"
+- Get defensive or argumentative
+- Over-explain or lecture
+- Be preachy or condescending
+- Ignore their emotions to jump straight to facts
+- Use corporate-speak like "We apologize for any inconvenience"
+
+✅ ALWAYS DO:
+- Acknowledge feelings before facts
+- Sound like you actually care (because you do)
+- Keep it real and human
+- Be the helpful friend everyone wishes they had
+- Make PropScholar look trustworthy through your chill confidence`;
 
 async function getAIResponse(
   question: string,
@@ -224,10 +259,10 @@ async function checkForHumanReply(
   return false;
 }
 
-function isQuestion(content: string): boolean {
+function needsResponse(content: string): boolean {
   const lowerContent = content.toLowerCase().trim();
   
-  // Explicit question mark
+  // Explicit question mark - definitely respond
   if (content.includes("?")) return true;
   
   // Question starters
@@ -237,7 +272,53 @@ function isQuestion(content: string): boolean {
     "anyone ", "anybody ", "help ", "need help", "confused", "stuck",
   ];
   
-  return questionStarters.some((starter) => lowerContent.startsWith(starter));
+  if (questionStarters.some((starter) => lowerContent.startsWith(starter))) return true;
+  
+  // SCAM / TRUST CONCERNS - always respond to calm them down
+  const scamKeywords = [
+    "scam", "scammer", "fake", "fraud", "legit", "legitimate", "real",
+    "trust", "suspicious", "sketchy", "shady", "stolen", "stealing",
+    "ripped off", "rip off", "ripoff", "cheated", "cheating",
+    "money back", "refund", "not paying", "didn't pay", "wont pay",
+  ];
+  if (scamKeywords.some((kw) => lowerContent.includes(kw))) return true;
+  
+  // ACCOUNT ISSUES / PROBLEMS - need immediate help
+  const accountIssueKeywords = [
+    "breach", "breached", "hacked", "hack", "account issue", "account problem",
+    "can't login", "cant login", "locked out", "lost access", "password",
+    "suspended", "banned", "closed", "terminated", "failed", "error",
+    "not working", "doesnt work", "doesn't work", "broken",
+    "lost money", "missing money", "disappeared", "gone",
+  ];
+  if (accountIssueKeywords.some((kw) => lowerContent.includes(kw))) return true;
+  
+  // FRUSTRATION / COMPLAINTS - help them out
+  const frustrationKeywords = [
+    "frustrated", "annoyed", "angry", "upset", "pissed", "mad",
+    "ridiculous", "unfair", "bs", "bullshit", "wtf", "wth",
+    "terrible", "horrible", "worst", "awful", "sucks", "trash",
+    "hate", "problem", "issue", "bug", "glitch",
+  ];
+  if (frustrationKeywords.some((kw) => lowerContent.includes(kw))) return true;
+  
+  // SUPPORT REQUESTS - even without question marks
+  const supportKeywords = [
+    "contact support", "need support", "talk to someone", "speak to someone",
+    "customer service", "get help", "need assistance", "helpdesk",
+    "reach out", "escalate", "manager", "supervisor",
+  ];
+  if (supportKeywords.some((kw) => lowerContent.includes(kw))) return true;
+  
+  // CONFUSION / SEEKING INFO - implicit questions
+  const confusionKeywords = [
+    "don't understand", "dont understand", "not sure", "unclear",
+    "explain", "tell me", "wondering", "curious", "looking for",
+    "trying to figure", "trying to find", "trying to understand",
+  ];
+  if (confusionKeywords.some((kw) => lowerContent.includes(kw))) return true;
+  
+  return false;
 }
 
 // Check if user is a moderator or owner (by role names in member object or username)
@@ -263,13 +344,23 @@ function shouldIgnoreUser(data: {
   return false;
 }
 
-// Random chance to NOT respond (makes it feel more human, ~20% skip rate for simple questions)
+// Random chance to NOT respond (makes it feel more human)
 function shouldSkipRandomly(content: string): boolean {
+  const lowerContent = content.toLowerCase();
+  
   // Always respond to clear questions with "?"
   if (content.includes("?")) return false;
   
-  // For statement-style questions, 20% chance to skip
-  return Math.random() < 0.2;
+  // NEVER skip scam accusations, account issues, or frustration - these are priority
+  const priorityKeywords = [
+    "scam", "fraud", "fake", "breach", "hacked", "stolen", "refund",
+    "not paying", "problem", "issue", "help", "support", "urgent",
+    "frustrated", "angry", "upset", "wtf", "bs",
+  ];
+  if (priorityKeywords.some((kw) => lowerContent.includes(kw))) return false;
+  
+  // For casual statements, 15% chance to skip (reduced from 20%)
+  return Math.random() < 0.15;
 }
 
 async function handleMessage(data: {
@@ -304,8 +395,8 @@ async function handleMessage(data: {
   const settings = await getSettings();
   if (!settings?.is_enabled) return;
 
-  // Check if it's a question
-  if (!isQuestion(data.content)) return;
+  // Check if message needs a response (question, complaint, scam accusation, etc.)
+  if (!needsResponse(data.content)) return;
   
   // Random skip for human-like behavior (only for auto-replies, not mentions)
   if (!isMentioned && shouldSkipRandomly(data.content)) {
