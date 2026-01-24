@@ -1569,6 +1569,79 @@ serve(async (req) => {
       );
     }
 
+    // Handle Schola (PS MOD) test mode from admin test arena
+    if (body.mode === "ps-mod") {
+      const testMessage = body.message || "Test question";
+      const systemPromptOverride = body.systemPromptOverride;
+
+      console.log(`[Schola Test] Testing with message: "${testMessage}"`);
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      const { data: knowledgeEntries } = await supabase
+        .from("knowledge_base")
+        .select("title, content, category")
+        .order("category");
+
+      const knowledgeContext = knowledgeEntries?.length
+        ? knowledgeEntries.map(e => `[${e.category.toUpperCase()}] ${e.title}:\n${e.content}`).join("\n\n---\n\n")
+        : "No knowledge base entries available.";
+
+      // Fetch learned corrections
+      const learnedCorrections = await getLearnedCorrections(supabase, testMessage);
+
+      // Fetch active coupons
+      const couponsContext = await getActiveCoupons(supabase);
+
+      // Use custom system prompt if provided (Schola's personality)
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (!LOVABLE_API_KEY) {
+        return new Response(
+          JSON.stringify({ error: "LOVABLE_API_KEY not configured" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const systemPrompt = systemPromptOverride 
+        ? systemPromptOverride + `\n\nKNOWLEDGE BASE:\n${knowledgeContext}\n\nACTIVE COUPONS:\n${couponsContext}${learnedCorrections}`
+        : `You are Schola, a helpful PropScholar assistant.\n\nKNOWLEDGE BASE:\n${knowledgeContext}\n\nACTIVE COUPONS:\n${couponsContext}${learnedCorrections}`;
+
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: testMessage },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        console.error("[Schola Test] AI Gateway error:", response.status);
+        return new Response(
+          JSON.stringify({ error: "AI Gateway error", status: response.status }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const data = await response.json();
+      const aiResponse = data.choices?.[0]?.message?.content || "No response generated.";
+
+      console.log(`[Schola Test] Response generated successfully`);
+
+      return new Response(
+        JSON.stringify({ success: true, response: aiResponse }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
       JSON.stringify({ message: "Unhandled event type" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
