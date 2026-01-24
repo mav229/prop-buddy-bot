@@ -224,49 +224,6 @@ async function fetchModResponseExamples(channelId: string): Promise<string> {
   }
 }
 
-// Check if user is new (first-time message)
-async function checkIfNewUser(discordUserId: string): Promise<boolean> {
-  try {
-    const response = await fetch(
-      `${SUPABASE_URL}/rest/v1/discord_users?discord_user_id=eq.${discordUserId}&select=message_count`,
-      {
-        headers: {
-          apikey: SUPABASE_ANON_KEY!,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        },
-      }
-    );
-
-    if (!response.ok) return false;
-
-    const data = await response.json();
-    
-    // New user if not in database or message_count is 0 or 1 (first message)
-    if (!data || data.length === 0) return true;
-    if (data[0].message_count <= 1) return true;
-    
-    return false;
-  } catch (error) {
-    console.error("[PS MOD] Error checking new user:", error);
-    return false;
-  }
-}
-
-// Welcome messages for new users
-const WELCOME_MESSAGES = [
-  "Hey, welcome to PropScholar! 👋 Good to have you here.",
-  "Welcome to the community! 👋 Great to see you.",
-  "Hey there, welcome! 👋 Glad you found us.",
-];
-
-function getWelcomeMessage(): string {
-  return WELCOME_MESSAGES[Math.floor(Math.random() * WELCOME_MESSAGES.length)];
-    return formatted ? `\n\nRECENT MOD RESPONSE EXAMPLES (learn from their style):\n${formatted}` : "";
-  } catch (error) {
-    console.error("[PS MOD] Error fetching mod examples:", error);
-    return "";
-  }
-}
 
 async function getAIResponse(
   question: string,
@@ -521,9 +478,6 @@ async function handleMessage(data: {
     clearTimeout(pendingResponses.get(messageKey)!);
   }
 
-  // Check if this is a new user BEFORE scheduling delay
-  const isNewUser = await checkIfNewUser(data.author.id);
-
   // Schedule delayed response
   const timeout = setTimeout(async () => {
     pendingResponses.delete(messageKey);
@@ -536,26 +490,11 @@ async function handleMessage(data: {
       return;
     }
 
-    // Welcome new users first
-    if (isNewUser) {
-      const welcomeMsg = getWelcomeMessage();
-      await sendMessage(data.channel_id, welcomeMsg, data.id);
-      console.log(`[PS MOD] Welcomed new user: ${data.author.username}`);
-      
-      // Small delay before the actual response
-      await new Promise((r) => setTimeout(r, 1500));
-    }
-
     // Get AI response
     const response = await getAIResponse(data.content, data.channel_id, data.author.username);
     
     if (response) {
-      // If we already welcomed, send without reply reference
-      if (isNewUser) {
-        await sendMessage(data.channel_id, response);
-      } else {
-        await sendMessage(data.channel_id, response, data.id);
-      }
+      await sendMessage(data.channel_id, response, data.id);
       console.log(`[PS MOD] Responded to ${data.author.username}`);
     }
   }, settings.delay_seconds * 1000);
