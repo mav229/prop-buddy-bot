@@ -113,7 +113,7 @@ export const EmailCollectionModal = ({
   return (
     <div 
       className={cn(
-        "absolute top-0 left-0 right-0 z-50 p-3",
+        "p-3",
         "animate-in slide-in-from-top-4 duration-300 ease-out"
       )}
     >
