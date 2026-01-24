@@ -56,6 +56,7 @@ type TabType = "home" | "messages" | "help";
 
 const EMAIL_POPUP_STORAGE_KEY = "scholaris-email-collected";
 const EMAIL_POPUP_DISMISSED_KEY = "scholaris-email-dismissed";
+const AGENT_BUTTON_MESSAGE_THRESHOLD = 4; // Show "connect to agent" button after 4 messages
 const EMAIL_POPUP_MESSAGE_THRESHOLD = 2;
 
 export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
@@ -548,16 +549,27 @@ Our support team will reach out to you within **4 hours**.
                   </p>
                 </div>
               ) : (
-                <>
-                  {messages.map((m) => (
-                    <ChatMessage
-                      key={m.id}
-                      role={m.role}
-                      content={m.content}
-                      isStreaming={isLoading && m.id === messages[messages.length - 1]?.id && m.role === "assistant"}
-                      isWidget={true}
-                    />
-                  ))}
+              <>
+                  {messages.map((m, index) => {
+                    // Show agent button on assistant messages after 4 total messages, only if ticket not submitted
+                    const shouldShowAgentButton = 
+                      m.role === "assistant" && 
+                      messages.length >= AGENT_BUTTON_MESSAGE_THRESHOLD && 
+                      !ticketSubmitted &&
+                      !showTicketForm;
+                    
+                    return (
+                      <ChatMessage
+                        key={m.id}
+                        role={m.role}
+                        content={m.content}
+                        isStreaming={isLoading && m.id === messages[messages.length - 1]?.id && m.role === "assistant"}
+                        isWidget={true}
+                        showAgentButton={shouldShowAgentButton}
+                        onConnectAgent={() => setShowTicketForm(true)}
+                      />
+                    );
+                  })}
                   {isLoading && messages[messages.length - 1]?.role === "user" && (
                     <div className="flex items-start gap-2 content-fade">
                       <div 
