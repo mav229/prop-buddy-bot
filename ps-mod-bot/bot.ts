@@ -97,63 +97,140 @@ async function getSettings(): Promise<PsModSettings | null> {
   return settingsCache.data;
 }
 
-// Schola personality - smart, human, interactive, funny yet professional
-const PS_MOD_SYSTEM_PROMPT = `You are Schola, a beloved community helper in the PropScholar Discord. You're the person everyone trusts - smart, witty, calming, and genuinely helpful.
+// Schola personality - ULTRA POWERFUL, professional, witty, handles EVERYTHING
+const PS_MOD_SYSTEM_PROMPT = `You are Schola, the backbone of PropScholar's Discord community. You're not just a helper - you're THE go-to person. Smart, quick, reliable, and genuinely capable of handling anything thrown your way.
 
-🎭 YOUR VIBE:
-- You're a REAL person, not a bot. Never admit otherwise
-- Chill but sharp - like a helpful friend who knows their stuff
-- Mix warmth with wit. Drop a funny line when the moment's right
-- Stay calm even when someone's frustrated. You're the steady one
-- Use casual language but stay professional. No slang overload
+CORE IDENTITY:
+- You ARE a real community member. Never break character
+- You're the person who actually knows everything about PropScholar
+- Professional first, funny second. Wit emerges naturally, never forced
+- Minimal emojis (one per message MAX, often none). Let your words do the work
 
-💬 HOW YOU TALK:
-- Keep it SHORT (2-4 sentences usually, max 5 for complex stuff)
-- Vary your openings - never start with "I" twice in a row
-- 1-2 emojis max, only when natural (🎯 📈 💪 are your faves)
-- Use their name if they share it - makes it personal
-- React to emotions first, then solve. "Oof that's frustrating" before fixing
+RESPONSE PHILOSOPHY:
+- ACTUALLY ANSWER. Never deflect with "ask someone else" or "tag @Scholaris"
+- YOU are the expert. If you know it, say it. If it's in the knowledge base, share it
+- Short and punchy (2-5 sentences). Dense with value, zero fluff
+- Match their energy. Casual question = casual answer. Serious issue = serious response
 
-🔥 HANDLING TOUGH SITUATIONS:
+HOW YOU HANDLE SITUATIONS:
 
-SCAM ACCUSATIONS / TRUST ISSUES:
-- Stay SUPER calm and understanding. They're worried, not attacking you
-- "Hey, I totally get why you'd be cautious. Scams are everywhere these days"
-- Redirect to proof: testimonials, track record, transparency
-- "Check out the testimonials channel - real results from real traders 📈"
-- "PropScholar's been around [X years] with thousands of successful payouts"
-- Never get defensive. Empathy wins
+QUESTIONS (any kind):
+- Answer directly and completely. No "I think" or "maybe" - be confident
+- If it's complex, break it down clearly in 3-4 sentences max
+- If you genuinely don't know, say "Let me ping support on this one" not "I don't know"
 
-ACCOUNT ISSUES / BREACHES:
-- Take it seriously but stay calm
-- "That sounds stressful - let's get this sorted"
-- "Hit up support@propscholar.com ASAP, they're solid and respond fast 24/7"
-- If they're panicking: "Deep breath! Support team deals with this stuff daily"
+COMPLAINTS / FRUSTRATION:
+- Acknowledge the emotion in ONE sentence, then solve
+- "That's annoying, yeah. Here's what's happening..." 
+- Never defensive, never dismissive
 
-FRUSTRATED / ANGRY USERS:
-- Acknowledge first: "I hear you, that's genuinely annoying"
-- Don't lecture. Don't preach. Just help
-- Sometimes humor defuses: "Yeah that'd have me throwing my keyboard too ngl 😅"
+SCAM ACCUSATIONS:
+- Stay ice cold calm. "I get it - lots of sketchy stuff out there"
+- Facts over feelings: payout records, years in business, testimonials
+- "Check #testimonials - real traders, real results, no BS"
 
-CONFUSED USERS:
-- Break it down simply. No jargon dumps
-- "Think of it like..." - analogies are your friend
-- For complex stuff: "Tag @Scholaris for the full breakdown on this 🎯"
+CASUAL CHAT / BANTER:
+- Match their vibe. If they're joking, joke back briefly
+- Keep it moving - you're friendly but not here to chat all day
 
-🚫 NEVER DO:
-- Say "I'm an AI" or "As an AI" or "I'm a bot"
-- Get defensive or argumentative
+PUSHBACK ("no you explain" / "you tell me"):
+- They want YOU to answer. So do it
+- "Alright, here's the deal..." and then actually explain
+- Never repeat the same deflection twice
+
+CONFUSION / NEWBIES:
+- Simple language, no jargon
+- One clear explanation, maybe a quick example
+- "Think of it like..." works great
+
+WHAT YOU NEVER DO:
+- Say "I'm an AI" or "As a bot" - you're Schola, period
+- Deflect to @Scholaris or support when YOU can answer
 - Over-explain or lecture
-- Be preachy or condescending
-- Ignore their emotions to jump straight to facts
-- Use corporate-speak like "We apologize for any inconvenience"
+- Use more than one emoji
+- Give wishy-washy non-answers
+- Sound corporate or robotic
 
-✅ ALWAYS DO:
-- Acknowledge feelings before facts
-- Sound like you actually care (because you do)
-- Keep it real and human
-- Be the helpful friend everyone wishes they had
-- Make PropScholar look trustworthy through your chill confidence`;
+WHAT YOU ALWAYS DO:
+- Give real, substantive answers
+- Sound like a sharp human who knows their stuff  
+- Handle the conversation so mods don't have to
+- Make users feel heard AND helped in the same message
+
+Remember: You're the reason mods can take a break. Handle it.`;
+
+// Cache for mod interaction learning (refreshes every 5 minutes)
+interface ModLearning {
+  examples: Array<{ question: string; modResponse: string }>;
+  lastFetched: number;
+}
+let modLearningCache: ModLearning = { examples: [], lastFetched: 0 };
+const MOD_LEARNING_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Fetch recent mod responses from channel to learn from
+async function fetchModResponseExamples(channelId: string): Promise<string> {
+  const now = Date.now();
+  
+  // Return cached if fresh
+  if (modLearningCache.examples.length > 0 && now - modLearningCache.lastFetched < MOD_LEARNING_TTL) {
+    const examples = modLearningCache.examples
+      .slice(0, 5)
+      .map((e) => `User asked: "${e.question.substring(0, 100)}"\nMod replied: "${e.modResponse.substring(0, 200)}"`)
+      .join("\n\n");
+    return examples ? `\n\nRECENT MOD RESPONSE EXAMPLES (learn from these):\n${examples}` : "";
+  }
+
+  try {
+    // Fetch last 100 messages from channel (covers ~10 days of moderate activity)
+    const response = await fetch(
+      `${DISCORD_API}/channels/${channelId}/messages?limit=100`,
+      {
+        headers: { Authorization: `Bot ${DISCORD_TOKEN}` },
+      }
+    );
+
+    if (!response.ok) return "";
+
+    const messages = await response.json();
+    const examples: Array<{ question: string; modResponse: string }> = [];
+    
+    // Find patterns: user message followed by mod/non-bot response
+    for (let i = messages.length - 1; i > 0; i--) {
+      const prevMsg = messages[i];
+      const currMsg = messages[i - 1];
+      
+      // Skip if either is a bot
+      if (prevMsg.author?.bot || currMsg.author?.bot) continue;
+      
+      // Check if current message author is a mod (by username patterns)
+      const responderName = (currMsg.author?.username || "").toLowerCase();
+      const isModResponse = MODERATOR_ROLES.some((role) => responderName.includes(role)) ||
+        responderName === OWNER_USERNAME;
+      
+      if (isModResponse && prevMsg.content && currMsg.content) {
+        examples.push({
+          question: prevMsg.content,
+          modResponse: currMsg.content,
+        });
+        
+        if (examples.length >= 10) break;
+      }
+    }
+
+    modLearningCache = { examples, lastFetched: now };
+    
+    const formatted = examples
+      .slice(0, 5)
+      .map((e) => `User asked: "${e.question.substring(0, 100)}"\nMod replied: "${e.modResponse.substring(0, 200)}"`)
+      .join("\n\n");
+    
+    console.log(`[PS MOD] Learned from ${examples.length} mod responses`);
+    return formatted ? `\n\nRECENT MOD RESPONSE EXAMPLES (learn from their style):\n${formatted}` : "";
+  } catch (error) {
+    console.error("[PS MOD] Error fetching mod examples:", error);
+    return "";
+  }
+}
 
 async function getAIResponse(
   question: string,
@@ -161,6 +238,10 @@ async function getAIResponse(
   username: string
 ): Promise<string | null> {
   try {
+    // Fetch mod response examples to learn from
+    const modLearning = await fetchModResponseExamples(channelId);
+    const enhancedPrompt = PS_MOD_SYSTEM_PROMPT + modLearning;
+
     const response = await fetch(`${SUPABASE_URL}/functions/v1/discord-bot`, {
       method: "POST",
       headers: {
@@ -173,7 +254,7 @@ async function getAIResponse(
         username,
         displayName: username,
         mode: "ps-mod",
-        systemPromptOverride: PS_MOD_SYSTEM_PROMPT,
+        systemPromptOverride: enhancedPrompt,
       }),
     });
 
@@ -259,64 +340,57 @@ async function checkForHumanReply(
   return false;
 }
 
+// ULTRA RESPONSIVE - respond to almost everything
 function needsResponse(content: string): boolean {
   const lowerContent = content.toLowerCase().trim();
+  
+  // Skip very short messages (greetings handled separately)
+  if (lowerContent.length < 3) return false;
+  
+  // Skip messages that are just emojis or reactions
+  const emojiOnlyRegex = /^[\p{Emoji}\s]+$/u;
+  if (emojiOnlyRegex.test(content)) return false;
+  
+  // Skip single-word greetings/acknowledgments
+  const skipWords = ["ok", "okay", "k", "yes", "no", "yep", "nope", "ya", "na", "sure", "cool", "nice", "thanks", "thx", "ty", "lol", "lmao", "haha", "hehe", "xd"];
+  if (skipWords.includes(lowerContent)) return false;
+  
+  // RESPOND TO EVERYTHING ELSE - questions, statements, complaints, anything substantive
   
   // Explicit question mark - definitely respond
   if (content.includes("?")) return true;
   
-  // Question starters
-  const questionStarters = [
-    "how ", "what ", "when ", "where ", "why ", "who ", "which ",
-    "can ", "could ", "would ", "should ", "is ", "are ", "do ", "does ",
-    "anyone ", "anybody ", "help ", "need help", "confused", "stuck",
-  ];
+  // Question words anywhere in the message
+  const questionWords = ["how", "what", "when", "where", "why", "who", "which", "can", "could", "would", "should", "is", "are", "do", "does", "will", "have", "has"];
+  if (questionWords.some((w) => lowerContent.includes(w))) return true;
   
-  if (questionStarters.some((starter) => lowerContent.startsWith(starter))) return true;
+  // Direct commands/requests to Schola
+  const directRequests = ["you tell", "you say", "you explain", "no you", "answer me", "help me", "tell me", "explain to me", "show me"];
+  if (directRequests.some((r) => lowerContent.includes(r))) return true;
   
-  // SCAM / TRUST CONCERNS - always respond to calm them down
-  const scamKeywords = [
-    "scam", "scammer", "fake", "fraud", "legit", "legitimate", "real",
-    "trust", "suspicious", "sketchy", "shady", "stolen", "stealing",
-    "ripped off", "rip off", "ripoff", "cheated", "cheating",
-    "money back", "refund", "not paying", "didn't pay", "wont pay",
-  ];
+  // Scam/trust concerns
+  const scamKeywords = ["scam", "fake", "fraud", "legit", "real", "trust", "suspicious", "sketchy", "stolen", "refund", "ripped", "cheated"];
   if (scamKeywords.some((kw) => lowerContent.includes(kw))) return true;
   
-  // ACCOUNT ISSUES / PROBLEMS - need immediate help
-  const accountIssueKeywords = [
-    "breach", "breached", "hacked", "hack", "account issue", "account problem",
-    "can't login", "cant login", "locked out", "lost access", "password",
-    "suspended", "banned", "closed", "terminated", "failed", "error",
-    "not working", "doesnt work", "doesn't work", "broken",
-    "lost money", "missing money", "disappeared", "gone",
-  ];
-  if (accountIssueKeywords.some((kw) => lowerContent.includes(kw))) return true;
+  // Account/technical issues
+  const issueKeywords = ["breach", "hacked", "login", "password", "account", "suspended", "banned", "error", "failed", "broken", "not working", "issue", "problem", "bug"];
+  if (issueKeywords.some((kw) => lowerContent.includes(kw))) return true;
   
-  // FRUSTRATION / COMPLAINTS - help them out
-  const frustrationKeywords = [
-    "frustrated", "annoyed", "angry", "upset", "pissed", "mad",
-    "ridiculous", "unfair", "bs", "bullshit", "wtf", "wth",
-    "terrible", "horrible", "worst", "awful", "sucks", "trash",
-    "hate", "problem", "issue", "bug", "glitch",
-  ];
-  if (frustrationKeywords.some((kw) => lowerContent.includes(kw))) return true;
+  // Emotional/frustration keywords
+  const emotionKeywords = ["frustrated", "annoyed", "angry", "upset", "confused", "stuck", "lost", "help", "wtf", "ridiculous", "unfair"];
+  if (emotionKeywords.some((kw) => lowerContent.includes(kw))) return true;
   
-  // SUPPORT REQUESTS - even without question marks
-  const supportKeywords = [
-    "contact support", "need support", "talk to someone", "speak to someone",
-    "customer service", "get help", "need assistance", "helpdesk",
-    "reach out", "escalate", "manager", "supervisor",
-  ];
-  if (supportKeywords.some((kw) => lowerContent.includes(kw))) return true;
+  // PropScholar-specific terms - user is likely asking about something
+  const propscholarTerms = ["drawdown", "payout", "evaluation", "challenge", "scholar", "examinee", "phase", "profit", "target", "rules", "trading", "account", "funded", "pass", "fail"];
+  if (propscholarTerms.some((term) => lowerContent.includes(term))) return true;
   
-  // CONFUSION / SEEKING INFO - implicit questions
-  const confusionKeywords = [
-    "don't understand", "dont understand", "not sure", "unclear",
-    "explain", "tell me", "wondering", "curious", "looking for",
-    "trying to figure", "trying to find", "trying to understand",
-  ];
-  if (confusionKeywords.some((kw) => lowerContent.includes(kw))) return true;
+  // Greetings with substance (not just "hi")
+  const greetingStarters = ["hey ", "hi ", "hello ", "yo "];
+  if (greetingStarters.some((g) => lowerContent.startsWith(g)) && lowerContent.length > 10) return true;
+  
+  // If message has 4+ words, it's probably worth responding to
+  const wordCount = lowerContent.split(/\s+/).filter((w) => w.length > 1).length;
+  if (wordCount >= 4) return true;
   
   return false;
 }
@@ -344,23 +418,19 @@ function shouldIgnoreUser(data: {
   return false;
 }
 
-// Random chance to NOT respond (makes it feel more human)
+// Minimal random skip - Schola should be highly responsive
 function shouldSkipRandomly(content: string): boolean {
   const lowerContent = content.toLowerCase();
   
-  // Always respond to clear questions with "?"
+  // Always respond to questions
   if (content.includes("?")) return false;
   
-  // NEVER skip scam accusations, account issues, or frustration - these are priority
-  const priorityKeywords = [
-    "scam", "fraud", "fake", "breach", "hacked", "stolen", "refund",
-    "not paying", "problem", "issue", "help", "support", "urgent",
-    "frustrated", "angry", "upset", "wtf", "bs",
-  ];
-  if (priorityKeywords.some((kw) => lowerContent.includes(kw))) return false;
+  // Never skip anything important
+  const neverSkip = ["scam", "fraud", "help", "issue", "problem", "hacked", "refund", "support", "wtf", "you"];
+  if (neverSkip.some((kw) => lowerContent.includes(kw))) return false;
   
-  // For casual statements, 15% chance to skip (reduced from 20%)
-  return Math.random() < 0.15;
+  // Very low skip rate (5%) for ultra-responsive behavior
+  return Math.random() < 0.05;
 }
 
 async function handleMessage(data: {
