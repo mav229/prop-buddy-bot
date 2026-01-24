@@ -26,16 +26,22 @@ export const ChatMessage = ({ role, content, isStreaming, isWidget = false }: Ch
   const { config } = useWidgetConfig();
   const hasPlayedCodeSound = useRef(false);
 
+  // Internal control markers that should never be shown to the user
+  const displayContent = content
+    .replace(/\[\[OPEN_TICKET_FORM\]\]/g, "")
+    .replace(/\[\[SUPPORT_TICKET_BUTTON\]\]/g, "")
+    .trim();
+
   // Detect code blocks and play sound
   useEffect(() => {
     if (role === "assistant" && !isStreaming && !hasPlayedCodeSound.current) {
-      const hasCode = /```[\s\S]*?```|`[^`]+`/.test(content);
+      const hasCode = /```[\s\S]*?```|`[^`]+`/.test(displayContent);
       if (hasCode) {
         hasPlayedCodeSound.current = true;
         playSound("code", 0.06);
       }
     }
-  }, [content, isStreaming, role]);
+  }, [displayContent, isStreaming, role]);
 
   // Build inline styles from config when in widget mode
   const userBubbleStyle = isWidget ? {
@@ -81,7 +87,7 @@ export const ChatMessage = ({ role, content, isStreaming, isWidget = false }: Ch
           {!content && isStreaming ? (
             <TypingIndicator />
           ) : isUser ? (
-            <span className="text-thin whitespace-pre-wrap">{content}</span>
+            <span className="text-thin whitespace-pre-wrap">{displayContent}</span>
           ) : (
             <div 
               className={cn(
@@ -106,7 +112,7 @@ export const ChatMessage = ({ role, content, isStreaming, isWidget = false }: Ch
                   strong: ({ children }) => <strong className="font-semibold" style={isWidget ? { color: config.aiMessageTextColor } : undefined}>{children}</strong>,
                 }}
               >
-                {content}
+                {displayContent}
               </ReactMarkdown>
             </div>
           )}

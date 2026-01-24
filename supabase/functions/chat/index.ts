@@ -6,6 +6,48 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const OPEN_TICKET_FORM_MARKER = "[[OPEN_TICKET_FORM]]";
+const REAL_AGENT_PHRASES = [
+  "real agent",
+  "i need real agent",
+  "talk to human",
+  "speak to human",
+  "connect me to agent",
+  "human agent",
+  "live agent",
+];
+
+const isRealAgentRequest = (text: string) => {
+  const lower = (text || "").toLowerCase();
+  return REAL_AGENT_PHRASES.some((p) => lower.includes(p));
+};
+
+const createSseTextStream = (text: string, inputTokens = 0) => {
+  const encoder = new TextEncoder();
+  const outputTokens = Math.ceil(text.length / 4);
+
+  // chunk to feel "streamy" without being too spammy
+  const chunkSize = 80;
+  const chunks: string[] = [];
+  for (let i = 0; i < text.length; i += chunkSize) {
+    chunks.push(text.slice(i, i + chunkSize));
+  }
+
+  return new ReadableStream({
+    start(controller) {
+      for (const chunk of chunks) {
+        const payload = { choices: [{ delta: { content: chunk } }] };
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+      }
+
+      const usageData = { inputTokens, outputTokens };
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ usage: usageData })}\n\n`));
+      controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+      controller.close();
+    },
+  });
+};
+
 const SYSTEM_PROMPT = `You ARE PropScholar. You're a real team member, not a bot. Talk to traders like a colleague would - friendly, confident, and helpful.
 
 YOUR VIBE:
@@ -19,14 +61,16 @@ HANDLING "REAL AGENT" REQUESTS:
 
 When a user explicitly says "real agent", "i need real agent", "talk to human", "speak to human", "connect me to agent", or clearly demands a human:
 
-IMMEDIATELY respond with ONLY this short message (the system will auto-open the form):
+IMMEDIATELY respond with ONLY this short message, then include the marker on the very last line (the UI will auto-open the form):
 
-"Absolutely! I'll connect you with our support team right away. 🙌
+"Absolutely! I'll connect you with our support team right away.
 
 
-Just fill in the form that appeared and our team will reach out to you within 4 hours!"
+Just fill in the form that appeared and our team will reach out to you within 4 hours."
 
-DO NOT add any buttons, markers, or suggestions. The form opens automatically.
+[[OPEN_TICKET_FORM]]
+
+DO NOT ask the user to click any button.
 
 ═══════════════════════════════════════════════════════════════
 HANDLING OTHER SUPPORT REQUESTS (TRY TO HELP FIRST):
@@ -38,7 +82,8 @@ When a user says "urgent", "help", "support", "issue", "problem", or similar (bu
    "I'd be happy to help! Please explain your query sir, so I can assist you better 🙂"
 2. TRY your best to solve their issue using the knowledge base
 3. Be patient and keep asking clarifying questions
-4. ONLY after you've genuinely tried 3-4 times and CANNOT resolve their issue, let them know they can ask for a "real agent" if needed.
+4. ONLY after you've genuinely tried 3-4 times and CANNOT resolve their issue, open the support form by responding with a short handoff message and then output:
+   [[OPEN_TICKET_FORM]]
 
 ═══════════════════════════════════════════════════════════════
 EMAIL GATING FOR DISCOUNTS (CRITICAL - FOLLOW THIS EXACTLY):
@@ -133,6 +178,24 @@ serve(async (req) => {
 
   try {
     const { messages, sessionId } = await req.json();
+
+    // Hard override: if the user explicitly asks for a real agent, we ALWAYS open the form.
+    // This avoids relying on the model to output markers correctly.
+    const lastUserMsg = Array.isArray(messages)
+      ? [...messages].reverse().find((m: any) => m?.role === "user" && typeof m?.content === "string")
+      : null;
+
+    if (lastUserMsg?.content && isRealAgentRequest(lastUserMsg.content)) {
+      const text =
+        `Absolutely! I'll connect you with our support team right away.\n\n` +
+        `Just fill in the form that appeared and our team will reach out to you within 4 hours.\n\n` +
+        `${OPEN_TICKET_FORM_MARKER}`;
+
+      const stream = createSseTextStream(text, 0);
+      return new Response(stream, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      });
+    }
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
