@@ -364,13 +364,17 @@ Our support team will reach out to you within **4 hours**.
         WebkitBackdropFilter: "blur(24px)",
       }}
     >
-      {/* Email Collection Modal */}
-      <EmailCollectionModal
-        isOpen={showEmailPopup}
-        onClose={handleEmailPopupClose}
-        onSuccess={handleEmailCollected}
-        sessionId={sessionId}
-      />
+      {/* Email Collection Modal - wrapped for proper z-index */}
+      {showEmailPopup && (
+        <div className="absolute inset-x-0 top-0 z-[60] pointer-events-auto">
+          <EmailCollectionModal
+            isOpen={showEmailPopup}
+            onClose={handleEmailPopupClose}
+            onSuccess={handleEmailCollected}
+            sessionId={sessionId}
+          />
+        </div>
+      )}
       
       {/* Inline Ticket Form - shown when bot offers support button */}
       {showTicketForm && (
