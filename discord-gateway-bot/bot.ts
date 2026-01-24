@@ -1,19 +1,21 @@
 /**
- * Discord Gateway Bot - Responds only when @mentioned
- * Version: 2.1.0 - Memory & Personality Update
- * Last Updated: 2025-12-29
+ * Discord Gateway Bot - Dual Mode: Scholaris (@mention) + Autobot (auto-reply)
+ * Version: 3.0.0 - Autobot Integration
+ * Last Updated: 2025-01-24
  * 
  * Features:
+ * - Scholaris: Responds when @mentioned (always active)
+ * - Autobot: Auto-replies to all messages after delay (toggleable)
  * - Per-user memory (20 messages)
  * - Reply-to message context
- * - Friendly, professional personality
+ * - Professional human tone for autobot
  * 
  * Deploy this on Railway, Render, or Fly.io
  * Requires: Deno runtime
  * 
  * Environment Variables needed:
  * - DISCORD_BOT_TOKEN (from Discord Developer Portal)
- * - SUPABASE_URL (your Lovable project URL, e.g. https://pcvkjrxrlibhyyxldbzs.supabase.co)
+ * - SUPABASE_URL (your Lovable project URL)
  * - SUPABASE_ANON_KEY (your Lovable project anon/publishable key)
  */
 
@@ -28,13 +30,12 @@ const DISCORD_GATEWAY_URL = "wss://gateway.discord.gg/?v=10&encoding=json";
 // Intents: GUILDS (1) + GUILD_MESSAGES (512) + MESSAGE_CONTENT (32768)
 const INTENTS = 1 | 512 | 32768;
 
-// Render “Web Service” expects an HTTP server + health check.
-// This keeps deployments stable even though the bot itself uses WebSockets.
+// Render "Web Service" expects an HTTP server + health check.
 const PORT = Number(Deno.env.get("PORT") ?? "10000");
 Deno.serve({ port: PORT }, (req) => {
   const url = new URL(req.url);
   if (url.pathname === "/healthz") return new Response("ok", { status: 200 });
-  return new Response("ScholaX Discord bot running", { status: 200 });
+  return new Response("ScholaX Discord bot running (Dual Mode)", { status: 200 });
 });
 
 let ws: WebSocket | null = null;
@@ -44,8 +45,53 @@ let resumeGatewayUrl: string | null = null;
 let sequence: number | null = null;
 let botUserId: string | null = null;
 
-// Get AI response by calling the discord-bot edge function
-async function getAIResponse(
+// Cache for autobot settings (refresh every 30 seconds)
+let autobotSettings: { is_enabled: boolean; delay_seconds: number; bot_name: string } | null = null;
+let autobotSettingsLastFetch = 0;
+const AUTOBOT_CACHE_TTL = 30000; // 30 seconds
+
+// Track pending autobot responses to avoid duplicates
+const pendingAutobotResponses = new Map<string, NodeJS.Timeout>();
+
+// Fetch autobot settings from Supabase
+async function getAutobotSettings(): Promise<{ is_enabled: boolean; delay_seconds: number; bot_name: string }> {
+  const now = Date.now();
+  
+  // Return cached if valid
+  if (autobotSettings && now - autobotSettingsLastFetch < AUTOBOT_CACHE_TTL) {
+    return autobotSettings;
+  }
+  
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/autobot_settings?limit=1`, {
+      headers: {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data && data.length > 0) {
+        autobotSettings = {
+          is_enabled: data[0].is_enabled,
+          delay_seconds: data[0].delay_seconds || 120,
+          bot_name: data[0].bot_name || "PropScholar Assistant",
+        };
+        autobotSettingsLastFetch = now;
+        return autobotSettings;
+      }
+    }
+  } catch (e) {
+    console.error("Error fetching autobot settings:", e);
+  }
+  
+  // Default: disabled
+  return { is_enabled: false, delay_seconds: 120, bot_name: "PropScholar Assistant" };
+}
+
+// Get AI response for Scholaris (main bot, @mention mode)
+async function getScholarsAIResponse(
   message: string,
   discordUserId: string,
   username: string,
@@ -54,9 +100,7 @@ async function getAIResponse(
   repliedToAuthor?: string
 ): Promise<string> {
   try {
-    console.log(
-      `Calling discord-bot edge function for user ${username} (${discordUserId})...`
-    );
+    console.log(`[Scholaris] Calling edge function for ${username} (${discordUserId})...`);
 
     const response = await fetch(`${SUPABASE_URL}/functions/v1/discord-bot`, {
       method: "POST",
@@ -77,15 +121,58 @@ async function getAIResponse(
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("discord-bot function error:", response.status, errorText);
+      console.error("[Scholaris] Edge function error:", response.status, errorText);
       return "Sorry, I'm having trouble processing your request right now. 😅";
     }
 
     const data = await response.json();
     return data.response || "Sorry, I couldn't generate a response.";
   } catch (e) {
-    console.error("AI request error:", e);
+    console.error("[Scholaris] AI request error:", e);
     return "Sorry, I encountered an error while processing your question. 😅";
+  }
+}
+
+// Get AI response for Autobot (auto-reply mode) - professional human tone
+async function getAutobotAIResponse(
+  message: string,
+  discordUserId: string,
+  username: string,
+  displayName?: string,
+  repliedToContent?: string,
+  repliedToAuthor?: string
+): Promise<string> {
+  try {
+    console.log(`[Autobot] Calling edge function for ${username} (${discordUserId})...`);
+
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/discord-bot`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        action: "autobot_message",
+        discordUserId,
+        username,
+        displayName,
+        message,
+        repliedToContent,
+        repliedToAuthor,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[Autobot] Edge function error:", response.status, errorText);
+      return "I noticed your question! Let me help - though if you need more details, feel free to tag our team.";
+    }
+
+    const data = await response.json();
+    return data.response || "I'm here to help! Could you provide a bit more detail about what you're looking for?";
+  } catch (e) {
+    console.error("[Autobot] AI request error:", e);
+    return "I noticed your question! Let me try to help - please give me a moment.";
   }
 }
 
@@ -106,6 +193,29 @@ async function fetchMessage(channelId: string, messageId: string): Promise<Recor
   } catch (e) {
     console.error("Error fetching message:", e);
     return null;
+  }
+}
+
+// Check if any human replied to a message after it was sent
+async function checkForHumanReply(channelId: string, afterMessageId: string): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `${DISCORD_API_BASE}/channels/${channelId}/messages?after=${afterMessageId}&limit=20`,
+      {
+        headers: {
+          "Authorization": `Bot ${DISCORD_BOT_TOKEN}`,
+        },
+      }
+    );
+
+    if (!response.ok) return false;
+    
+    const messages = await response.json();
+    // Check if any non-bot user replied
+    return messages.some((msg: any) => !msg.author?.bot);
+  } catch (e) {
+    console.error("Error checking for human reply:", e);
+    return false;
   }
 }
 
@@ -182,6 +292,20 @@ function cleanMention(content: string): string {
     .trim();
 }
 
+// Check if message looks like a question
+function isQuestion(content: string): boolean {
+  const questionPatterns = [
+    /\?$/,
+    /^(what|how|why|when|where|who|which|can|could|would|should|is|are|do|does|will|have|has)/i,
+    /help/i,
+    /explain/i,
+    /tell me/i,
+    /need to know/i,
+  ];
+  
+  return questionPatterns.some(pattern => pattern.test(content.trim()));
+}
+
 // Handle incoming message
 async function handleMessage(data: Record<string, unknown>): Promise<void> {
   const author = data.author as { id: string; username?: string; global_name?: string; bot?: boolean } | undefined;
@@ -194,68 +318,137 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
   // Ignore bot messages
   if (author?.bot) return;
 
-  // Only respond if bot is @mentioned
   if (!content || !channelId || !messageId || !author?.id) return;
-  if (!isBotMentioned(content, mentions || [])) return;
 
-  console.log(`Bot mentioned by ${author.username} (${author.id}) in channel ${channelId}`);
+  const botMentioned = isBotMentioned(content, mentions || []);
 
-  // Clean the message (remove mention)
-  const cleanedMessage = cleanMention(content);
-  
-  // Fetch replied-to message if this is a reply
-  let repliedToContent: string | undefined;
-  let repliedToAuthor: string | undefined;
-  if (messageReference?.message_id) {
-    console.log(`Message is a reply to: ${messageReference.message_id}`);
-    const repliedMsg = await fetchMessage(channelId, messageReference.message_id);
-    if (repliedMsg) {
-      repliedToContent = repliedMsg.content as string;
-      const repliedAuthor = repliedMsg.author as { username?: string } | undefined;
-      repliedToAuthor = repliedAuthor?.username || "Unknown User";
-      console.log(`Replied-to message: "${repliedToContent}" by ${repliedToAuthor}`);
+  // =====================
+  // CASE 1: Scholaris Mode - Bot is @mentioned
+  // =====================
+  if (botMentioned) {
+    console.log(`[Scholaris] Bot mentioned by ${author.username} (${author.id}) in channel ${channelId}`);
+    
+    // Cancel any pending autobot response for this message
+    if (pendingAutobotResponses.has(messageId)) {
+      clearTimeout(pendingAutobotResponses.get(messageId));
+      pendingAutobotResponses.delete(messageId);
     }
-  }
-  
-  // If user just mentioned bot with no text but replied to a message, use that as the question
-  let questionToAsk = cleanedMessage;
-  if (!questionToAsk && repliedToContent) {
-    console.log(`User just tagged bot - using replied message as question: "${repliedToContent}"`);
-    questionToAsk = `Please answer this question: "${repliedToContent}"`;
-  }
-  
-  if (!questionToAsk) {
-    await sendMessage(channelId, "Hey! 👋 What would you like to know? Just include your question and I'll help you out! 🎯", messageId);
+
+    // Clean the message (remove mention)
+    const cleanedMessage = cleanMention(content);
+    
+    // Fetch replied-to message if this is a reply
+    let repliedToContent: string | undefined;
+    let repliedToAuthor: string | undefined;
+    if (messageReference?.message_id) {
+      console.log(`Message is a reply to: ${messageReference.message_id}`);
+      const repliedMsg = await fetchMessage(channelId, messageReference.message_id);
+      if (repliedMsg) {
+        repliedToContent = repliedMsg.content as string;
+        const repliedAuthorObj = repliedMsg.author as { username?: string } | undefined;
+        repliedToAuthor = repliedAuthorObj?.username || "Unknown User";
+      }
+    }
+    
+    // If user just mentioned bot with no text but replied to a message, use that as the question
+    let questionToAsk = cleanedMessage;
+    if (!questionToAsk && repliedToContent) {
+      questionToAsk = `Please answer this question: "${repliedToContent}"`;
+    }
+    
+    if (!questionToAsk) {
+      await sendMessage(channelId, "Hey! 👋 What would you like to know? Just include your question and I'll help you out! 🎯", messageId);
+      return;
+    }
+
+    // Show typing indicator
+    await fetch(`${DISCORD_API_BASE}/channels/${channelId}/typing`, {
+      method: "POST",
+      headers: { "Authorization": `Bot ${DISCORD_BOT_TOKEN}` },
+    });
+
+    // Get AI response via Scholaris edge function
+    const response = await getScholarsAIResponse(
+      questionToAsk,
+      author.id,
+      author.username || "User",
+      author.global_name,
+      repliedToContent,
+      repliedToAuthor
+    );
+
+    await sendMessage(channelId, response, messageId);
+    console.log("[Scholaris] Response sent successfully");
     return;
   }
 
-  // Show typing indicator
-  await fetch(`${DISCORD_API_BASE}/channels/${channelId}/typing`, {
-    method: "POST",
-    headers: { "Authorization": `Bot ${DISCORD_BOT_TOKEN}` },
-  });
+  // =====================
+  // CASE 2: Autobot Mode - Auto-reply to questions (if enabled)
+  // =====================
+  const settings = await getAutobotSettings();
+  
+  if (!settings.is_enabled) {
+    // Autobot disabled, ignore non-mention messages
+    return;
+  }
 
-  // Get AI response via edge function with user context
-  const response = await getAIResponse(
-    questionToAsk,
-    author.id,
-    author.username || "User",
-    author.global_name,
-    repliedToContent,
-    repliedToAuthor
-  );
+  // Only respond to messages that look like questions
+  if (!isQuestion(content)) {
+    return;
+  }
 
-  // Send response
-  await sendMessage(channelId, response, messageId);
-  console.log("Response sent successfully");
+  console.log(`[Autobot] Question detected from ${author.username}, waiting ${settings.delay_seconds}s before responding...`);
+
+  // Schedule delayed response
+  const timeout = setTimeout(async () => {
+    pendingAutobotResponses.delete(messageId);
+    
+    // Check if someone (human) already replied
+    const humanReplied = await checkForHumanReply(channelId, messageId);
+    if (humanReplied) {
+      console.log(`[Autobot] Human replied during wait - staying silent`);
+      return;
+    }
+
+    // Fetch replied-to context if applicable
+    let repliedToContent: string | undefined;
+    let repliedToAuthor: string | undefined;
+    if (messageReference?.message_id) {
+      const repliedMsg = await fetchMessage(channelId, messageReference.message_id);
+      if (repliedMsg) {
+        repliedToContent = repliedMsg.content as string;
+        const repliedAuthorObj = repliedMsg.author as { username?: string } | undefined;
+        repliedToAuthor = repliedAuthorObj?.username || "Unknown User";
+      }
+    }
+
+    // Show typing indicator
+    await fetch(`${DISCORD_API_BASE}/channels/${channelId}/typing`, {
+      method: "POST",
+      headers: { "Authorization": `Bot ${DISCORD_BOT_TOKEN}` },
+    });
+
+    // Get AI response via Autobot edge function
+    const response = await getAutobotAIResponse(
+      content,
+      author.id,
+      author.username || "User",
+      author.global_name,
+      repliedToContent,
+      repliedToAuthor
+    );
+
+    await sendMessage(channelId, response, messageId);
+    console.log("[Autobot] Response sent successfully");
+  }, settings.delay_seconds * 1000);
+
+  pendingAutobotResponses.set(messageId, timeout);
 }
 
 // Send heartbeat
 function sendHeartbeat(): void {
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ op: 1, d: sequence }));
-    // Too chatty to log every heartbeat; uncomment if needed.
-    // console.log("Heartbeat sent");
   }
 }
 
@@ -348,7 +541,7 @@ function connect(): void {
         // Send initial heartbeat
         sendHeartbeat();
 
-        // Identify or Resume (DO NOT spam identify; this is rate-limited by Discord)
+        // Identify or Resume
         if (ws && ws.readyState === WebSocket.OPEN) {
           if (sessionId && sequence) {
             ws.send(JSON.stringify({
@@ -382,7 +575,6 @@ function connect(): void {
       }
 
       case 11: // Heartbeat ACK
-        // console.log("Heartbeat ACK received");
         break;
 
       case 0: // Dispatch
@@ -392,6 +584,10 @@ function connect(): void {
             resumeGatewayUrl = d.resume_gateway_url;
             botUserId = d.user?.id;
             console.log(`Ready! Bot user ID: ${botUserId}, Session: ${sessionId}`);
+            
+            // Fetch autobot settings on startup
+            const settings = await getAutobotSettings();
+            console.log(`[Autobot] Status: ${settings.is_enabled ? "ENABLED" : "DISABLED"}, Delay: ${settings.delay_seconds}s`);
             break;
 
           case "RESUMED":
@@ -416,7 +612,6 @@ function connect(): void {
         resumeGatewayUrl = null;
         sequence = null;
 
-        // Discord recommends waiting 1-5s before re-identify; add jitter.
         pendingReconnect = {
           delayMs: 2000 + Math.floor(Math.random() * 3000),
           reason: "gateway_invalid_session",
@@ -440,22 +635,20 @@ function connect(): void {
       heartbeatInterval = null;
     }
 
-    // Prevent rapid reconnect storms (this is what triggers Discord's "1000 connections" safety)
     reconnectAttempts += 1;
 
-    // If an op handler set a specific reconnect delay, prefer it.
     let delayMs = pendingReconnect?.delayMs;
     let reason = pendingReconnect?.reason ?? `close_${event.code}`;
     pendingReconnect = null;
 
-    // Fatal / configuration errors: back off HARD to avoid getting token reset.
+    // Fatal / configuration errors
     if (event.code === 4004) {
       reason = "auth_failed_4004";
-      delayMs = 10 * 60_000; // 10 minutes
+      delayMs = 10 * 60_000;
       console.error("Gateway auth failed (4004). Check that DISCORD_BOT_TOKEN is valid.");
     } else if (event.code === 4014) {
       reason = "disallowed_intents_4014";
-      delayMs = 10 * 60_000; // 10 minutes
+      delayMs = 10 * 60_000;
       console.error(
         "Gateway disallowed intents (4014). Enable MESSAGE CONTENT INTENT in the Discord Developer Portal."
       );
@@ -467,7 +660,7 @@ function connect(): void {
 
 
 // Start the bot
-console.log("Starting Discord Gateway Bot (@mention only)...");
+console.log("Starting Discord Gateway Bot (Dual Mode: Scholaris + Autobot)...");
 connect();
 
 // Keep the process alive
