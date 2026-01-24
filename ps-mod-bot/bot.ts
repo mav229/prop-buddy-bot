@@ -14,8 +14,14 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
 const DISCORD_API = "https://discord.com/api/v10";
 const GATEWAY_URL = "wss://gateway.discord.gg/?v=10&encoding=json";
 
-// Intents: GUILDS (1), GUILD_MESSAGES (512), MESSAGE_CONTENT (32768)
-const INTENTS = 1 | 512 | 32768;
+// Intents: GUILDS (1), GUILD_MESSAGES (512), MESSAGE_CONTENT (32768), GUILD_MEMBERS (2)
+const INTENTS = 1 | 2 | 512 | 32768;
+
+// Moderator role names to ignore (case-insensitive)
+const MODERATOR_ROLES = ["moderator", "mod", "admin", "staff", "support", "helper", "propscholar"];
+
+// Owner username to ignore unless they tag the bot
+const OWNER_USERNAME = "propscholar";
 
 // HTTP server for health checks
 const PORT = parseInt(Deno.env.get("PORT") || "8080");
@@ -91,6 +97,29 @@ async function getSettings(): Promise<PsModSettings | null> {
   return settingsCache.data;
 }
 
+// PS MOD personality - smart, human, short responses
+const PS_MOD_SYSTEM_PROMPT = `You are PS MOD, a sharp and friendly helper in the PropScholar Discord community.
+
+PERSONALITY:
+- You sound like a smart, chill human - NOT a robotic AI
+- Keep it real, keep it short, keep it helpful
+- Use casual language but stay professional
+- 1-2 emojis max, only when natural
+- Never start with "I" - vary your openings
+
+RESPONSE STYLE:
+- SHORT answers (2-4 sentences max)
+- Get straight to the point
+- If they need more detail, tell them to tag @Scholaris for the full breakdown
+- Sound confident but not arrogant
+
+RULES:
+- For complex stuff: "Tag @Scholaris for the deep dive on this 🎯"
+- For issues/problems: "Hit up support@propscholar.com and they'll sort you out"
+- Never say "I'm an AI" or "As an AI" - you're just a helpful community member
+- Don't over-explain, don't be preachy
+- React naturally - like a human would`;
+
 async function getAIResponse(
   question: string,
   channelId: string,
@@ -108,8 +137,8 @@ async function getAIResponse(
         channelId,
         username,
         displayName: username,
-        mode: "ps-mod", // Distinct mode for PS MOD
-        systemPromptOverride: `You are PS MOD, a helpful assistant for the PropScholar community. You respond in a professional, human-like tone. You are NOT a generic chatbot - you represent PropScholar. Keep responses concise and friendly. Use 1-2 emojis maximum. If you don't know something, direct users to the moderators.`,
+        mode: "ps-mod",
+        systemPromptOverride: PS_MOD_SYSTEM_PROMPT,
       }),
     });
 
@@ -211,19 +240,65 @@ function isQuestion(content: string): boolean {
   return questionStarters.some((starter) => lowerContent.startsWith(starter));
 }
 
+// Check if user is a moderator or owner (by role names in member object or username)
+function shouldIgnoreUser(data: {
+  author: { id: string; username: string; bot?: boolean };
+  member?: { roles?: string[]; nick?: string };
+}): boolean {
+  const username = data.author.username.toLowerCase();
+  const nickname = data.member?.nick?.toLowerCase() || "";
+  
+  // Ignore PropScholar owner
+  if (username === OWNER_USERNAME || nickname === OWNER_USERNAME) {
+    return true;
+  }
+  
+  // Check if username contains moderator-like terms
+  for (const modRole of MODERATOR_ROLES) {
+    if (username.includes(modRole) || nickname.includes(modRole)) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+// Random chance to NOT respond (makes it feel more human, ~20% skip rate for simple questions)
+function shouldSkipRandomly(content: string): boolean {
+  // Always respond to clear questions with "?"
+  if (content.includes("?")) return false;
+  
+  // For statement-style questions, 20% chance to skip
+  return Math.random() < 0.2;
+}
+
 async function handleMessage(data: {
   id: string;
   channel_id: string;
   content: string;
   author: { id: string; username: string; bot?: boolean };
+  member?: { roles?: string[]; nick?: string };
   timestamp: string;
   mentions?: Array<{ id: string }>;
 }): Promise<void> {
   // Ignore bot messages
   if (data.author.bot) return;
 
-  // Check if mentioned (if so, ignore - that's Scholaris's job)
-  if (data.mentions?.some((m) => m.id === botUserId)) return;
+  // Ignore moderators and owner (unless they tag the bot)
+  const isMentioned = data.mentions?.some((m) => m.id === botUserId);
+  if (shouldIgnoreUser(data) && !isMentioned) {
+    console.log(`[PS MOD] Ignoring mod/owner: ${data.author.username}`);
+    return;
+  }
+
+  // If mentioned by mod/owner, respond. Otherwise check if mentioned at all
+  if (isMentioned) {
+    // This is intentional - if someone tags PS MOD, respond even if mod
+    console.log(`[PS MOD] Mentioned by ${data.author.username}, will respond`);
+  } else {
+    // Not mentioned - this is auto-reply territory, skip if it's a mod
+    if (shouldIgnoreUser(data)) return;
+  }
 
   // Get settings
   const settings = await getSettings();
@@ -231,6 +306,12 @@ async function handleMessage(data: {
 
   // Check if it's a question
   if (!isQuestion(data.content)) return;
+  
+  // Random skip for human-like behavior (only for auto-replies, not mentions)
+  if (!isMentioned && shouldSkipRandomly(data.content)) {
+    console.log(`[PS MOD] Random skip for human feel`);
+    return;
+  }
 
   const messageKey = `${data.channel_id}-${data.id}`;
   const messageTimestamp = new Date(data.timestamp).getTime();
