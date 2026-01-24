@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { InlineTicketForm } from "./InlineTicketForm";
 
+// Phrases that auto-open the ticket form
+const REAL_AGENT_PHRASES = ["real agent", "talk to human", "speak to human", "connect me to agent", "human agent", "live agent"];
+
 export const ChatInterface = () => {
   const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, sessionId, appendAssistantMessage } = useChat();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -16,17 +19,23 @@ export const ChatInterface = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Check if message requests a real agent
+  const isRealAgentRequest = useCallback((msg: string) => {
+    const lower = msg.toLowerCase();
+    return REAL_AGENT_PHRASES.some(phrase => lower.includes(phrase));
+  }, []);
+
   const handleSendMessage = useCallback(
     (msg: string) => {
       sendMessage(msg);
+      
+      // Auto-open ticket form when user explicitly asks for a real agent
+      if (isRealAgentRequest(msg)) {
+        setTimeout(() => setShowTicketForm(true), 300);
+      }
     },
-    [sendMessage]
+    [sendMessage, isRealAgentRequest]
   );
-
-  // Handle ticket button click from bot message
-  const handleTicketButtonClick = () => {
-    setShowTicketForm(true);
-  };
 
   // Handle successful ticket creation - bot confirms it
   const handleTicketSuccess = (ticketNumber?: string) => {
@@ -128,7 +137,6 @@ In the meantime, feel free to ask me anything else! 🙂`);
                 index === messages.length - 1 &&
                 message.role === "assistant"
               }
-              onTicketButtonClick={handleTicketButtonClick}
             />
           ))}
 
