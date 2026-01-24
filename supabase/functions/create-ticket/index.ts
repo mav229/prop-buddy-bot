@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 interface TicketRequest {
+  name?: string;
   email: string;
   phone: string;
   problem: string;
@@ -22,7 +23,7 @@ serve(async (req: Request): Promise<Response> => {
 
   try {
     const body: TicketRequest = await req.json();
-    const { email, phone, problem, session_id, chat_history } = body;
+    const { name, email, phone, problem, session_id, chat_history } = body;
 
     // Validate required fields (phone is optional)
     if (!email || !problem) {
@@ -145,12 +146,13 @@ serve(async (req: Request): Promise<Response> => {
     // Use external ticket number/ID if available, otherwise fall back to local UUID
     const finalTicketId = externalTicketNumber ? `#${externalTicketNumber}` : (externalTicketId || ticketId);
 
-    // Also store as a lead for tracking
+    // Also store as a lead for tracking (with name from ticket form)
     try {
       await supabase.from("widget_leads").insert({
+        name: name || null,
         email,
         session_id: session_id || null,
-        source: "ticket",
+        source: "ticket_form",
         page_url: null,
       });
     } catch (leadError) {

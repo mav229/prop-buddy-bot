@@ -298,6 +298,7 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          name: string | null
           page_url: string | null
           session_id: string | null
           source: string
@@ -306,6 +307,7 @@ export type Database = {
           created_at?: string
           email: string
           id?: string
+          name?: string | null
           page_url?: string | null
           session_id?: string | null
           source?: string
@@ -314,6 +316,7 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          name?: string | null
           page_url?: string | null
           session_id?: string | null
           source?: string

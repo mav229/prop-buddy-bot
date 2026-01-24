@@ -4,13 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, Search, Trash2, Mail, Calendar, ExternalLink, Loader2, Users } from "lucide-react";
+import { Download, Search, Trash2, Mail, Calendar, ExternalLink, Loader2, Users, Copy, FileText, User } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
 interface Lead {
   id: string;
   email: string;
+  name: string | null;
   session_id: string | null;
   source: string;
   page_url: string | null;
@@ -64,6 +65,55 @@ export const LeadsManager = () => {
     }
   };
 
+  // Generate plain text format for copying/downloading
+  const generatePlainText = () => {
+    const filtered = filteredLeads;
+    if (filtered.length === 0) return "";
+
+    return filtered
+      .map((lead) => {
+        const parts = [];
+        if (lead.name) parts.push(`Name: ${lead.name}`);
+        parts.push(`Email: ${lead.email}`);
+        parts.push(`Source: ${lead.source}`);
+        if (lead.page_url) parts.push(`Page: ${lead.page_url}`);
+        parts.push(`Date: ${format(new Date(lead.created_at), "yyyy-MM-dd HH:mm")}`);
+        return parts.join("\n");
+      })
+      .join("\n\n---\n\n");
+  };
+
+  const handleCopyAll = async () => {
+    const text = generatePlainText();
+    if (!text) {
+      toast.error("No leads to copy");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`Copied ${filteredLeads.length} leads to clipboard`);
+    } catch (err) {
+      toast.error("Failed to copy to clipboard");
+    }
+  };
+
+  const handleDownloadTxt = () => {
+    const text = generatePlainText();
+    if (!text) {
+      toast.error("No leads to download");
+      return;
+    }
+
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `leads-export-${format(new Date(), "yyyy-MM-dd")}.txt`;
+    link.click();
+
+    toast.success(`Downloaded ${filteredLeads.length} leads as TXT`);
+  };
+
   const handleExportCSV = () => {
     const filtered = filteredLeads;
     if (filtered.length === 0) {
@@ -71,8 +121,9 @@ export const LeadsManager = () => {
       return;
     }
 
-    const headers = ["Email", "Source", "Page URL", "Date"];
+    const headers = ["Name", "Email", "Source", "Page URL", "Date"];
     const rows = filtered.map((lead) => [
+      lead.name || "",
       lead.email,
       lead.source,
       lead.page_url || "",
@@ -90,12 +141,16 @@ export const LeadsManager = () => {
     link.download = `leads-export-${format(new Date(), "yyyy-MM-dd")}.csv`;
     link.click();
 
-    toast.success(`Exported ${filtered.length} leads`);
+    toast.success(`Exported ${filtered.length} leads as CSV`);
   };
 
-  const filteredLeads = leads.filter((lead) =>
-    lead.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredLeads = leads.filter((lead) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      lead.email.toLowerCase().includes(query) ||
+      (lead.name && lead.name.toLowerCase().includes(query))
+    );
+  });
 
   const stats = {
     total: leads.length,
@@ -167,14 +222,14 @@ export const LeadsManager = () => {
             <div>
               <CardTitle className="text-xl">Email Leads</CardTitle>
               <CardDescription>
-                Emails collected from the discount popup
+                Emails collected from widget and ticket forms
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <div className="relative flex-1 sm:flex-none">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search emails..."
+                  placeholder="Search name or email..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 w-full sm:w-[200px]"
@@ -183,11 +238,32 @@ export const LeadsManager = () => {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={handleCopyAll}
+                className="gap-2"
+                title="Copy all to clipboard"
+              >
+                <Copy className="w-4 h-4" />
+                <span className="hidden sm:inline">Copy</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadTxt}
+                className="gap-2"
+                title="Download as TXT (Notepad)"
+              >
+                <FileText className="w-4 h-4" />
+                <span className="hidden sm:inline">TXT</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleExportCSV}
                 className="gap-2"
+                title="Download as CSV"
               >
                 <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">Export CSV</span>
+                <span className="hidden sm:inline">CSV</span>
               </Button>
             </div>
           </div>
@@ -209,6 +285,7 @@ export const LeadsManager = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead className="hidden sm:table-cell">Source</TableHead>
                     <TableHead className="hidden md:table-cell">Page</TableHead>
@@ -219,10 +296,18 @@ export const LeadsManager = () => {
                 <TableBody>
                   {filteredLeads.map((lead) => (
                     <TableRow key={lead.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4 text-muted-foreground hidden sm:block" />
+                          <span className="truncate max-w-[120px]">
+                            {lead.name || <span className="text-muted-foreground">—</span>}
+                          </span>
+                        </div>
+                      </TableCell>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           <Mail className="w-4 h-4 text-muted-foreground hidden sm:block" />
-                          <span className="truncate max-w-[200px]">{lead.email}</span>
+                          <span className="truncate max-w-[180px]">{lead.email}</span>
                         </div>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
