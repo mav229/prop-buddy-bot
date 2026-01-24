@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { 
   Bot, LogOut, MessageSquare, Database, ArrowLeft, Brain, Users, 
-  LayoutDashboard, Settings, Code, Palette, Ticket, Menu, X, Mail, Headphones, Zap 
+  LayoutDashboard, Settings, Code, Palette, Ticket, Menu, X, Mail, Headphones, Zap, Shield 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,6 +19,7 @@ import { CouponsManager } from "./CouponsManager";
 import { LeadsManager } from "./LeadsManager";
 import { TicketsManager } from "./TicketsManager";
 import { AutobotSettings } from "./AutobotSettings";
+import { PsModSettings } from "./PsModSettings";
 import { Link } from "react-router-dom";
 
 // Discord icon component
@@ -40,6 +41,7 @@ const navItems = [
   { value: "customizer", label: "Customize", icon: Palette },
   { value: "embed", label: "Embed", icon: Code },
   { value: "autobot", label: "Autobot", icon: Zap },
+  { value: "ps-mod", label: "PS MOD", icon: Shield },
   { value: "discord", label: "Settings", icon: Settings },
 ];
 
@@ -226,6 +228,10 @@ export const AdminDashboard = () => {
 
           <TabsContent value="autobot">
             <AutobotSettings />
+          </TabsContent>
+
+          <TabsContent value="ps-mod">
+            <PsModSettings />
           </TabsContent>
 
           <TabsContent value="discord">
