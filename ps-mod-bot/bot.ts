@@ -97,8 +97,8 @@ async function getSettings(): Promise<PsModSettings | null> {
   return settingsCache.data;
 }
 
-// PS MOD personality - smart, human, short responses
-const PS_MOD_SYSTEM_PROMPT = `You are PS MOD, a sharp and friendly helper in the PropScholar Discord community.
+// Schola personality - smart, human, short responses
+const PS_MOD_SYSTEM_PROMPT = `You are Schola, a sharp and friendly helper in the PropScholar Discord community.
 
 PERSONALITY:
 - You sound like a smart, chill human - NOT a robotic AI

@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Bot, Power, Clock, MessageSquare, Loader2, RefreshCw, Shield } from "lucide-react";
+import { Bot, Power, Clock, MessageSquare, Loader2, RefreshCw, Shield, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -18,6 +19,9 @@ export const PsModSettings = () => {
   const [config, setConfig] = useState<PsModConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testQuestion, setTestQuestion] = useState("");
+  const [testResponse, setTestResponse] = useState("");
+  const [testing, setTesting] = useState(false);
   const { toast } = useToast();
 
   const fetchConfig = async () => {
@@ -119,6 +123,66 @@ export const PsModSettings = () => {
     }
   };
 
+  const handleTestSchola = async () => {
+    if (!testQuestion.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Empty question",
+        description: "Please enter a question to test.",
+      });
+      return;
+    }
+
+    setTesting(true);
+    setTestResponse("");
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("discord-bot", {
+        body: {
+          message: testQuestion,
+          channelId: "test-arena",
+          username: "TestUser",
+          displayName: "Test User",
+          mode: "ps-mod",
+          systemPromptOverride: `You are Schola, a sharp and friendly helper in the PropScholar Discord community.
+
+PERSONALITY:
+- You sound like a smart, chill human - NOT a robotic AI
+- Keep it real, keep it short, keep it helpful
+- Use casual language but stay professional
+- 1-2 emojis max, only when natural
+- Never start with "I" - vary your openings
+
+RESPONSE STYLE:
+- SHORT answers (2-4 sentences max)
+- Get straight to the point
+- If they need more detail, tell them to tag @Scholaris for the full breakdown
+- Sound confident but not arrogant
+
+RULES:
+- For complex stuff: "Tag @Scholaris for the deep dive on this 🎯"
+- For issues/problems: "Hit up support@propscholar.com and they'll sort you out"
+- Never say "I'm an AI" or "As an AI" - you're just a helpful community member
+- Don't over-explain, don't be preachy
+- React naturally - like a human would`,
+        },
+      });
+
+      if (error) throw error;
+
+      setTestResponse(data.response || "No response received");
+    } catch (error) {
+      console.error("Error testing Schola:", error);
+      toast({
+        variant: "destructive",
+        title: "Test failed",
+        description: "Could not get response from Schola.",
+      });
+    } finally {
+      setTesting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -146,7 +210,7 @@ export const PsModSettings = () => {
           <Shield className="w-5 h-5 text-accent" />
         </div>
         <div>
-          <h2 className="font-display text-xl font-bold">PS MOD Bot</h2>
+          <h2 className="font-display text-xl font-bold">Schola Bot</h2>
           <p className="text-sm text-muted-foreground">
             Separate auto-reply bot for unanswered questions
           </p>
@@ -159,7 +223,7 @@ export const PsModSettings = () => {
           <div className="flex items-center gap-3">
             <Power className={`w-5 h-5 ${config.is_enabled ? "text-success" : "text-muted-foreground"}`} />
             <div>
-              <h3 className="font-semibold">PS MOD Status</h3>
+              <h3 className="font-semibold">Schola Status</h3>
               <p className="text-sm text-muted-foreground">
                 {config.is_enabled 
                   ? "Active - responding to unanswered questions" 
@@ -176,7 +240,7 @@ export const PsModSettings = () => {
 
         <div className="mt-4 p-3 rounded-lg bg-accent/10 border border-accent/20">
           <p className="text-xs text-muted-foreground">
-            <strong>Separate Bot:</strong> PS MOD runs independently from Scholaris with its own token and deployment.
+            <strong>Separate Bot:</strong> Schola runs independently from Scholaris with its own token and deployment.
           </p>
         </div>
       </div>
@@ -224,18 +288,67 @@ export const PsModSettings = () => {
         </Button>
       </div>
 
+      {/* Test Arena */}
+      <div className="glass-panel p-6 space-y-4">
+        <h3 className="font-display font-semibold flex items-center gap-2">
+          <Sparkles className="w-4 h-4" />
+          Test Arena
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          Test Schola's responses before deploying. This simulates how Schola would respond to a question.
+        </p>
+        
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="test-question">Test Question</Label>
+            <Textarea
+              id="test-question"
+              placeholder="e.g., What's the best prop firm for beginners?"
+              value={testQuestion}
+              onChange={(e) => setTestQuestion(e.target.value)}
+              rows={2}
+            />
+          </div>
+          
+          <Button 
+            onClick={handleTestSchola} 
+            disabled={testing || !testQuestion.trim()}
+            className="w-full"
+          >
+            {testing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                Thinking...
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4 mr-2" />
+                Test Schola Response
+              </>
+            )}
+          </Button>
+          
+          {testResponse && (
+            <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+              <p className="text-xs text-muted-foreground mb-2 font-medium">Schola's Response:</p>
+              <p className="text-sm">{testResponse}</p>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* How it works */}
       <div className="glass-panel p-6">
         <div className="flex items-start gap-3">
           <MessageSquare className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
           <div>
-            <h4 className="font-semibold text-sm mb-2">PS MOD vs Scholaris</h4>
+            <h4 className="font-semibold text-sm mb-2">Schola vs Scholaris</h4>
             <ul className="text-sm text-muted-foreground space-y-1.5">
               <li>• <strong>Scholaris:</strong> Responds when @mentioned (always active)</li>
-              <li>• <strong>PS MOD:</strong> Responds to ANY question after {config.delay_seconds}s delay</li>
+              <li>• <strong>Schola:</strong> Responds to ANY question after {config.delay_seconds}s delay</li>
               <li>• Both bots use the same knowledge base</li>
-              <li>• PS MOD has its own token and Render deployment</li>
-              <li>• If a human replies during the delay, PS MOD stays quiet</li>
+              <li>• Schola has its own token and Railway deployment</li>
+              <li>• If a human replies during the delay, Schola stays quiet</li>
             </ul>
           </div>
         </div>
