@@ -649,8 +649,13 @@ async function handleMessage(data: {
   timestamp: string;
   mentions?: Array<{ id: string }>;
 }): Promise<void> {
+  console.log(`[PS MOD] MESSAGE RECEIVED: "${data.content.substring(0, 100)}" from ${data.author.username} in ${data.channel_id}`);
+  
   // Ignore bot messages
-  if (data.author.bot) return;
+  if (data.author.bot) {
+    console.log(`[PS MOD] ❌ SKIP: Author is a bot (${data.author.username})`);
+    return;
+  }
 
   // ===== MODERATION: Check for external links =====
   const linkCheck = containsExternalLink(data.content);
@@ -699,14 +704,13 @@ async function handleMessage(data: {
   // Ignore moderators and owner (unless they tag the bot)
   const isMentioned = data.mentions?.some((m) => m.id === botUserId);
   if (shouldIgnoreUser(data) && !isMentioned) {
-    console.log(`[PS MOD] Ignoring mod/owner: ${data.author.username}`);
+    console.log(`[PS MOD] ❌ SKIP: Mod/owner without mention (${data.author.username})`);
     return;
   }
 
   // If mentioned by mod/owner, respond. Otherwise check if mentioned at all
   if (isMentioned) {
-    // This is intentional - if someone tags PS MOD, respond even if mod
-    console.log(`[PS MOD] Mentioned by ${data.author.username}, will respond`);
+    console.log(`[PS MOD] ✅ MENTIONED by ${data.author.username} - will bypass all filters`);
   } else {
     // Not mentioned - this is auto-reply territory, skip if it's a mod
     if (shouldIgnoreUser(data)) return;
@@ -714,22 +718,31 @@ async function handleMessage(data: {
 
   // Get settings
   const settings = await getSettings();
-  if (!settings?.is_enabled) return;
+  if (!settings?.is_enabled) {
+    console.log(`[PS MOD] ❌ SKIP: Bot is disabled in settings`);
+    return;
+  }
+  console.log(`[PS MOD] ✅ Settings loaded: enabled=${settings.is_enabled}, delay=${settings.delay_seconds}s`);
 
   // Check if message needs a response (question, complaint, scam accusation, etc.)
-  if (!needsResponse(data.content)) return;
+  const shouldRespond = needsResponse(data.content);
+  console.log(`[PS MOD] needsResponse("${data.content.substring(0, 50)}"): ${shouldRespond}`);
+  if (!shouldRespond && !isMentioned) {
+    console.log(`[PS MOD] ❌ SKIP: Message doesn't need response (not a question/issue)`);
+    return;
+  }
   
   // Random skip for human-like behavior (only for auto-replies, not mentions)
   if (!isMentioned && shouldSkipRandomly(data.content)) {
-    console.log(`[PS MOD] Random skip for human feel`);
+    console.log(`[PS MOD] ❌ SKIP: Random skip for human feel (5% chance)`);
     return;
   }
 
   const messageKey = `${data.channel_id}-${data.id}`;
   const messageTimestamp = new Date(data.timestamp).getTime();
 
-  console.log(`[PS MOD] Question detected from ${data.author.username}: "${data.content.substring(0, 50)}..."`);
-  console.log(`[PS MOD] Scheduling response in ${settings.delay_seconds}s...`);
+  console.log(`[PS MOD] ✅✅✅ WILL RESPOND to ${data.author.username}: "${data.content.substring(0, 50)}..."`);
+  console.log(`[PS MOD] ⏱️ Scheduling response in ${settings.delay_seconds}s...`);
 
   // Clear any existing pending response for this message
   if (pendingResponses.has(messageKey)) {
@@ -739,6 +752,7 @@ async function handleMessage(data: {
   // Schedule delayed response
   const timeout = setTimeout(async () => {
     pendingResponses.delete(messageKey);
+    console.log(`[PS MOD] ⏰ Timer fired for ${data.author.username} - checking for human replies...`);
 
     // Check if human replied during the delay
     const humanReplied = await checkForHumanReply(
@@ -749,23 +763,28 @@ async function handleMessage(data: {
     );
     
     if (humanReplied) {
-      console.log(`[PS MOD] Human replied, skipping auto-response`);
+      console.log(`[PS MOD] ❌ CANCEL: Human replied during delay, skipping auto-response`);
       return;
     }
+    console.log(`[PS MOD] ✅ No human reply detected - proceeding with AI response...`);
 
     // Trigger typing indicator so user sees "Schola is typing..."
     await triggerTypingIndicator(data.channel_id);
+    console.log(`[PS MOD] 💬 Typing indicator sent, fetching AI response...`);
 
     // Get AI response
     const response = await getAIResponse(data.content, data.channel_id, data.author.username);
     
     if (response) {
       await sendMessage(data.channel_id, response, data.id);
-      console.log(`[PS MOD] Responded to ${data.author.username}`);
+      console.log(`[PS MOD] ✅✅✅ RESPONSE SENT to ${data.author.username}: "${response.substring(0, 80)}..."`);
+    } else {
+      console.error(`[PS MOD] ❌ ERROR: AI returned null/empty response for "${data.content.substring(0, 50)}"`);
     }
   }, settings.delay_seconds * 1000);
 
   pendingResponses.set(messageKey, timeout);
+  console.log(`[PS MOD] ⏲️ Timeout scheduled with ID, current pending count: ${pendingResponses.size}`);
 }
 
 function sendHeartbeat(): void {
