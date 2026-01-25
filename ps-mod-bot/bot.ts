@@ -518,7 +518,7 @@ async function checkForHumanReply(
   return false;
 }
 
-// ULTRA RESPONSIVE - respond to almost everything
+// ADVANCED ULTRA RESPONSIVE - respond to almost everything intelligently
 function needsResponse(content: string): boolean {
   const lowerContent = content.toLowerCase().trim();
   
@@ -530,7 +530,7 @@ function needsResponse(content: string): boolean {
   if (emojiOnlyRegex.test(content)) return false;
   
   // Skip single-word greetings/acknowledgments
-  const skipWords = ["ok", "okay", "k", "yes", "no", "yep", "nope", "ya", "na", "sure", "cool", "nice", "thanks", "thx", "ty", "lol", "lmao", "haha", "hehe", "xd"];
+  const skipWords = ["ok", "okay", "k", "yes", "no", "yep", "nope", "ya", "na", "sure", "cool", "nice", "thanks", "thx", "ty", "lol", "lmao", "haha", "hehe", "xd", "gg", "rip", "oof"];
   if (skipWords.includes(lowerContent)) return false;
   
   // RESPOND TO EVERYTHING ELSE - questions, statements, complaints, anything substantive
@@ -538,37 +538,52 @@ function needsResponse(content: string): boolean {
   // Explicit question mark - definitely respond
   if (content.includes("?")) return true;
   
-  // Question words anywhere in the message
-  const questionWords = ["how", "what", "when", "where", "why", "who", "which", "can", "could", "would", "should", "is", "are", "do", "does", "will", "have", "has"];
-  if (questionWords.some((w) => lowerContent.includes(w))) return true;
+  // Advanced question detection - look for question patterns even without "?"
+  // Starts with question words
+  const questionStarters = ["how", "what", "when", "where", "why", "who", "which", "can i", "can you", "could i", "could you", "would", "should", "is there", "are there", "do i", "does", "will", "have", "has"];
+  if (questionStarters.some((w) => lowerContent.startsWith(w))) return true;
   
-  // Direct commands/requests to Schola
-  const directRequests = ["you tell", "you say", "you explain", "no you", "answer me", "help me", "tell me", "explain to me", "show me"];
+  // Contains question patterns mid-sentence (e.g., "hey how can i...")
+  const questionPatterns = [
+    /\bhow\s+(can|do|to|does|did|would|should|will)\b/,
+    /\bwhat\s+(is|are|do|does|can|should|would)\b/,
+    /\bwhere\s+(is|are|do|does|can|should)\b/,
+    /\bwhen\s+(is|are|do|does|can|should|will)\b/,
+    /\bwhy\s+(is|are|do|does|can|should|would|did)\b/,
+    /\bcan\s+(i|you|we|someone|anyone)\b/,
+    /\bwho\s+(is|are|can|should|would)\b/,
+    /\banyone\s+(know|here|can|help)\b/,
+    /\bis\s+(it|this|that|there)\b.*\b(possible|allowed|okay|ok|available|working)\b/,
+  ];
+  if (questionPatterns.some((pattern) => pattern.test(lowerContent))) return true;
+  
+  // Direct commands/requests
+  const directRequests = ["you tell", "you say", "you explain", "no you", "answer me", "help me", "tell me", "explain to me", "show me", "need help", "i need", "i want", "please help"];
   if (directRequests.some((r) => lowerContent.includes(r))) return true;
   
-  // Scam/trust concerns
+  // Scam/trust concerns - ALWAYS respond
   const scamKeywords = ["scam", "fake", "fraud", "legit", "real", "trust", "suspicious", "sketchy", "stolen", "refund", "ripped", "cheated"];
   if (scamKeywords.some((kw) => lowerContent.includes(kw))) return true;
   
-  // Account/technical issues
-  const issueKeywords = ["breach", "hacked", "login", "password", "account", "suspended", "banned", "error", "failed", "broken", "not working", "issue", "problem", "bug"];
+  // Account/technical issues - ALWAYS respond  
+  const issueKeywords = ["breach", "hacked", "login", "password", "account", "suspended", "banned", "error", "failed", "broken", "not working", "issue", "problem", "bug", "dd", "daily", "daily drawdown", "max dd"];
   if (issueKeywords.some((kw) => lowerContent.includes(kw))) return true;
   
-  // Emotional/frustration keywords
-  const emotionKeywords = ["frustrated", "annoyed", "angry", "upset", "confused", "stuck", "lost", "help", "wtf", "ridiculous", "unfair"];
+  // Emotional/frustration keywords - ALWAYS respond
+  const emotionKeywords = ["frustrated", "annoyed", "angry", "upset", "confused", "stuck", "lost", "help", "wtf", "ridiculous", "unfair", "hate", "love", "struggling"];
   if (emotionKeywords.some((kw) => lowerContent.includes(kw))) return true;
   
   // PropScholar-specific terms - user is likely asking about something
-  const propscholarTerms = ["drawdown", "payout", "evaluation", "challenge", "scholar", "examinee", "phase", "profit", "target", "rules", "trading", "account", "funded", "pass", "fail"];
+  const propscholarTerms = ["drawdown", "payout", "evaluation", "challenge", "scholar", "examinee", "phase", "profit", "target", "rules", "trading", "account", "funded", "pass", "fail", "prop", "firm", "split", "scaling", "verification"];
   if (propscholarTerms.some((term) => lowerContent.includes(term))) return true;
   
-  // Greetings with substance (not just "hi")
-  const greetingStarters = ["hey ", "hi ", "hello ", "yo "];
-  if (greetingStarters.some((g) => lowerContent.startsWith(g)) && lowerContent.length > 10) return true;
+  // Greetings with substance (not just "hi") - "hey how can i breach daily dd" matches this
+  const greetingStarters = ["hey", "hi", "hello", "yo", "sup"];
+  if (greetingStarters.some((g) => lowerContent.startsWith(g)) && lowerContent.length > 8) return true;
   
-  // If message has 4+ words, it's probably worth responding to
+  // If message has 3+ words, it's probably conversational and worth responding to
   const wordCount = lowerContent.split(/\s+/).filter((w) => w.length > 1).length;
-  if (wordCount >= 4) return true;
+  if (wordCount >= 3) return true;
   
   return false;
 }
@@ -627,10 +642,17 @@ async function handleMessage(data: {
   const linkCheck = containsExternalLink(data.content);
   if (linkCheck.hasExternalLink) {
     console.log(`[PS MOD] External link detected from ${data.author.username}: ${linkCheck.links.join(", ")}`);
+    
+    // Delete the message with external link
+    const deleted = await deleteMessage(data.channel_id, data.id);
+    if (deleted) {
+      console.log(`[PS MOD] Deleted spam link message from ${data.author.username}`);
+    }
+    
     // Send warning via DM instead of in channel
     await sendDM(
       data.author.id,
-      `Hey ${data.author.username}! 👋 Just a heads up - only links from the PropScholar website are allowed in the server. If you need to share something, please use propscholar.com links. Thanks for understanding!`
+      `Hey ${data.author.username}! 👋 Just a heads up - only links from the PropScholar website are allowed in the server. Your message was removed. If you need to share something, please use propscholar.com links. Thanks for understanding!`
     );
     return; // Don't process further
   }
