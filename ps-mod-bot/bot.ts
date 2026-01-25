@@ -296,7 +296,12 @@ async function deleteMessage(channelId: string, messageId: string): Promise<bool
       console.log(`[PS MOD] Message ${messageId} deleted successfully`);
       return true;
     } else {
-      console.error("[PS MOD] Failed to delete message:", response.status);
+      const errText = await response.text().catch(() => "");
+      console.error(
+        "[PS MOD] Failed to delete message:",
+        response.status,
+        errText ? `- ${errText}` : ""
+      );
       return false;
     }
   } catch (error) {
@@ -307,8 +312,9 @@ async function deleteMessage(channelId: string, messageId: string): Promise<bool
 
 // Check if message contains non-PropScholar links
 function containsExternalLink(content: string): { hasExternalLink: boolean; links: string[] } {
-  // URL regex pattern
-  const urlRegex = /https?:\/\/[^\s<>\"{}|\\^`\[\]]+/gi;
+  // Match both full URLs and common "www.domain.com/path" / "domain.com/path" patterns.
+  // (Keeps it strict enough to avoid false positives while catching spam links.)
+  const urlRegex = /(https?:\/\/[^\s<>\"{}|\\^`\[\]]+)|\b(?:www\.)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.[a-z]{2,}(?:\/[\S<>\"{}|\\^`\[\]]*)?/gi;
   const matches = content.match(urlRegex) || [];
   
   const externalLinks: string[] = [];
@@ -486,7 +492,8 @@ async function sendMessage(channelId: string, content: string, replyTo?: string)
 async function checkForHumanReply(
   channelId: string,
   afterMessageId: string,
-  afterTimestamp: number
+  afterTimestamp: number,
+  originalAuthorId: string
 ): Promise<boolean> {
   try {
     const response = await fetch(
@@ -502,12 +509,19 @@ async function checkForHumanReply(
 
     const messages = await response.json();
     
-    // Check if any human replied (not a bot)
+    // Check if any human *actually replied to the message* (not just chatted after it)
     for (const msg of messages) {
       if (!msg.author.bot) {
         const msgTime = new Date(msg.timestamp).getTime();
         if (msgTime > afterTimestamp) {
-          return true; // Human replied
+          const repliedToOriginal = msg.message_reference?.message_id === afterMessageId;
+          const mentionsOriginal = Array.isArray(msg.mentions)
+            ? msg.mentions.some((m: { id?: string }) => m?.id === originalAuthorId)
+            : false;
+
+          if (repliedToOriginal || mentionsOriginal) {
+            return true;
+          }
         }
       }
     }
@@ -727,7 +741,12 @@ async function handleMessage(data: {
     pendingResponses.delete(messageKey);
 
     // Check if human replied during the delay
-    const humanReplied = await checkForHumanReply(data.channel_id, data.id, messageTimestamp);
+    const humanReplied = await checkForHumanReply(
+      data.channel_id,
+      data.id,
+      messageTimestamp,
+      data.author.id
+    );
     
     if (humanReplied) {
       console.log(`[PS MOD] Human replied, skipping auto-response`);
