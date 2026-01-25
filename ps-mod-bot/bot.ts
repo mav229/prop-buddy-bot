@@ -273,7 +273,6 @@ async function triggerTypingIndicator(channelId: string): Promise<void> {
         Authorization: `Bot ${DISCORD_TOKEN}`,
       },
     });
-
     if (!response.ok) {
       console.error("[PS MOD] Failed to trigger typing:", response.status);
     } else {
