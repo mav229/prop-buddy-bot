@@ -386,10 +386,66 @@ Be strict but fair - only flag genuinely offensive content.`,
       console.error("[PS MOD] Failed to parse slang detection response:", responseText);
     }
     
-    return { isSlang: false, reason: "" };
+  return { isSlang: false, reason: "" };
   } catch (error) {
     console.error("[PS MOD] Error in slang detection:", error);
     return { isSlang: false, reason: "" };
+  }
+}
+
+// Create DM channel with a user
+async function createDMChannel(userId: string): Promise<string | null> {
+  try {
+    const response = await fetch(`${DISCORD_API}/users/@me/channels`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bot ${DISCORD_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ recipient_id: userId }),
+    });
+
+    if (!response.ok) {
+      console.error("[PS MOD] Failed to create DM channel:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    return data.id;
+  } catch (error) {
+    console.error("[PS MOD] Error creating DM channel:", error);
+    return null;
+  }
+}
+
+// Send a DM to a user
+async function sendDM(userId: string, content: string): Promise<boolean> {
+  const dmChannelId = await createDMChannel(userId);
+  if (!dmChannelId) {
+    console.error("[PS MOD] Could not create DM channel for user:", userId);
+    return false;
+  }
+
+  try {
+    const response = await fetch(`${DISCORD_API}/channels/${dmChannelId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bot ${DISCORD_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ content }),
+    });
+
+    if (!response.ok) {
+      console.error("[PS MOD] Failed to send DM:", response.status);
+      return false;
+    }
+
+    console.log("[PS MOD] DM sent successfully to user:", userId);
+    return true;
+  } catch (error) {
+    console.error("[PS MOD] Error sending DM:", error);
+    return false;
   }
 }
 
@@ -571,10 +627,10 @@ async function handleMessage(data: {
   const linkCheck = containsExternalLink(data.content);
   if (linkCheck.hasExternalLink) {
     console.log(`[PS MOD] External link detected from ${data.author.username}: ${linkCheck.links.join(", ")}`);
-    await sendMessage(
-      data.channel_id,
-      `Hey ${data.author.username}! 👋 Just a heads up - only links from the PropScholar website are allowed here. If you need to share something, please use propscholar.com links. Thanks for understanding!`,
-      data.id
+    // Send warning via DM instead of in channel
+    await sendDM(
+      data.author.id,
+      `Hey ${data.author.username}! 👋 Just a heads up - only links from the PropScholar website are allowed in the server. If you need to share something, please use propscholar.com links. Thanks for understanding!`
     );
     return; // Don't process further
   }
