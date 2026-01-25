@@ -640,13 +640,20 @@ async function handleMessage(data: {
     const slangCheck = await detectSlang(data.content);
     if (slangCheck.isSlang) {
       console.log(`[PS MOD] Slang/profanity detected from ${data.author.username}: ${slangCheck.reason}`);
+      
+      // Delete the offensive message
       const deleted = await deleteMessage(data.channel_id, data.id);
+      
+      // Send warning via DM instead of in channel
+      await sendDM(
+        data.author.id,
+        `Hey ${data.author.username}! 👋 Your message was removed because it contained inappropriate language. Let's keep things respectful and professional in the server. Thanks for understanding! 🙏`
+      );
+      
       if (deleted) {
-        await sendMessage(
-          data.channel_id,
-          `Hey ${data.author.username}, let's keep the chat respectful and professional. Your message was removed. Thanks for understanding! 🙏`
-        );
+        console.log(`[PS MOD] Deleted offensive message from ${data.author.username}`);
       }
+      
       return; // Don't process further
     }
   }
