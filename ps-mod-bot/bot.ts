@@ -283,6 +283,116 @@ async function triggerTypingIndicator(channelId: string): Promise<void> {
   }
 }
 
+// Delete a message by ID
+async function deleteMessage(channelId: string, messageId: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${DISCORD_API}/channels/${channelId}/messages/${messageId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bot ${DISCORD_TOKEN}`,
+      },
+    });
+    if (response.ok || response.status === 204) {
+      console.log(`[PS MOD] Message ${messageId} deleted successfully`);
+      return true;
+    } else {
+      console.error("[PS MOD] Failed to delete message:", response.status);
+      return false;
+    }
+  } catch (error) {
+    console.error("[PS MOD] Error deleting message:", error);
+    return false;
+  }
+}
+
+// Check if message contains non-PropScholar links
+function containsExternalLink(content: string): { hasExternalLink: boolean; links: string[] } {
+  // URL regex pattern
+  const urlRegex = /https?:\/\/[^\s<>\"{}|\\^`\[\]]+/gi;
+  const matches = content.match(urlRegex) || [];
+  
+  const externalLinks: string[] = [];
+  for (const url of matches) {
+    const lowerUrl = url.toLowerCase();
+    // Allow PropScholar links
+    if (lowerUrl.includes("propscholar.com") || lowerUrl.includes("propscholar.io")) {
+      continue;
+    }
+    // Allow Discord CDN/media
+    if (lowerUrl.includes("discord.com") || lowerUrl.includes("discordapp.com") || lowerUrl.includes("cdn.discordapp.net")) {
+      continue;
+    }
+    // Allow common media platforms that might be used in discussions
+    if (lowerUrl.includes("imgur.com") || lowerUrl.includes("giphy.com")) {
+      continue;
+    }
+    externalLinks.push(url);
+  }
+  
+  return { hasExternalLink: externalLinks.length > 0, links: externalLinks };
+}
+
+// Use AI to detect if message contains slang/profanity
+async function detectSlang(content: string): Promise<{ isSlang: boolean; reason: string }> {
+  try {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/discord-bot`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        message: content,
+        mode: "slang-detection",
+        systemPromptOverride: `You are a content moderation AI. Analyze the following message and determine if it contains:
+- Profanity, slurs, or offensive language
+- Excessive vulgar slang
+- Hate speech or discriminatory language
+- Inappropriate sexual content
+
+DO NOT flag:
+- Normal casual language like "gonna", "wanna", "sup", "bro", "dude"
+- Trading terminology or crypto slang
+- Mild expressions like "damn", "hell", "crap"
+- Normal internet abbreviations like "lol", "lmao", "brb"
+
+Respond with ONLY a JSON object in this exact format:
+{"isSlang": true/false, "reason": "brief explanation if true, empty if false"}
+
+Be strict but fair - only flag genuinely offensive content.`,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("[PS MOD] Slang detection error:", response.status);
+      return { isSlang: false, reason: "" };
+    }
+
+    const data = await response.json();
+    const responseText = data.response || "";
+    
+    // Parse the JSON response
+    try {
+      // Extract JSON from response (in case there's extra text)
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return { 
+          isSlang: parsed.isSlang === true, 
+          reason: parsed.reason || "" 
+        };
+      }
+    } catch {
+      console.error("[PS MOD] Failed to parse slang detection response:", responseText);
+    }
+    
+    return { isSlang: false, reason: "" };
+  } catch (error) {
+    console.error("[PS MOD] Error in slang detection:", error);
+    return { isSlang: false, reason: "" };
+  }
+}
+
 async function sendMessage(channelId: string, content: string, replyTo?: string): Promise<void> {
   const chunks = content.match(/[\s\S]{1,1900}/g) || [content];
 
@@ -457,6 +567,36 @@ async function handleMessage(data: {
   // Ignore bot messages
   if (data.author.bot) return;
 
+  // ===== MODERATION: Check for external links =====
+  const linkCheck = containsExternalLink(data.content);
+  if (linkCheck.hasExternalLink) {
+    console.log(`[PS MOD] External link detected from ${data.author.username}: ${linkCheck.links.join(", ")}`);
+    await sendMessage(
+      data.channel_id,
+      `Hey ${data.author.username}! 👋 Just a heads up - only links from the PropScholar website are allowed here. If you need to share something, please use propscholar.com links. Thanks for understanding!`,
+      data.id
+    );
+    return; // Don't process further
+  }
+
+  // ===== MODERATION: Check for slang/profanity using AI =====
+  if (data.content.length > 2) { // Only check messages with substance
+    const slangCheck = await detectSlang(data.content);
+    if (slangCheck.isSlang) {
+      console.log(`[PS MOD] Slang/profanity detected from ${data.author.username}: ${slangCheck.reason}`);
+      const deleted = await deleteMessage(data.channel_id, data.id);
+      if (deleted) {
+        await sendMessage(
+          data.channel_id,
+          `Hey ${data.author.username}, let's keep the chat respectful and professional. Your message was removed. Thanks for understanding! 🙏`
+        );
+      }
+      return; // Don't process further
+    }
+  }
+
+  // ===== REGULAR BOT LOGIC =====
+  
   // Ignore moderators and owner (unless they tag the bot)
   const isMentioned = data.mentions?.some((m) => m.id === botUserId);
   if (shouldIgnoreUser(data) && !isMentioned) {
