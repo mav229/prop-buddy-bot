@@ -1,14 +1,16 @@
 /**
- * Discord Gateway Bot - Dual Mode: Scholaris (@mention) + Autobot (auto-reply)
- * Version: 3.0.0 - Autobot Integration
- * Last Updated: 2025-01-24
+ * Discord Gateway Bot - Dual Mode: Scholaris (@mention) + Schola (auto-reply + moderation)
+ * Version: 4.0.0 - Schola Integration
+ * Last Updated: 2026-01-26
  * 
  * Features:
  * - Scholaris: Responds when @mentioned (always active)
- * - Autobot: Auto-replies to all messages after delay (toggleable)
+ * - Schola: Auto-replies to questions after delay (toggleable via ps_mod_settings)
+ * - Link spam detection + deletion + DM warning
+ * - AI-powered slang/profanity detection
  * - Per-user memory (20 messages)
  * - Reply-to message context
- * - Professional human tone for autobot
+ * - Smart response triggers (questions without ? mark)
  * 
  * Deploy this on Railway, Render, or Fly.io
  * Requires: Deno runtime
@@ -27,15 +29,19 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const DISCORD_API_BASE = "https://discord.com/api/v10";
 const DISCORD_GATEWAY_URL = "wss://gateway.discord.gg/?v=10&encoding=json";
 
-// Intents: GUILDS (1) + GUILD_MESSAGES (512) + MESSAGE_CONTENT (32768)
-const INTENTS = 1 | 512 | 32768;
+// Intents: GUILDS (1) + GUILD_MESSAGES (512) + MESSAGE_CONTENT (32768) + GUILD_MEMBERS (2)
+const INTENTS = 1 | 2 | 512 | 32768;
+
+// Moderator role names to ignore (case-insensitive)
+const MODERATOR_ROLES = ["moderator", "mod", "admin", "staff", "support", "helper", "propscholar"];
+const OWNER_USERNAME = "propscholar";
 
 // Render "Web Service" expects an HTTP server + health check.
 const PORT = Number(Deno.env.get("PORT") ?? "10000");
 Deno.serve({ port: PORT }, (req) => {
   const url = new URL(req.url);
   if (url.pathname === "/healthz") return new Response("ok", { status: 200 });
-  return new Response("ScholaX Discord bot running (Dual Mode)", { status: 200 });
+  return new Response("ScholaX Discord bot running (Scholaris + Schola)", { status: 200 });
 });
 
 let ws: WebSocket | null = null;
@@ -45,25 +51,26 @@ let resumeGatewayUrl: string | null = null;
 let sequence: number | null = null;
 let botUserId: string | null = null;
 
-// Cache for autobot settings (refresh every 30 seconds)
-let autobotSettings: { is_enabled: boolean; delay_seconds: number; bot_name: string } | null = null;
-let autobotSettingsLastFetch = 0;
-const AUTOBOT_CACHE_TTL = 30000; // 30 seconds
+// Cache for Schola settings (refresh every 30 seconds)
+let scholaSettings: { is_enabled: boolean; delay_seconds: number; bot_name: string } | null = null;
+let scholaSettingsLastFetch = 0;
+const SCHOLA_CACHE_TTL = 30000; // 30 seconds
 
-// Track pending autobot responses to avoid duplicates
-const pendingAutobotResponses = new Map<string, NodeJS.Timeout>();
+// Track pending Schola responses to avoid duplicates
+const pendingScholaResponses = new Map<string, number>();
 
-// Fetch autobot settings from Supabase
-async function getAutobotSettings(): Promise<{ is_enabled: boolean; delay_seconds: number; bot_name: string }> {
+// ============ SCHOLA SETTINGS ============
+
+async function getScholaSettings(): Promise<{ is_enabled: boolean; delay_seconds: number; bot_name: string }> {
   const now = Date.now();
   
   // Return cached if valid
-  if (autobotSettings && now - autobotSettingsLastFetch < AUTOBOT_CACHE_TTL) {
-    return autobotSettings;
+  if (scholaSettings && now - scholaSettingsLastFetch < SCHOLA_CACHE_TTL) {
+    return scholaSettings;
   }
   
   try {
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/autobot_settings?limit=1`, {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/ps_mod_settings?limit=1`, {
       headers: {
         "apikey": SUPABASE_ANON_KEY,
         "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
@@ -73,24 +80,26 @@ async function getAutobotSettings(): Promise<{ is_enabled: boolean; delay_second
     if (response.ok) {
       const data = await response.json();
       if (data && data.length > 0) {
-        autobotSettings = {
+        scholaSettings = {
           is_enabled: data[0].is_enabled,
-          delay_seconds: data[0].delay_seconds || 120,
-          bot_name: data[0].bot_name || "PropScholar Assistant",
+          delay_seconds: data[0].delay_seconds || 30,
+          bot_name: data[0].bot_name || "Schola",
         };
-        autobotSettingsLastFetch = now;
-        return autobotSettings;
+        scholaSettingsLastFetch = now;
+        console.log(`[Schola] Settings loaded: enabled=${scholaSettings.is_enabled}, delay=${scholaSettings.delay_seconds}s`);
+        return scholaSettings;
       }
     }
   } catch (e) {
-    console.error("Error fetching autobot settings:", e);
+    console.error("[Schola] Error fetching settings:", e);
   }
   
   // Default: disabled
-  return { is_enabled: false, delay_seconds: 120, bot_name: "PropScholar Assistant" };
+  return { is_enabled: false, delay_seconds: 30, bot_name: "Schola" };
 }
 
-// Get AI response for Scholaris (main bot, @mention mode)
+// ============ SCHOLARIS AI (MAIN BOT - @MENTION) ============
+
 async function getScholarsAIResponse(
   message: string,
   discordUserId: string,
@@ -133,17 +142,17 @@ async function getScholarsAIResponse(
   }
 }
 
-// Get AI response for Autobot (auto-reply mode) - professional human tone
-async function getAutobotAIResponse(
+// ============ SCHOLA AI (AUTO-REPLY - PS MOD MODE) ============
+
+async function getScholaAIResponse(
   message: string,
   discordUserId: string,
   username: string,
-  displayName?: string,
-  repliedToContent?: string,
-  repliedToAuthor?: string
-): Promise<string> {
+  channelId: string,
+  displayName?: string
+): Promise<string | null> {
   try {
-    console.log(`[Autobot] Calling edge function for ${username} (${discordUserId})...`);
+    console.log(`[Schola] Calling edge function for ${username}...`);
 
     const response = await fetch(`${SUPABASE_URL}/functions/v1/discord-bot`, {
       method: "POST",
@@ -152,31 +161,31 @@ async function getAutobotAIResponse(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        action: "autobot_message",
+        action: "ps_mod_message",
+        message,
         discordUserId,
         username,
         displayName,
-        message,
-        repliedToContent,
-        repliedToAuthor,
+        channelId,
+        mode: "ps-mod",
       }),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("[Autobot] Edge function error:", response.status, errorText);
-      return "I noticed your question! Let me help - though if you need more details, feel free to tag our team.";
+      console.error("[Schola] AI response error:", response.status);
+      return null;
     }
 
     const data = await response.json();
-    return data.response || "I'm here to help! Could you provide a bit more detail about what you're looking for?";
-  } catch (e) {
-    console.error("[Autobot] AI request error:", e);
-    return "I noticed your question! Let me try to help - please give me a moment.";
+    return data.response || null;
+  } catch (error) {
+    console.error("[Schola] Error getting AI response:", error);
+    return null;
   }
 }
 
-// Fetch a specific message by ID (for replied-to messages)
+// ============ DISCORD API HELPERS ============
+
 async function fetchMessage(channelId: string, messageId: string): Promise<Record<string, unknown> | null> {
   try {
     const response = await fetch(`${DISCORD_API_BASE}/channels/${channelId}/messages/${messageId}`, {
@@ -196,35 +205,10 @@ async function fetchMessage(channelId: string, messageId: string): Promise<Recor
   }
 }
 
-// Check if any human replied to a message after it was sent
-async function checkForHumanReply(channelId: string, afterMessageId: string): Promise<boolean> {
-  try {
-    const response = await fetch(
-      `${DISCORD_API_BASE}/channels/${channelId}/messages?after=${afterMessageId}&limit=20`,
-      {
-        headers: {
-          "Authorization": `Bot ${DISCORD_BOT_TOKEN}`,
-        },
-      }
-    );
-
-    if (!response.ok) return false;
-    
-    const messages = await response.json();
-    // Check if any non-bot user replied
-    return messages.some((msg: any) => !msg.author?.bot);
-  } catch (e) {
-    console.error("Error checking for human reply:", e);
-    return false;
-  }
-}
-
-// Send message to Discord channel
 async function sendMessage(channelId: string, content: string, replyToMessageId?: string): Promise<void> {
   const MAX_LENGTH = 2000;
   const chunks: string[] = [];
 
-  // Split message if too long
   let remaining = content;
   while (remaining.length > 0) {
     if (remaining.length <= MAX_LENGTH) {
@@ -245,7 +229,6 @@ async function sendMessage(channelId: string, content: string, replyToMessageId?
   for (let i = 0; i < chunks.length; i++) {
     const body: Record<string, unknown> = { content: chunks[i] };
     
-    // Only reply to the first chunk
     if (i === 0 && replyToMessageId) {
       body.message_reference = { message_id: replyToMessageId };
     }
@@ -264,93 +247,366 @@ async function sendMessage(channelId: string, content: string, replyToMessageId?
       console.error("Failed to send message:", error);
     }
 
-    // Small delay between chunks
     if (i < chunks.length - 1) {
       await new Promise((r) => setTimeout(r, 500));
     }
   }
 }
 
-// Check if bot is mentioned in the message
-function isBotMentioned(content: string, mentions: Array<{ id: string }>): boolean {
-  if (!botUserId) return false;
-  
-  // Check mentions array
-  if (mentions?.some((m) => m.id === botUserId)) {
+async function deleteMessage(channelId: string, messageId: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${DISCORD_API_BASE}/channels/${channelId}/messages/${messageId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+      },
+    });
+    if (response.ok || response.status === 204) {
+      console.log(`[Schola] ✅ Message ${messageId} deleted`);
+      return true;
+    } else {
+      const errText = await response.text().catch(() => "");
+      console.error(`[Schola] ❌ Failed to delete message: ${response.status} ${errText}`);
+      return false;
+    }
+  } catch (error) {
+    console.error("[Schola] Error deleting message:", error);
+    return false;
+  }
+}
+
+async function createDMChannel(userId: string): Promise<string | null> {
+  try {
+    const response = await fetch(`${DISCORD_API_BASE}/users/@me/channels`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ recipient_id: userId }),
+    });
+
+    if (!response.ok) {
+      console.error("[Schola] Failed to create DM channel:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    return data.id;
+  } catch (error) {
+    console.error("[Schola] Error creating DM channel:", error);
+    return null;
+  }
+}
+
+async function sendDM(userId: string, content: string): Promise<boolean> {
+  const dmChannelId = await createDMChannel(userId);
+  if (!dmChannelId) return false;
+
+  try {
+    const response = await fetch(`${DISCORD_API_BASE}/channels/${dmChannelId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ content }),
+    });
+
+    if (!response.ok) {
+      console.error("[Schola] Failed to send DM:", response.status);
+      return false;
+    }
+
+    console.log("[Schola] ✅ DM sent to user:", userId);
     return true;
+  } catch (error) {
+    console.error("[Schola] Error sending DM:", error);
+    return false;
+  }
+}
+
+async function triggerTyping(channelId: string): Promise<void> {
+  try {
+    await fetch(`${DISCORD_API_BASE}/channels/${channelId}/typing`, {
+      method: "POST",
+      headers: { "Authorization": `Bot ${DISCORD_BOT_TOKEN}` },
+    });
+  } catch {}
+}
+
+// ============ MODERATION: LINK DETECTION ============
+
+function containsExternalLink(content: string): { hasExternalLink: boolean; links: string[] } {
+  const urlRegex = /(https?:\/\/[^\s<>\"{}|\\^`\[\]]+)|\b(?:www\.)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.[a-z]{2,}(?:\/[^\s<>\"{}|\\^`\[\]]*)?/gi;
+  const matches = content.match(urlRegex) || [];
+  
+  const externalLinks: string[] = [];
+  for (const url of matches) {
+    const lowerUrl = url.toLowerCase();
+    // Whitelist
+    if (lowerUrl.includes("propscholar.com") || lowerUrl.includes("propscholar.io")) continue;
+    if (lowerUrl.includes("discord.com") || lowerUrl.includes("discordapp.com") || lowerUrl.includes("cdn.discordapp.net")) continue;
+    if (lowerUrl.includes("imgur.com") || lowerUrl.includes("giphy.com")) continue;
+    externalLinks.push(url);
   }
   
-  // Check content for <@BOT_ID> pattern
+  return { hasExternalLink: externalLinks.length > 0, links: externalLinks };
+}
+
+// ============ MODERATION: SLANG DETECTION ============
+
+async function detectSlang(content: string): Promise<{ isSlang: boolean; reason: string }> {
+  try {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/discord-bot`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        message: content,
+        mode: "slang-detection",
+        systemPromptOverride: `You are a content moderation AI. Analyze the following message and determine if it contains:
+- Profanity, slurs, or offensive language
+- Excessive vulgar slang
+- Hate speech or discriminatory language
+- Inappropriate sexual content
+
+DO NOT flag:
+- Normal casual language like "gonna", "wanna", "sup", "bro", "dude"
+- Trading terminology or crypto slang
+- Mild expressions like "damn", "hell", "crap"
+- Normal internet abbreviations like "lol", "lmao", "brb"
+
+Respond with ONLY a JSON object in this exact format:
+{"isSlang": true/false, "reason": "brief explanation if true, empty if false"}
+
+Be strict but fair - only flag genuinely offensive content.`,
+      }),
+    });
+
+    if (!response.ok) return { isSlang: false, reason: "" };
+
+    const data = await response.json();
+    const responseText = data.response || "";
+    
+    try {
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return { isSlang: parsed.isSlang === true, reason: parsed.reason || "" };
+      }
+    } catch {}
+    
+    return { isSlang: false, reason: "" };
+  } catch {
+    return { isSlang: false, reason: "" };
+  }
+}
+
+// ============ SMART RESPONSE DETECTION ============
+
+function needsResponse(content: string): boolean {
+  const lowerContent = content.toLowerCase().trim();
+  
+  if (lowerContent.length < 3) return false;
+  
+  // Skip emoji-only messages
+  const emojiOnlyRegex = /^[\p{Emoji}\s]+$/u;
+  if (emojiOnlyRegex.test(content)) return false;
+  
+  // Skip single-word acknowledgments
+  const skipWords = ["ok", "okay", "k", "yes", "no", "yep", "nope", "ya", "na", "sure", "cool", "nice", "thanks", "thx", "ty", "lol", "lmao", "haha", "hehe", "xd", "gg", "rip", "oof"];
+  if (skipWords.includes(lowerContent)) return false;
+  
+  // Explicit question mark
+  if (content.includes("?")) return true;
+  
+  // Question starters
+  const questionStarters = ["how", "what", "when", "where", "why", "who", "which", "can i", "can you", "could i", "could you", "would", "should", "is there", "are there", "do i", "does", "will", "have", "has"];
+  if (questionStarters.some((w) => lowerContent.startsWith(w))) return true;
+  
+  // Question patterns mid-sentence
+  const questionPatterns = [
+    /\bhow\s+(can|do|to|does|did|would|should|will)\b/,
+    /\bwhat\s+(is|are|do|does|can|should|would)\b/,
+    /\bwhere\s+(is|are|do|does|can|should)\b/,
+    /\bwhen\s+(is|are|do|does|can|should|will)\b/,
+    /\bwhy\s+(is|are|do|does|can|should|would|did)\b/,
+    /\bcan\s+(i|you|we|someone|anyone)\b/,
+    /\bwho\s+(is|are|can|should|would)\b/,
+    /\banyone\s+(know|here|can|help)\b/,
+    /\bis\s+(it|this|that|there)\b.*\b(possible|allowed|okay|ok|available|working)\b/,
+  ];
+  if (questionPatterns.some((pattern) => pattern.test(lowerContent))) return true;
+  
+  // Direct requests
+  const directRequests = ["tell me", "explain to me", "show me", "need help", "i need", "i want", "please help", "help me"];
+  if (directRequests.some((r) => lowerContent.includes(r))) return true;
+  
+  // Scam/trust concerns - ALWAYS respond
+  const scamKeywords = ["scam", "fake", "fraud", "legit", "real", "trust", "suspicious", "sketchy", "stolen", "refund", "ripped", "cheated"];
+  if (scamKeywords.some((kw) => lowerContent.includes(kw))) return true;
+  
+  // Account/technical issues - ALWAYS respond  
+  const issueKeywords = ["breach", "hacked", "login", "password", "account", "suspended", "banned", "error", "failed", "broken", "not working", "issue", "problem", "bug", "dd", "daily drawdown", "max dd"];
+  if (issueKeywords.some((kw) => lowerContent.includes(kw))) return true;
+  
+  // Emotional/frustration keywords
+  const emotionKeywords = ["frustrated", "annoyed", "angry", "upset", "confused", "stuck", "lost", "help", "wtf", "ridiculous", "unfair", "struggling"];
+  if (emotionKeywords.some((kw) => lowerContent.includes(kw))) return true;
+  
+  // PropScholar-specific terms
+  const propscholarTerms = ["drawdown", "payout", "evaluation", "challenge", "scholar", "examinee", "phase", "profit", "target", "rules", "trading", "funded", "pass", "fail", "prop", "firm", "split", "scaling", "verification"];
+  if (propscholarTerms.some((term) => lowerContent.includes(term))) return true;
+  
+  // Greetings with substance
+  const greetingStarters = ["hey", "hi", "hello", "yo", "sup"];
+  if (greetingStarters.some((g) => lowerContent.startsWith(g)) && lowerContent.length > 8) return true;
+  
+  // 3+ words is probably conversational
+  const wordCount = lowerContent.split(/\s+/).filter((w) => w.length > 1).length;
+  if (wordCount >= 3) return true;
+  
+  return false;
+}
+
+// Check if user is moderator/owner
+function shouldIgnoreUser(data: { author: { username: string }; member?: { nick?: string } }): boolean {
+  const username = data.author.username.toLowerCase();
+  const nickname = data.member?.nick?.toLowerCase() || "";
+  
+  if (username === OWNER_USERNAME || nickname === OWNER_USERNAME) return true;
+  
+  for (const modRole of MODERATOR_ROLES) {
+    if (username.includes(modRole) || nickname.includes(modRole)) return true;
+  }
+  
+  return false;
+}
+
+// Check if human specifically replied to a message
+async function checkForHumanReply(channelId: string, afterMessageId: string, afterTimestamp: number, originalAuthorId: string): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `${DISCORD_API_BASE}/channels/${channelId}/messages?after=${afterMessageId}&limit=10`,
+      { headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` } }
+    );
+
+    if (!response.ok) return false;
+
+    const messages = await response.json();
+    
+    for (const msg of messages) {
+      if (!msg.author.bot) {
+        const msgTime = new Date(msg.timestamp).getTime();
+        if (msgTime > afterTimestamp) {
+          const repliedToOriginal = msg.message_reference?.message_id === afterMessageId;
+          const mentionsOriginal = Array.isArray(msg.mentions) && msg.mentions.some((m: any) => m?.id === originalAuthorId);
+          if (repliedToOriginal || mentionsOriginal) return true;
+        }
+      }
+    }
+  } catch {}
+  return false;
+}
+
+// ============ BOT MENTION CHECK ============
+
+function isBotMentioned(content: string, mentions: Array<{ id: string }>): boolean {
+  if (!botUserId) return false;
+  if (mentions?.some((m) => m.id === botUserId)) return true;
   return content.includes(`<@${botUserId}>`) || content.includes(`<@!${botUserId}>`);
 }
 
-// Clean the mention from the message
 function cleanMention(content: string): string {
   if (!botUserId) return content;
-  return content
-    .replace(new RegExp(`<@!?${botUserId}>`, "g"), "")
-    .trim();
+  return content.replace(new RegExp(`<@!?${botUserId}>`, "g"), "").trim();
 }
 
-// Check if message looks like a question
-function isQuestion(content: string): boolean {
-  const questionPatterns = [
-    /\?$/,
-    /^(what|how|why|when|where|who|which|can|could|would|should|is|are|do|does|will|have|has)/i,
-    /help/i,
-    /explain/i,
-    /tell me/i,
-    /need to know/i,
-  ];
-  
-  return questionPatterns.some(pattern => pattern.test(content.trim()));
-}
+// ============ MAIN MESSAGE HANDLER ============
 
-// Handle incoming message
 async function handleMessage(data: Record<string, unknown>): Promise<void> {
-  const author = data.author as { id: string; username?: string; global_name?: string; bot?: boolean } | undefined;
+  const author = data.author as { id: string; username: string; global_name?: string; bot?: boolean } | undefined;
   const content = data.content as string | undefined;
   const channelId = data.channel_id as string | undefined;
   const messageId = data.id as string | undefined;
   const mentions = data.mentions as Array<{ id: string }> | undefined;
   const messageReference = data.message_reference as { message_id?: string } | undefined;
+  const member = data.member as { roles?: string[]; nick?: string } | undefined;
+  const timestamp = data.timestamp as string | undefined;
 
   // Ignore bot messages
   if (author?.bot) return;
-
   if (!content || !channelId || !messageId || !author?.id) return;
 
+  console.log(`[Bot] MESSAGE: "${content.substring(0, 80)}" from ${author.username}`);
+
   const botMentioned = isBotMentioned(content, mentions || []);
+
+  // =====================
+  // MODERATION: Link spam detection
+  // =====================
+  const linkCheck = containsExternalLink(content);
+  if (linkCheck.hasExternalLink) {
+    console.log(`[Schola] ⚠️ External link detected from ${author.username}: ${linkCheck.links.join(", ")}`);
+    
+    // Delete the message
+    await deleteMessage(channelId, messageId);
+    
+    // Send DM warning
+    await sendDM(author.id, 
+      `Hey ${author.username}! 👋\n\n` +
+      `Just a heads up - we don't allow external links in the PropScholar Discord to keep our community safe from spam and scams.\n\n` +
+      `Your message was removed, but no worries - you're not in trouble! If you have a legitimate reason to share a link, please reach out to a moderator. 🙏\n\n` +
+      `Thanks for understanding! 💙`
+    );
+    return;
+  }
+
+  // =====================
+  // MODERATION: Slang/profanity detection
+  // =====================
+  const slangCheck = await detectSlang(content);
+  if (slangCheck.isSlang) {
+    console.log(`[Schola] ⚠️ Slang/profanity detected from ${author.username}: ${slangCheck.reason}`);
+    
+    await deleteMessage(channelId, messageId);
+    
+    await sendDM(author.id,
+      `Hey ${author.username}! 👋\n\n` +
+      `Your message was removed because it contained language that doesn't align with our community guidelines.\n\n` +
+      `Reason: ${slangCheck.reason}\n\n` +
+      `We want to keep PropScholar a friendly and professional space for all traders. Thanks for keeping it clean! 🙏`
+    );
+    return;
+  }
 
   // =====================
   // CASE 1: Scholaris Mode - Bot is @mentioned
   // =====================
   if (botMentioned) {
-    console.log(`[Scholaris] Bot mentioned by ${author.username} (${author.id}) in channel ${channelId}`);
+    console.log(`[Scholaris] ✅ Mentioned by ${author.username} - responding immediately`);
     
-    // Cancel any pending autobot response for this message
-    if (pendingAutobotResponses.has(messageId)) {
-      clearTimeout(pendingAutobotResponses.get(messageId));
-      pendingAutobotResponses.delete(messageId);
+    // Cancel any pending Schola response
+    if (pendingScholaResponses.has(messageId)) {
+      clearTimeout(pendingScholaResponses.get(messageId));
+      pendingScholaResponses.delete(messageId);
     }
 
-    // Clean the message (remove mention)
     const cleanedMessage = cleanMention(content);
     
-    // Fetch replied-to message if this is a reply
     let repliedToContent: string | undefined;
     let repliedToAuthor: string | undefined;
     if (messageReference?.message_id) {
-      console.log(`Message is a reply to: ${messageReference.message_id}`);
       const repliedMsg = await fetchMessage(channelId, messageReference.message_id);
       if (repliedMsg) {
         repliedToContent = repliedMsg.content as string;
-        const repliedAuthorObj = repliedMsg.author as { username?: string } | undefined;
-        repliedToAuthor = repliedAuthorObj?.username || "Unknown User";
+        repliedToAuthor = (repliedMsg.author as any)?.username || "Unknown";
       }
     }
     
-    // If user just mentioned bot with no text but replied to a message, use that as the question
     let questionToAsk = cleanedMessage;
     if (!questionToAsk && repliedToContent) {
       questionToAsk = `Please answer this question: "${repliedToContent}"`;
@@ -361,96 +617,88 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
       return;
     }
 
-    // Show typing indicator
-    await fetch(`${DISCORD_API_BASE}/channels/${channelId}/typing`, {
-      method: "POST",
-      headers: { "Authorization": `Bot ${DISCORD_BOT_TOKEN}` },
-    });
+    await triggerTyping(channelId);
 
-    // Get AI response via Scholaris edge function
     const response = await getScholarsAIResponse(
       questionToAsk,
       author.id,
-      author.username || "User",
+      author.username,
       author.global_name,
       repliedToContent,
       repliedToAuthor
     );
 
     await sendMessage(channelId, response, messageId);
-    console.log("[Scholaris] Response sent successfully");
+    console.log("[Scholaris] ✅ Response sent");
     return;
   }
 
   // =====================
-  // CASE 2: Autobot Mode - Auto-reply to questions (if enabled)
+  // CASE 2: Schola Mode - Auto-reply (if enabled)
   // =====================
-  const settings = await getAutobotSettings();
+  const settings = await getScholaSettings();
   
   if (!settings.is_enabled) {
-    // Autobot disabled, ignore non-mention messages
     return;
   }
 
-  // Only respond to messages that look like questions
-  if (!isQuestion(content)) {
+  // Ignore moderators/owner unless they mention the bot
+  if (shouldIgnoreUser({ author, member })) {
+    console.log(`[Schola] ⏭️ Skipping mod/owner: ${author.username}`);
     return;
   }
 
-  console.log(`[Autobot] Question detected from ${author.username}, waiting ${settings.delay_seconds}s before responding...`);
+  // Check if message needs response
+  if (!needsResponse(content)) {
+    console.log(`[Schola] ⏭️ Message doesn't need response: "${content.substring(0, 50)}"`);
+    return;
+  }
+
+  console.log(`[Schola] ✅ Will respond to ${author.username} in ${settings.delay_seconds}s`);
+
+  const messageTimestamp = new Date(timestamp || Date.now()).getTime();
 
   // Schedule delayed response
   const timeout = setTimeout(async () => {
-    pendingAutobotResponses.delete(messageId);
+    pendingScholaResponses.delete(messageId);
     
-    // Check if someone (human) already replied
-    const humanReplied = await checkForHumanReply(channelId, messageId);
+    // Check if human replied
+    const humanReplied = await checkForHumanReply(channelId, messageId, messageTimestamp, author.id);
     if (humanReplied) {
-      console.log(`[Autobot] Human replied during wait - staying silent`);
+      console.log(`[Schola] ⏭️ Human replied - staying silent`);
       return;
     }
 
-    // Fetch replied-to context if applicable
-    let repliedToContent: string | undefined;
-    let repliedToAuthor: string | undefined;
-    if (messageReference?.message_id) {
-      const repliedMsg = await fetchMessage(channelId, messageReference.message_id);
-      if (repliedMsg) {
-        repliedToContent = repliedMsg.content as string;
-        const repliedAuthorObj = repliedMsg.author as { username?: string } | undefined;
-        repliedToAuthor = repliedAuthorObj?.username || "Unknown User";
-      }
-    }
+    await triggerTyping(channelId);
 
-    // Show typing indicator
-    await fetch(`${DISCORD_API_BASE}/channels/${channelId}/typing`, {
-      method: "POST",
-      headers: { "Authorization": `Bot ${DISCORD_BOT_TOKEN}` },
-    });
-
-    // Get AI response via Autobot edge function
-    const response = await getAutobotAIResponse(
+    const response = await getScholaAIResponse(
       content,
       author.id,
-      author.username || "User",
-      author.global_name,
-      repliedToContent,
-      repliedToAuthor
+      author.username,
+      channelId,
+      author.global_name
     );
 
-    await sendMessage(channelId, response, messageId);
-    console.log("[Autobot] Response sent successfully");
+    if (response) {
+      await sendMessage(channelId, response, messageId);
+      console.log(`[Schola] ✅ Response sent to ${author.username}`);
+    } else {
+      console.error("[Schola] ❌ AI returned empty response");
+    }
   }, settings.delay_seconds * 1000);
 
-  pendingAutobotResponses.set(messageId, timeout);
+  pendingScholaResponses.set(messageId, timeout);
 }
 
-// Send heartbeat
+// ============ HEARTBEAT ============
+
 function sendHeartbeat(): void {
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ op: 1, d: sequence }));
   }
 }
+
+// ============ RECONNECTION LOGIC ============
 
 let reconnectTimeout: number | null = null;
 let reconnectAttempts = 0;
@@ -491,7 +739,8 @@ function safeClose(code = 1000, reason = "closing"): void {
   }
 }
 
-// Connect to Discord Gateway
+// ============ CONNECT TO GATEWAY ============
+
 function connect(): void {
   if (isConnecting) {
     console.log("connect() ignored - already connecting");
@@ -504,7 +753,6 @@ function connect(): void {
   const url = resumeGatewayUrl || DISCORD_GATEWAY_URL;
   console.log(`Connecting to Discord Gateway: ${url}`);
 
-  // Ensure we never keep multiple sockets around
   safeClose(1000, "reconnecting");
 
   ws = new WebSocket(url);
@@ -526,31 +774,23 @@ function connect(): void {
 
     const { op, t, s, d } = payload;
 
-    // Update sequence number
     if (s) sequence = s;
 
     switch (op) {
-      case 10: { // Hello
+      case 10: {
         const heartbeatIntervalMs = d.heartbeat_interval;
         console.log(`Received Hello, heartbeat interval: ${heartbeatIntervalMs}ms`);
 
-        // Start heartbeat
         if (heartbeatInterval) clearInterval(heartbeatInterval);
         heartbeatInterval = setInterval(sendHeartbeat, heartbeatIntervalMs);
 
-        // Send initial heartbeat
         sendHeartbeat();
 
-        // Identify or Resume
         if (ws && ws.readyState === WebSocket.OPEN) {
           if (sessionId && sequence) {
             ws.send(JSON.stringify({
               op: 6,
-              d: {
-                token: DISCORD_BOT_TOKEN,
-                session_id: sessionId,
-                seq: sequence,
-              },
+              d: { token: DISCORD_BOT_TOKEN, session_id: sessionId, seq: sequence },
             }));
             console.log("Sent Resume");
           } else {
@@ -559,35 +799,28 @@ function connect(): void {
               d: {
                 token: DISCORD_BOT_TOKEN,
                 intents: INTENTS,
-                properties: {
-                  os: "linux",
-                  browser: "lovable-bot",
-                  device: "lovable-bot",
-                },
+                properties: { os: "linux", browser: "lovable-bot", device: "lovable-bot" },
               },
             }));
             console.log("Sent Identify");
           }
-        } else {
-          console.warn("WebSocket not OPEN when trying to identify/resume");
         }
         break;
       }
 
-      case 11: // Heartbeat ACK
+      case 11:
         break;
 
-      case 0: // Dispatch
+      case 0:
         switch (t) {
           case "READY":
             sessionId = d.session_id;
             resumeGatewayUrl = d.resume_gateway_url;
             botUserId = d.user?.id;
-            console.log(`Ready! Bot user ID: ${botUserId}, Session: ${sessionId}`);
+            console.log(`✅ Ready! Bot ID: ${botUserId}, Session: ${sessionId}`);
             
-            // Fetch autobot settings on startup
-            const settings = await getAutobotSettings();
-            console.log(`[Autobot] Status: ${settings.is_enabled ? "ENABLED" : "DISABLED"}, Delay: ${settings.delay_seconds}s`);
+            const settings = await getScholaSettings();
+            console.log(`[Schola] Status: ${settings.is_enabled ? "ENABLED" : "DISABLED"}, Delay: ${settings.delay_seconds}s`);
             break;
 
           case "RESUMED":
@@ -600,25 +833,20 @@ function connect(): void {
         }
         break;
 
-      case 7: // Reconnect
+      case 7:
         console.log("Received Reconnect (op 7), reconnecting...");
         pendingReconnect = { delayMs: 2500, reason: "gateway_op7_reconnect" };
         safeClose(1000, "gateway_reconnect");
         break;
 
-      case 9: { // Invalid Session
+      case 9:
         console.log("Invalid session (op 9), reconnecting fresh...");
         sessionId = null;
         resumeGatewayUrl = null;
         sequence = null;
-
-        pendingReconnect = {
-          delayMs: 2000 + Math.floor(Math.random() * 3000),
-          reason: "gateway_invalid_session",
-        };
+        pendingReconnect = { delayMs: 2000 + Math.floor(Math.random() * 3000), reason: "gateway_invalid_session" };
         safeClose(1000, "invalid_session");
         break;
-      }
     }
   };
 
@@ -641,29 +869,25 @@ function connect(): void {
     let reason = pendingReconnect?.reason ?? `close_${event.code}`;
     pendingReconnect = null;
 
-    // Fatal / configuration errors
     if (event.code === 4004) {
       reason = "auth_failed_4004";
       delayMs = 10 * 60_000;
-      console.error("Gateway auth failed (4004). Check that DISCORD_BOT_TOKEN is valid.");
+      console.error("Gateway auth failed (4004). Check DISCORD_BOT_TOKEN.");
     } else if (event.code === 4014) {
       reason = "disallowed_intents_4014";
       delayMs = 10 * 60_000;
-      console.error(
-        "Gateway disallowed intents (4014). Enable MESSAGE CONTENT INTENT in the Discord Developer Portal."
-      );
+      console.error("Disallowed intents (4014). Enable MESSAGE CONTENT INTENT in Discord Developer Portal.");
     }
 
     scheduleReconnect(reason, delayMs);
   };
 }
 
+// ============ START BOT ============
 
-// Start the bot
-console.log("Starting Discord Gateway Bot (Dual Mode: Scholaris + Autobot)...");
+console.log("🚀 Starting Discord Gateway Bot (Scholaris + Schola)...");
 connect();
 
-// Keep the process alive
 setInterval(() => {
   console.log("Bot is running...");
 }, 60000);
