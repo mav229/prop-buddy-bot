@@ -1538,6 +1538,113 @@ serve(async (req) => {
       });
     }
 
+    // Handle ps_mod_message action (from gateway bot - Schola mode)
+    if (body.action === "ps_mod_message") {
+      const {
+        discordUserId,
+        username,
+        displayName,
+        message,
+        channelId,
+      } = body;
+
+      console.log(`[Schola] Message from ${username} (${discordUserId}): "${message}"`);
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      const { data: knowledgeEntries } = await supabase
+        .from("knowledge_base")
+        .select("title, content, category")
+        .order("category");
+
+      const knowledgeContext = knowledgeEntries?.length
+        ? knowledgeEntries
+            .map((e) => `[${e.category.toUpperCase()}] ${e.title}:\n${e.content}`)
+            .join("\n\n---\n\n")
+        : "No knowledge base entries available.";
+
+      // Fetch learned corrections
+      const learnedCorrections = await getLearnedCorrections(supabase, message);
+
+      // Fetch active coupons
+      const couponsContext = await getActiveCoupons(supabase);
+
+      // Schola-specific system prompt - concise, smart, human-like
+      const SCHOLA_SYSTEM_PROMPT = `You are Schola, a smart and chill support assistant for PropScholar. You're like a knowledgeable friend who's always ready to help.
+
+YOUR PERSONALITY:
+- Smart and concise - get straight to the point
+- Professional but friendly - like a helpful colleague
+- Witty when appropriate, but never at the user's expense
+- Use minimal emojis (0-1 per response, only when it adds value)
+
+RESPONSE STYLE:
+- Keep it SHORT: 2-3 sentences max for simple questions
+- Be direct and helpful
+- Sound human, not robotic
+- If you don't know something, be honest: "Not 100% sure on that - might want to ping @Scholaris for the full breakdown"
+
+FOR COMPLEX QUERIES:
+- Give a brief answer, then suggest: "For more details, tag @Scholaris and they'll break it down properly"
+
+FOR ACCOUNT-SPECIFIC ISSUES (payouts, bugs, login problems):
+- Direct them to: support@propscholar.com
+
+ACTIVE COUPONS:
+${couponsContext}
+
+KNOWLEDGE BASE:
+${knowledgeContext}
+
+${learnedCorrections}`;
+
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (!LOVABLE_API_KEY) {
+        return new Response(
+          JSON.stringify({ error: "LOVABLE_API_KEY not configured" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: SCHOLA_SYSTEM_PROMPT },
+            { role: "user", content: message },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        console.error("[Schola] AI Gateway error:", response.status);
+        return new Response(
+          JSON.stringify({ error: "AI Gateway error", status: response.status }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const data = await response.json();
+      const aiResponse = data.choices?.[0]?.message?.content || null;
+
+      // Store conversation for memory
+      if (discordUserId && aiResponse) {
+        await storeUserMessage(supabase, discordUserId, "user", message);
+        await storeUserMessage(supabase, discordUserId, "assistant", aiResponse);
+      }
+
+      return new Response(JSON.stringify({ success: true, response: aiResponse }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Handle test action
     if (body.action === "test") {
       const testMessage = body.message || "What are the drawdown rules?";
