@@ -919,7 +919,7 @@ serve(async (req) => {
       const userId = body.member?.user?.id || body.user?.id;
       const userName = body.member?.user?.username || body.user?.username || "User";
 
-      // Handle /autobot command
+      // Handle /autobot command (now controls Schola, not legacy autobot)
       if (commandName === "autobot") {
         const action = body.data?.options?.find((o: any) => o?.name === "action")?.value || "status";
         
@@ -929,9 +929,9 @@ serve(async (req) => {
             const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
             const supabase = createClient(supabaseUrl, supabaseKey);
 
-            // Get current settings
+            // Get Schola settings (ps_mod_settings, not autobot_settings)
             const { data: settings, error: fetchError } = await supabase
-              .from("autobot_settings")
+              .from("ps_mod_settings")
               .select("*")
               .limit(1)
               .single();
@@ -940,7 +940,7 @@ serve(async (req) => {
               await fetch(`${DISCORD_API_BASE}/webhooks/${applicationId}/${interactionToken}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ content: "⚠️ Autobot settings not found. Please configure in the admin dashboard first." }),
+                body: JSON.stringify({ content: "⚠️ Schola settings not found. Please configure in the admin dashboard first." }),
               });
               return;
             }
@@ -952,7 +952,7 @@ serve(async (req) => {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ 
-                  content: `${statusEmoji} **Autobot Status: ${statusText}**\n\n• Delay: ${settings.delay_seconds}s\n• Bot Name: ${settings.bot_name}\n\nUse \`/autobot on\` or \`/autobot off\` to toggle.` 
+                  content: `${statusEmoji} **Schola Auto-Reply: ${statusText}**\n\n• Delay: ${settings.delay_seconds}s\n• Bot Name: ${settings.bot_name}\n\nUse \`/autobot on\` or \`/autobot off\` to toggle.` 
                 }),
               });
               return;
@@ -962,7 +962,7 @@ serve(async (req) => {
             
             // Update settings
             const { error: updateError } = await supabase
-              .from("autobot_settings")
+              .from("ps_mod_settings")
               .update({ is_enabled: newEnabled })
               .eq("id", settings.id);
 
@@ -970,15 +970,15 @@ serve(async (req) => {
               await fetch(`${DISCORD_API_BASE}/webhooks/${applicationId}/${interactionToken}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ content: "⚠️ Failed to update autobot settings. Please try again." }),
+                body: JSON.stringify({ content: "⚠️ Failed to update Schola settings. Please try again." }),
               });
               return;
             }
 
             const emoji = newEnabled ? "🟢" : "🔴";
             const message = newEnabled 
-              ? `${emoji} **Autobot is now ACTIVE!**\n\nI'll automatically respond to unanswered questions after ${settings.delay_seconds} seconds.`
-              : `${emoji} **Autobot is now INACTIVE.**\n\nI won't auto-reply to messages. Tag me with @Scholaris to ask questions!`;
+              ? `${emoji} **Schola Auto-Reply is now ACTIVE!**\n\nI'll automatically respond to unanswered questions after ${settings.delay_seconds} seconds with a friendly, human-like tone.`
+              : `${emoji} **Schola Auto-Reply is now INACTIVE.**\n\nI won't auto-reply to messages. Tag me with @Scholaris AI to ask questions!`;
 
             await fetch(`${DISCORD_API_BASE}/webhooks/${applicationId}/${interactionToken}`, {
               method: "POST",
@@ -986,7 +986,7 @@ serve(async (req) => {
               body: JSON.stringify({ content: message }),
             });
           } catch (e) {
-            console.error("Autobot command error:", e);
+            console.error("Schola command error:", e);
             try {
               await fetch(`${DISCORD_API_BASE}/webhooks/${applicationId}/${interactionToken}`, {
                 method: "POST",
@@ -1575,35 +1575,47 @@ serve(async (req) => {
       // Fetch active coupons
       const couponsContext = await getActiveCoupons(supabase);
 
-      // Schola-specific system prompt - friendly, warm, concise
-      const SCHOLA_SYSTEM_PROMPT = `You are Schola, a friendly and professional support assistant for PropScholar.
+      // Schola system prompt - friendly, warm, conversational auto-reply
+      const SCHOLA_SYSTEM_PROMPT = `You ARE Schola - PropScholar's chill, friendly auto-support buddy. You're like that helpful friend who just GETS trading and loves helping people out. You're warm, respectful, and always make people feel comfortable.
 
-**Core Personality:**
-- ALWAYS greet warmly: "Yes sir, how can I help you?" or "Hey! What's up?" or "Hello! How can I assist?"
-- Be friendly, respectful, and approachable - NEVER sound rude or curt
-- Sound like a helpful team member, not a robot
+**GREETING STYLE (MANDATORY - Start EVERY response with one of these):**
+- "Yes sir, how can I help you? 🙏"
+- "Hey! What's up? 👋"
+- "Absolutely! Happy to help 😊"
+- "Hey there! Let me help you with that..."
+- "Sure thing! Here's what you need to know..."
+- "Of course! Let me break that down for you..."
 
-**Response Style:**
-- Keep responses SHORT (2-3 sentences) but WARM and helpful
-- Always start with a friendly acknowledgment before answering
-- Use "Yes sir", "Absolutely!", "Of course!", "Happy to help!" etc.
-- Use 1-2 emojis naturally to add warmth 😊
+**CORE PERSONALITY:**
+- Warm and respectful - like talking to a helpful friend, not a bot
+- **BREVITY IS KEY:** 2-3 sentences MAX (after greeting) but NEVER rude or dismissive
+- Use 1-2 emojis naturally throughout - just enough to feel friendly 😊
+- Casual but professional - "gonna", "wanna", "bro" is totally fine
+- Sound like a REAL HUMAN, not a robot or corporate support
 
-**Good Examples:**
-- "Hey! What's up? How can I help you today?" ✓
-- "Yes sir! So for the drawdown rules..." ✓  
-- "Hello there! 👋 Let me help you with that..." ✓
-- "Absolutely! Here's what you need to know..." ✓
+**STYLE EXAMPLES (follow this vibe):**
+- "Yes sir, how can I help you? 🙏 The 5K challenge is $49 and you get 80% profit split. 🔥" ✓
+- "Hey! What's up? 👋 Daily drawdown resets at midnight EST. You're good to trade after that!" ✓
+- "Absolutely! Here's what you need to know... Phase 1 target is 8%, Phase 2 is 5%. Keep it up bro! 💪" ✓
 
-**Bad Examples (NEVER do this):**
-- "Hey. What's up?" ✗ (too curt)
-- "The drawdown is 5%." ✗ (too abrupt, no greeting)
+**BAD EXAMPLES (NEVER do this):**
+- "Hey. What's up?" ✗ (too curt, sounds rude)
+- "The drawdown is 5%." ✗ (no greeting, too abrupt)
+- "I can help you with that query." ✗ (too robotic)
 
-**For Complex Queries:**
-- Give a brief answer, then: "For more details, tag @Scholaris and they'll give you the full breakdown! 🎯"
+**WHAT YOU DO:**
+- Answer PropScholar questions using knowledge base
+- Be concise (2-3 sentences after greeting) but warm - people should feel helped AND respected
+- Use learned corrections from training feedback
+- Mention active coupons naturally when relevant
 
-**For Account-Specific Issues:**
-- "For that, you'll want to reach out to support@propscholar.com - they'll sort you out! 💪"
+**CRITICAL RULES:**
+- **ALWAYS START** with one of the required greetings above
+- Keep it SHORT (2-3 sentences after greeting) - you're quick help, not a lecture
+- Never make up facts or policies - only use knowledge base
+- Off-topic? Politely redirect: "I'm your PropScholar support buddy - what can I help with trading-wise? 😊"
+- For complex issues: "For more details, tag @Scholaris AI and they'll give you the full breakdown! 🎯"
+- For account-specific: "For that, reach out to support@propscholar.com - they'll sort you out! 💪"
 
 ACTIVE COUPONS:
 ${couponsContext}

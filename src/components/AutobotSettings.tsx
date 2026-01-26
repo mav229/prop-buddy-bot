@@ -25,7 +25,7 @@ export const AutobotSettings = () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from("autobot_settings")
+        .from("ps_mod_settings")
         .select("*")
         .limit(1)
         .single();
@@ -65,7 +65,7 @@ export const AutobotSettings = () => {
     setSaving(true);
     try {
       const { error } = await supabase
-        .from("autobot_settings")
+        .from("ps_mod_settings")
         .update({ is_enabled: enabled })
         .eq("id", config.id);
 
@@ -96,7 +96,7 @@ export const AutobotSettings = () => {
     setSaving(true);
     try {
       const { error } = await supabase
-        .from("autobot_settings")
+        .from("ps_mod_settings")
         .update({
           delay_seconds: config.delay_seconds,
           bot_name: config.bot_name,
@@ -132,7 +132,7 @@ export const AutobotSettings = () => {
   if (!config) {
     return (
       <div className="text-center py-12 text-muted-foreground">
-        <p>Autobot settings not found. Please refresh the page.</p>
+        <p>Schola settings not found. Please refresh the page.</p>
         <Button onClick={fetchConfig} variant="outline" className="mt-4">
           <RefreshCw className="w-4 h-4 mr-2" />
           Retry
@@ -148,9 +148,9 @@ export const AutobotSettings = () => {
           <Bot className="w-5 h-5 text-accent" />
         </div>
         <div>
-          <h2 className="font-display text-xl font-bold">Auto-Reply Bot</h2>
+        <h2 className="font-display text-xl font-bold">Schola Auto-Reply</h2>
           <p className="text-sm text-muted-foreground">
-            Responds to all messages when you're away (delayed fallback)
+          Friendly auto-replies after a delay (formerly "PS MOD Bot")
           </p>
         </div>
       </div>
@@ -159,13 +159,13 @@ export const AutobotSettings = () => {
       <div className="glass-panel p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Power className={`w-5 h-5 ${config.is_enabled ? "text-success" : "text-muted-foreground"}`} />
+            <Power className={`w-5 h-5 ${config.is_enabled ? "text-green-500" : "text-muted-foreground"}`} />
             <div>
-              <h3 className="font-semibold">Autobot Status</h3>
+              <h3 className="font-semibold">Schola Status</h3>
               <p className="text-sm text-muted-foreground">
                 {config.is_enabled 
-                  ? "Active - responding to unanswered questions" 
-                  : "Inactive - not responding automatically"}
+                  ? "Active - Auto-replying with warm, friendly tone" 
+                  : "Inactive - Only @Scholaris AI responds"}
               </p>
             </div>
           </div>
@@ -178,7 +178,7 @@ export const AutobotSettings = () => {
 
         <div className="mt-4 p-3 rounded-lg bg-muted/50">
           <p className="text-xs text-muted-foreground">
-            <strong>Discord Command:</strong> Use <code className="bg-background px-1 rounded">/autobot on</code> or <code className="bg-background px-1 rounded">/autobot off</code> in Discord to toggle this from the server.
+            <strong>Discord Command:</strong> Use <code className="bg-background px-1 rounded">/autobot on</code> or <code className="bg-background px-1 rounded">/autobot off</code> in Discord to toggle Schola from the server.
           </p>
         </div>
       </div>
@@ -187,7 +187,7 @@ export const AutobotSettings = () => {
       <div className="glass-panel p-6 space-y-6">
         <h3 className="font-display font-semibold flex items-center gap-2">
           <Clock className="w-4 h-4" />
-          Configuration
+          Schola Configuration
         </h3>
 
         <div className="space-y-4">
@@ -197,10 +197,10 @@ export const AutobotSettings = () => {
               id="bot-name"
               value={config.bot_name}
               onChange={(e) => setConfig({ ...config, bot_name: e.target.value })}
-              placeholder="PropScholar Assistant"
+              placeholder="Schola"
             />
             <p className="text-xs text-muted-foreground">
-              This name is used in the AI prompt for personality.
+              Used in AI prompt. Default: "Schola"
             </p>
           </div>
 
@@ -215,7 +215,7 @@ export const AutobotSettings = () => {
               onChange={(e) => setConfig({ ...config, delay_seconds: parseInt(e.target.value) || 120 })}
             />
             <p className="text-xs text-muted-foreground">
-              Wait this long before responding, giving humans time to reply first. (30-600 seconds)
+              Wait this long before auto-replying, giving humans/mods time to respond first. (30-600 seconds)
             </p>
           </div>
         </div>
@@ -228,16 +228,31 @@ export const AutobotSettings = () => {
 
       {/* How it works */}
       <div className="glass-panel p-6">
-        <div className="flex items-start gap-3">
-          <MessageSquare className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3 bg-muted/30 rounded-lg p-4 border border-primary/10">
+            <MessageSquare className="w-5 h-5 text-primary flex-shrink-0 mt-1" />
           <div>
-            <h4 className="font-semibold text-sm mb-2">How Auto-Reply Works</h4>
-            <ul className="text-sm text-muted-foreground space-y-1.5">
-              <li>• <strong>Scholaris:</strong> Responds when @mentioned (always active)</li>
-              <li>• <strong>Autobot:</strong> Watches for unanswered questions in enabled channels</li>
-              <li>• If no human/mod replies within {config.delay_seconds}s, autobot responds</li>
-              <li>• Toggle via this dashboard OR Discord commands</li>
-              <li>• Uses the same knowledge base with a professional human tone</li>
+              <h4 className="font-semibold text-sm mb-3">How Schola Auto-Reply Works</h4>
+              <ul className="text-sm text-muted-foreground space-y-2">
+                <li className="flex items-start gap-2">
+                  <span className="text-primary mt-0.5">✓</span>
+                  <span><strong>Scholaris AI:</strong> Responds when @mentioned (always active, professional tone)</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary mt-0.5">✓</span>
+                  <span><strong>Schola:</strong> Auto-replies to questions after {config.delay_seconds}s delay</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary mt-0.5">✓</span>
+                  <span>If a human/mod replies first, Schola stays silent</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary mt-0.5">✓</span>
+                  <span>Toggle via this dashboard OR <code className="bg-background px-1.5 py-0.5 rounded text-xs">/autobot</code> in Discord</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary mt-0.5">✓</span>
+                  <span>Uses same knowledge base, but with warm, friendly "Yes sir!" tone</span>
+                </li>
             </ul>
           </div>
         </div>
