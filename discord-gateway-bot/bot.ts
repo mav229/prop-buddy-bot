@@ -665,6 +665,13 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
   // =====================
   // CASE 2: Schola Mode - Auto-reply (if enabled)
   // =====================
+  
+  // CRITICAL: Make sure we didn't already respond to this message
+  if (hasAlreadyResponded(messageId)) {
+    console.log(`[Schola] ⏭️ Already handled message ${messageId} - skipping auto-reply check`);
+    return;
+  }
+  
   const settings = await getScholaSettings();
   
   if (!settings.is_enabled) {
