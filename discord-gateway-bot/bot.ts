@@ -59,6 +59,27 @@ const SCHOLA_CACHE_TTL = 30000; // 30 seconds
 // Track pending Schola responses to avoid duplicates
 const pendingScholaResponses = new Map<string, number>();
 
+// Track recently responded messages to prevent double-responses
+const respondedMessages = new Map<string, number>();
+const RESPONSE_DEDUP_TTL = 60000; // 60 seconds
+
+function hasAlreadyResponded(messageId: string): boolean {
+  const now = Date.now();
+  
+  // Clean old entries
+  for (const [id, timestamp] of respondedMessages.entries()) {
+    if (now - timestamp > RESPONSE_DEDUP_TTL) {
+      respondedMessages.delete(id);
+    }
+  }
+  
+  return respondedMessages.has(messageId);
+}
+
+function markAsResponded(messageId: string): void {
+  respondedMessages.set(messageId, Date.now());
+}
+
 // ============ SCHOLA SETTINGS ============
 
 async function getScholaSettings(): Promise<{ is_enabled: boolean; delay_seconds: number; bot_name: string }> {
@@ -584,9 +605,15 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
   }
 
   // =====================
-  // CASE 1: Scholaris Mode - Bot is @mentioned
+  // CASE 1: Scholaris Mode - Bot is @mentioned ONLY
   // =====================
   if (botMentioned) {
+    // Check if we already responded to this message (deduplication)
+    if (hasAlreadyResponded(messageId)) {
+      console.log(`[Scholaris] ⏭️ Already responded to message ${messageId} - skipping`);
+      return;
+    }
+    
     console.log(`[Scholaris] ✅ Mentioned by ${author.username} - responding immediately`);
     
     // Cancel any pending Schola response
@@ -614,6 +641,7 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
     
     if (!questionToAsk) {
       await sendMessage(channelId, "Hey! 👋 What would you like to know? Just include your question and I'll help you out! 🎯", messageId);
+      markAsResponded(messageId);
       return;
     }
 
@@ -629,6 +657,7 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
     );
 
     await sendMessage(channelId, response, messageId);
+    markAsResponded(messageId);
     console.log("[Scholaris] ✅ Response sent");
     return;
   }
@@ -662,6 +691,12 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
   const timeout = setTimeout(async () => {
     pendingScholaResponses.delete(messageId);
     
+    // Check if we already responded (deduplication)
+    if (hasAlreadyResponded(messageId)) {
+      console.log(`[Schola] ⏭️ Already responded to message ${messageId} - skipping`);
+      return;
+    }
+    
     // Check if human replied
     const humanReplied = await checkForHumanReply(channelId, messageId, messageTimestamp, author.id);
     if (humanReplied) {
@@ -681,6 +716,7 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
 
     if (response) {
       await sendMessage(channelId, response, messageId);
+      markAsResponded(messageId);
       console.log(`[Schola] ✅ Response sent to ${author.username}`);
     } else {
       console.error("[Schola] ❌ AI returned empty response");
