@@ -56,6 +56,40 @@ let scholaSettings: { is_enabled: boolean; delay_seconds: number; bot_name: stri
 let scholaSettingsLastFetch = 0;
 const SCHOLA_CACHE_TTL = 30000; // 30 seconds
 
+// Disable legacy autobot on startup (prevent conflicts with old bot deployments)
+async function disableLegacyAutobot(): Promise<void> {
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/autobot_settings?limit=1`, {
+      headers: {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data && data.length > 0 && data[0].is_enabled) {
+        console.log("[Startup] ⚠️ Legacy autobot is enabled - disabling it to prevent conflicts...");
+        
+        await fetch(`${SUPABASE_URL}/rest/v1/autobot_settings?id=eq.${data[0].id}`, {
+          method: "PATCH",
+          headers: {
+            "apikey": SUPABASE_ANON_KEY,
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal",
+          },
+          body: JSON.stringify({ is_enabled: false }),
+        });
+        
+        console.log("[Startup] ✅ Legacy autobot disabled - Schola mode is now the only auto-reply system");
+      }
+    }
+  } catch (e) {
+    console.error("[Startup] Failed to disable legacy autobot:", e);
+  }
+}
+
 // Track pending Schola responses to avoid duplicates
 const pendingScholaResponses = new Map<string, number>();
 
@@ -864,6 +898,9 @@ function connect(): void {
             
             const settings = await getScholaSettings();
             console.log(`[Schola] Status: ${settings.is_enabled ? "ENABLED" : "DISABLED"}, Delay: ${settings.delay_seconds}s`);
+            
+            // Disable legacy autobot to prevent conflicts
+            disableLegacyAutobot();
             break;
 
           case "RESUMED":
