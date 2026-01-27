@@ -206,36 +206,6 @@ export type Database = {
         }
         Relationships: []
       }
-      ps_mod_settings: {
-        Row: {
-          bot_name: string
-          channels: string[] | null
-          created_at: string
-          delay_seconds: number
-          id: string
-          is_enabled: boolean
-          updated_at: string
-        }
-        Insert: {
-          bot_name?: string
-          channels?: string[] | null
-          created_at?: string
-          delay_seconds?: number
-          id?: string
-          is_enabled?: boolean
-          updated_at?: string
-        }
-        Update: {
-          bot_name?: string
-          channels?: string[] | null
-          created_at?: string
-          delay_seconds?: number
-          id?: string
-          is_enabled?: boolean
-          updated_at?: string
-        }
-        Relationships: []
-      }
       support_tickets: {
         Row: {
           chat_history: string | null
