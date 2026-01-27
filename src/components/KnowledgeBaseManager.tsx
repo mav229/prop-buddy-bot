@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Edit2, Save, X, Book, Loader2, Globe, Search, ArrowUpDown, Filter } from "lucide-react";
+import { Plus, Trash2, Edit2, Save, X, Book, Loader2, Globe, Search, ArrowUpDown, Filter, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface KnowledgeEntry {
   id: string;
@@ -278,6 +280,65 @@ export const KnowledgeBaseManager = () => {
     }
   };
 
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    
+    // Title
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.text("PropScholar Knowledge Base", 14, 20);
+    
+    // Subtitle with date
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100);
+    doc.text(`Exported on ${new Date().toLocaleDateString()} • ${entries.length} entries`, 14, 28);
+    doc.setTextColor(0);
+    
+    // Group entries by category
+    const grouped = entries.reduce((acc, entry) => {
+      const cat = entry.category || "general";
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat].push(entry);
+      return acc;
+    }, {} as Record<string, typeof entries>);
+    
+    let yPos = 40;
+    
+    Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).forEach(([category, catEntries]) => {
+      // Category header
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(60, 60, 60);
+      doc.text(category.charAt(0).toUpperCase() + category.slice(1).replace("-", " "), 14, yPos);
+      yPos += 8;
+      
+      // Table for entries in this category
+      autoTable(doc, {
+        startY: yPos,
+        head: [["Title", "Content"]],
+        body: catEntries.map(e => [e.title, e.content.slice(0, 500) + (e.content.length > 500 ? "..." : "")]),
+        styles: { fontSize: 8, cellPadding: 3 },
+        headStyles: { fillColor: [40, 40, 40], textColor: 255 },
+        columnStyles: {
+          0: { cellWidth: 40, fontStyle: "bold" },
+          1: { cellWidth: 140 },
+        },
+        margin: { left: 14, right: 14 },
+      });
+      
+      yPos = (doc as any).lastAutoTable.finalY + 15;
+    });
+    
+    doc.save("propscholar-knowledge-base.pdf");
+    toast({ title: "PDF exported!", description: "Knowledge base downloaded successfully." });
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
@@ -288,7 +349,7 @@ export const KnowledgeBaseManager = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
             <Book className="w-5 h-5 text-primary" />
@@ -301,12 +362,18 @@ export const KnowledgeBaseManager = () => {
           </div>
         </div>
 
-        {!showForm && (
-          <Button variant="premium" onClick={() => setShowForm(true)}>
-            <Plus className="w-4 h-4" />
-            Add Entry
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleExportPDF} size="sm">
+            <FileDown className="w-4 h-4 mr-2" />
+            Export PDF
           </Button>
-        )}
+          {!showForm && (
+            <Button variant="premium" onClick={() => setShowForm(true)}>
+              <Plus className="w-4 h-4" />
+              Add Entry
+            </Button>
+          )}
+        </div>
       </div>
 
       <Tabs defaultValue="entries" className="w-full">
