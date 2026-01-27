@@ -1289,84 +1289,10 @@ serve(async (req) => {
         });
       }
 
-      // CASE 4: Detect ongoing conversation between users - stay silent
-      if (isConversation(channelId, authorId, messageTimestamp)) {
-        console.log("Ongoing conversation detected - staying silent");
-        return new Response(JSON.stringify({ success: true, action: "ignored_conversation" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // CASE 5: Regular user message that looks like a question - respond with delay
-      if (!isQuestion(content)) {
-        console.log("Message doesn't appear to be a question - staying silent");
-        return new Response(JSON.stringify({ success: true, action: "not_a_question" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      console.log(`Question detected, waiting ${MODERATOR_DELAY_MS}ms before responding...`);
-      
-      // Wait 15 seconds
-      await new Promise((resolve) => setTimeout(resolve, MODERATOR_DELAY_MS));
-
-      // Check if a moderator replied during the wait
-      const newMessages = await getChannelMessagesAfter(channelId, messageId, DISCORD_BOT_TOKEN);
-      
-      for (const msg of newMessages) {
-        if (msg.author?.bot) continue;
-        
-        const roles = await getMemberRoles(guildId, msg.author.id, DISCORD_BOT_TOKEN);
-        if (isModeratorRole(roles)) {
-          console.log(`Moderator ${msg.author?.username} replied during wait - staying silent`);
-          return new Response(JSON.stringify({ success: true, action: "moderator_handled" }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-      }
-
-      // No moderator replied - send response
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const supabase = createClient(supabaseUrl, supabaseKey);
-
-      const { data: knowledgeEntries } = await supabase
-        .from("knowledge_base")
-        .select("title, content, category")
-        .order("category");
-
-      let knowledgeContext = knowledgeEntries?.length
-        ? knowledgeEntries.map(e => `[${e.category.toUpperCase()}] ${e.title}:\n${e.content}`).join("\n\n---\n\n")
-        : "No knowledge base entries available.";
-
-      // Get or create user profile
-      const displayName = message.author?.global_name;
-      const userProfile = await getOrCreateUserProfile(supabase, authorId, message.author?.username || "User", displayName);
-
-      // Get user's conversation history
-      const userHistory = await getUserConversationHistory(supabase, authorId);
-      const userName = message.author?.username || "User";
-      
-      // Build reply context if replying to a message
-      const replyContext = repliedToMessage ? {
-        content: repliedToContent,
-        authorName: repliedToMessage.author?.username || "Unknown User"
-      } : undefined;
-
-      // Fetch learned corrections for auto-learning
-      const learnedCorrections = await getLearnedCorrections(supabase, content);
-
-      // Fetch active coupons
-      const couponsContext = await getActiveCoupons(supabase);
-
-      const aiResponse = await getAIResponse(content, knowledgeContext, userHistory, userName, replyContext, userProfile, learnedCorrections, couponsContext);
-      await sendDiscordMessage(channelId, aiResponse, DISCORD_BOT_TOKEN, messageId);
-
-      // Store in user-specific chat history
-      await storeUserMessage(supabase, authorId, "user", content);
-      await storeUserMessage(supabase, authorId, "assistant", aiResponse);
-
-      return new Response(JSON.stringify({ success: true, action: "responded" }), {
+      // IMPORTANT: Scholaris must be mention-only.
+      // We intentionally do NOT auto-respond to untagged questions here.
+      // Untagged questions are handled by Schola (auto-reply) via `ps_mod_message`.
+      return new Response(JSON.stringify({ success: true, action: "ignored_unmentioned" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
