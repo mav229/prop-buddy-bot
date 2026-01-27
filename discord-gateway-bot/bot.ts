@@ -732,9 +732,10 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
   const timeout = setTimeout(async () => {
     pendingScholaResponses.delete(messageId);
     
-    // Check if we already responded (deduplication)
+    // CRITICAL: Double-check deduplication RIGHT BEFORE responding
+    // This catches cases where Scholaris responded during our delay window
     if (hasAlreadyResponded(messageId)) {
-      console.log(`[Schola] ⏭️ Already responded to message ${messageId} - skipping`);
+      console.log(`[Schola] ⏭️ Already responded to message ${messageId} (Scholaris beat us) - skipping`);
       return;
     }
     
@@ -744,6 +745,17 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
       console.log(`[Schola] ⏭️ Human replied - staying silent`);
       return;
     }
+    
+    // CRITICAL: Final deduplication check right before AI call
+    // (in case Scholaris responded while we were checking human replies)
+    if (hasAlreadyResponded(messageId)) {
+      console.log(`[Schola] ⏭️ Already responded to message ${messageId} (late Scholaris) - skipping`);
+      return;
+    }
+    
+    // Mark as responded BEFORE making AI call to prevent race conditions
+    markAsResponded(messageId);
+    console.log(`[Schola] 🔒 Locked message ${messageId} for response`);
 
     await triggerTyping(channelId);
 
@@ -757,7 +769,6 @@ async function handleMessage(data: Record<string, unknown>): Promise<void> {
 
     if (response) {
       await sendMessage(channelId, response, messageId);
-      markAsResponded(messageId);
       console.log(`[Schola] ✅ Response sent to ${author.username}`);
     } else {
       console.error("[Schola] ❌ AI returned empty response");
