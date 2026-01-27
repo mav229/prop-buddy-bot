@@ -804,15 +804,23 @@ function isModeratorRole(roles: string[]): boolean {
 }
 
 function isBotMentioned(content: string, mentions: any[]): boolean {
-  // Check if bot is mentioned by ID
-  if (content.includes(`<@${BOT_USER_ID}>`) || content.includes(`<@!${BOT_USER_ID}>`)) {
-    return true;
+  // IMPORTANT: Only treat as a mention if it's explicitly present in the message text.
+  // Discord replies and some relayed event payloads can include users in `mentions` even when
+  // the author didn't actually type an @mention, which caused Scholaris to respond “without tag”.
+  const explicit =
+    content.includes(`<@${BOT_USER_ID}>`) || content.includes(`<@!${BOT_USER_ID}>`);
+
+  // If it looks like a mention only via mentions-array, log it for diagnostics but do NOT respond.
+  if (!explicit && mentions && mentions.some((m: any) => m?.id === BOT_USER_ID)) {
+    console.log(
+      `[MentionCheck] mentions-array contained bot, but no explicit tag in content. Ignoring. content="${content?.slice(
+        0,
+        120
+      )}"`
+    );
   }
-  // Check mentions array
-  if (mentions && mentions.some(m => m.id === BOT_USER_ID)) {
-    return true;
-  }
-  return false;
+
+  return explicit;
 }
 
 function isConversation(channelId: string, currentAuthorId: string, messageTimestamp: number): boolean {
