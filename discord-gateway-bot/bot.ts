@@ -571,8 +571,17 @@ async function checkForHumanReply(channelId: string, afterMessageId: string, aft
 
 function isBotMentioned(content: string, mentions: Array<{ id: string }>): boolean {
   if (!botUserId) return false;
-  if (mentions?.some((m) => m.id === botUserId)) return true;
-  return content.includes(`<@${botUserId}>`) || content.includes(`<@!${botUserId}>`);
+
+  // IMPORTANT: Only treat as a mention if it's explicitly present in the message content.
+  // Discord "reply" can auto-mention the author (mentions array) even when the user didn't type @.
+  // That caused Scholaris to reply "without tag".
+  const explicit = content.includes(`<@${botUserId}>`) || content.includes(`<@!${botUserId}>`);
+  if (explicit) return true;
+
+  // Ignore non-explicit mentions (e.g. reply pings).
+  // Keep `mentions` param for backwards compatibility / potential future use.
+  void mentions;
+  return false;
 }
 
 function cleanMention(content: string): string {

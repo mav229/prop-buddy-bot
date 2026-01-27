@@ -170,13 +170,13 @@ function isBotMentioned(
 ): boolean {
   if (!botUserId) return false;
 
-  // Check mentions array
-  if (mentions?.some((m) => m.id === botUserId)) {
-    return true;
-  }
+  // Only treat as a mention if it's explicitly present in the message text.
+  // Discord replies can auto-mention the author (mentions array) even when the user didn't type @.
+  const explicit = content.includes(`<@${botUserId}>`) || content.includes(`<@!${botUserId}>`);
+  if (explicit) return true;
 
-  // Check content for <@BOT_ID> pattern
-  return content.includes(`<@${botUserId}>`) || content.includes(`<@!${botUserId}>`);
+  void mentions;
+  return false;
 }
 
 // Clean the mention from the message
