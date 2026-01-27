@@ -509,21 +509,26 @@ async function checkForHumanReply(
 
     const messages = await response.json();
     
-    // Check if any human *actually replied to the message* (not just chatted after it)
+    // Check if anyone replied during the delay.
+    // IMPORTANT: treat bot replies as well (e.g. Scholaris) to prevent collisions.
     for (const msg of messages) {
-      if (!msg.author.bot) {
-        const msgTime = new Date(msg.timestamp).getTime();
-        if (msgTime > afterTimestamp) {
-          const repliedToOriginal = msg.message_reference?.message_id === afterMessageId;
-          const mentionsOriginal = Array.isArray(msg.mentions)
-            ? msg.mentions.some((m: { id?: string }) => m?.id === originalAuthorId)
-            : false;
+      const msgTime = new Date(msg.timestamp).getTime();
+      if (msgTime <= afterTimestamp) continue;
 
-          if (repliedToOriginal || mentionsOriginal) {
-            return true;
-          }
-        }
+      const repliedToOriginal = msg.message_reference?.message_id === afterMessageId;
+      const mentionsOriginal = Array.isArray(msg.mentions)
+        ? msg.mentions.some((m: { id?: string }) => m?.id === originalAuthorId)
+        : false;
+
+      // Human: reply OR mention counts
+      if (!msg.author?.bot) {
+        if (repliedToOriginal || mentionsOriginal) return true;
+        continue;
       }
+
+      // Bot: ONLY count true replies to the original message.
+      // This prevents Schola from firing if Scholaris already replied.
+      if (repliedToOriginal) return true;
     }
   } catch (error) {
     console.error("[PS MOD] Error checking for replies:", error);
