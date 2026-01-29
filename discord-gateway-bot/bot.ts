@@ -322,7 +322,7 @@ function connect(): void {
   ws.onopen = () => {
     isConnecting = false;
     reconnectAttempts = 0;
-    console.log("WebSocket connected");
+    console.log("[Gateway] WebSocket connected, waiting for Hello (op:10)...");
   };
 
   ws.onmessage = async (event) => {
@@ -338,6 +338,7 @@ function connect(): void {
 
     switch (op) {
       case 10: {
+        console.log("[Gateway] Received Hello, starting heartbeat...");
         const intervalMs = d.heartbeat_interval;
         if (heartbeatInterval) clearInterval(heartbeatInterval);
         heartbeatInterval = setInterval(sendHeartbeat, intervalMs);
@@ -362,6 +363,7 @@ function connect(): void {
 
       case 0: {
         if (t === "READY") {
+          console.log("[Gateway] READY event received");
           sessionId = d.session_id;
           resumeGatewayUrl = d.resume_gateway_url;
           botUserId = d.user?.id;
@@ -369,6 +371,7 @@ function connect(): void {
         }
 
         if (t === "MESSAGE_CREATE") {
+          console.log("[Gateway] MESSAGE_CREATE from:", (d as any)?.author?.username, "| content length:", (d as any)?.content?.length ?? 0);
           await handleMessage(d);
         }
         break;
