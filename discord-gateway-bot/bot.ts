@@ -10,9 +10,19 @@
  * - SUPABASE_ANON_KEY
  */
 
-const DISCORD_BOT_TOKEN = Deno.env.get("DISCORD_BOT_TOKEN")!;
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+function requireEnv(key: string): string {
+  const val = Deno.env.get(key);
+  if (!val) {
+    console.error(`[FATAL] Missing required environment variable: ${key}`);
+    // Exiting here makes Railway fail-fast instead of “running but offline”.
+    Deno.exit(1);
+  }
+  return val;
+}
+
+const DISCORD_BOT_TOKEN = requireEnv("DISCORD_BOT_TOKEN");
+const SUPABASE_URL = requireEnv("SUPABASE_URL");
+const SUPABASE_ANON_KEY = requireEnv("SUPABASE_ANON_KEY");
 
 const DISCORD_API_BASE = "https://discord.com/api/v10";
 const DISCORD_GATEWAY_URL = "wss://gateway.discord.gg/?v=10&encoding=json";
@@ -34,6 +44,34 @@ let sessionId: string | null = null;
 let resumeGatewayUrl: string | null = null;
 let sequence: number | null = null;
 let botUserId: string | null = null;
+
+async function fetchBotIdentity(): Promise<void> {
+  try {
+    const res = await fetch(`${DISCORD_API_BASE}/users/@me`, {
+      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+    });
+
+    if (!res.ok) {
+      const t = await res.text().catch(() => "");
+      console.error(`[FATAL] Discord token is invalid or lacks access: ${res.status} ${t}`);
+      // 401/403 usually means wrong token; no point retrying in a tight loop.
+      Deno.exit(1);
+    }
+
+    const me = await res.json().catch(() => null);
+    const id = me?.id as string | undefined;
+    const username = (me?.username as string | undefined) ?? "unknown";
+    if (id) {
+      botUserId = id;
+      console.log(`[Startup] Discord bot identity: ${username} (${id})`);
+    } else {
+      console.warn("[Startup] Could not parse bot user id from /users/@me response");
+    }
+  } catch (e) {
+    console.error("[Startup] Failed to fetch Discord bot identity:", e);
+    // Don’t exit here—gateway may still work and deliver READY.
+  }
+}
 
 // Dedup responses (prevents double replies on reconnect/duplicate events)
 const respondedMessages = new Map<string, number>();
@@ -383,6 +421,7 @@ function connect(): void {
 }
 
 console.log("Starting Scholaris Discord Gateway Bot (mention-only)...");
+await fetchBotIdentity();
 connect();
 
 setInterval(() => {
