@@ -60,23 +60,36 @@ const recentMessages = new Map<string, { authorId: string; timestamp: number }[]
 
 // Clean Discord response - normalize formatting for Discord rendering
 function cleanDiscordResponse(text: string): string {
-  return text
-    // Remove horizontal rules (--- or ***) - these don't render in Discord
-    .replace(/^[-*]{3,}\s*$/gm, '')
-    // Remove markdown dividers like "---" anywhere
-    .replace(/\n---\n/g, '\n\n')
-    // Convert bullet points to Discord-friendly > quote blocks for lists
-    .replace(/^[•●]\s*/gm, '> ')
-    // Convert standard markdown bullets to quote blocks
-    .replace(/^[-*]\s+/gm, '> ')
-    // Convert → to em-dash
-    .replace(/→/g, '—')
+  const cleaned = (text || "")
+    // Remove horizontal rules (--- or ***) - Discord doesn't render these reliably
+    .replace(/^\s*[-*_]{3,}\s*$/gm, "")
+    .replace(/\n\s*[-*_]{3,}\s*\n/g, "\n\n")
+    // Remove common ASCII/box divider lines
+    .replace(/^\s*[═━─]{8,}\s*$/gm, "")
+    // Convert bullet points to Discord-friendly quote blocks
+    .replace(/^[\t ]*[•●]\s*/gm, "> ")
+    .replace(/^[\t ]*[-*]\s+/gm, "> ")
+    // Normalize arrows
+    .replace(/→/g, "—")
+    // Avoid markdown links (Discord supports them, but we prefer plain URLs for reliability)
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, "$1 — $2")
     // Convert : in headers to cleaner format
-    .replace(/^(##\s+.+):$/gm, '$1')
-    // Limit consecutive newlines to 2
-    .replace(/\n{3,}/g, '\n\n')
-    // Trim
+    .replace(/^(##\s+.+):$/gm, "$1")
+    // Limit consecutive newlines
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
+
+  // Ensure we use Discord headers when the answer is longer than a short blurb.
+  const hasHeader = /^\s*##\s+/m.test(cleaned);
+  const shouldForceHeader = !hasHeader && cleaned.length > 260;
+  const withHeader = shouldForceHeader
+    ? `## ✅ Quick answer\n\n${cleaned}`
+    : cleaned;
+
+  // Hard cap to keep replies crisp (Discord allows 2000 chars, but we want scannable output).
+  const MAX = 1100;
+  if (withHeader.length <= MAX) return withHeader;
+  return withHeader.slice(0, MAX - 60).trimEnd() + "\n\n> Want more detail? Ask a quick follow-up.";
 }
 
 const SYSTEM_PROMPT = `You are Scholaris AI, PropScholar's Discord support bot.
@@ -363,18 +376,20 @@ async function getActiveCoupons(supabase: any): Promise<string> {
     }
 
     console.log(`Found ${coupons.length} active coupon(s)`);
-    
+
+    // IMPORTANT: format coupons in Discord-native style (no bullets / dividers).
     return coupons
       .map((c: any) => {
-        const discount = c.discount_type === "percentage" 
-          ? `${c.discount_value}% off` 
+        const discount = c.discount_type === "percentage"
+          ? `${c.discount_value}% off`
           : `$${c.discount_value} off`;
-        let info = `• Code: **${c.code}** - ${discount}`;
-        if (c.description) info += `\n  Description: ${c.description}`;
-        if (c.benefits) info += `\n  Benefits: ${c.benefits}`;
-        if (c.min_purchase && c.min_purchase > 0) info += `\n  Min purchase: $${c.min_purchase}`;
-        if (c.valid_until) info += `\n  Expires: ${new Date(c.valid_until).toLocaleDateString()}`;
-        return info;
+        const lines: string[] = [];
+        lines.push(`> **${c.code}** — ${discount}`);
+        if (c.description) lines.push(`> ${c.description}`);
+        if (c.benefits) lines.push(`> Benefits: ${c.benefits}`);
+        if (c.min_purchase && c.min_purchase > 0) lines.push(`> Min purchase: $${c.min_purchase}`);
+        if (c.valid_until) lines.push(`> Expires: ${new Date(c.valid_until).toLocaleDateString()}`);
+        return lines.join("\n");
       })
       .join("\n\n");
   } catch (e) {
@@ -1273,7 +1288,6 @@ serve(async (req) => {
         displayName,
         message,
         repliedToContent,
-        repliedToAuthor,
       } = body;
 
       console.log(`Gateway message from ${username} (${discordUserId}): "${message}"`);
@@ -1290,7 +1304,8 @@ serve(async (req) => {
       const knowledgeContext = knowledgeEntries?.length
         ? knowledgeEntries
             .map((e) => `[${e.category.toUpperCase()}] ${e.title}:\n${e.content}`)
-            .join("\n\n---\n\n")
+            // Avoid dividers here (they often leak into the model's output in Discord)
+            .join("\n\n")
         : "No knowledge base entries available.";
 
       // Get or create user profile (persistent)
@@ -1313,7 +1328,8 @@ serve(async (req) => {
       const replyContext = repliedToContent
         ? {
             content: repliedToContent,
-            authorName: repliedToAuthor || "Unknown User",
+            // Keep this blank to avoid the model addressing other users.
+            authorName: "",
           }
         : undefined;
 
@@ -1359,7 +1375,7 @@ serve(async (req) => {
         .order("category");
 
       let knowledgeContext = knowledgeEntries?.length
-        ? knowledgeEntries.map(e => `[${e.category.toUpperCase()}] ${e.title}:\n${e.content}`).join("\n\n---\n\n")
+        ? knowledgeEntries.map(e => `[${e.category.toUpperCase()}] ${e.title}:\n${e.content}`).join("\n\n")
         : "No knowledge base entries available.";
 
       // Fetch learned corrections for auto-learning

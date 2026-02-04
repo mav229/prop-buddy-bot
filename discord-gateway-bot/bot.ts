@@ -225,22 +225,30 @@ async function handleMessage(eventData: any): Promise<void> {
   }
 
   if (!content) return;
-  if (!isExplicitBotMention(content)) return;
+
+  // If this message is a reply to the bot, allow it to trigger even without an explicit @mention.
+  // This enables a natural "reply thread" UX while still preventing random untagged questions.
+  let replied: any | null = null;
+  if (messageReference?.message_id) {
+    replied = await fetchMessage(channelId, messageReference.message_id);
+  }
+  const isReplyToBot = Boolean(replied && botUserId && replied.author?.id === botUserId);
+  const hadExplicitMention = isExplicitBotMention(content);
+
+  if (!hadExplicitMention && !isReplyToBot) return;
   if (hasAlreadyResponded(messageId)) return;
 
   markAsResponded(messageId);
 
+  // Only include reply context when the user is replying to *another user*.
+  // If they are replying to the bot, we already have per-user chat history; including the bot's
+  // previous response tends to cause the model to address random usernames.
   let repliedToContent: string | undefined;
-  let repliedToAuthor: string | undefined;
-  if (messageReference?.message_id) {
-    const replied = await fetchMessage(channelId, messageReference.message_id);
-    if (replied) {
-      repliedToContent = replied.content;
-      repliedToAuthor = replied.author?.username;
-    }
+  if (replied && !isReplyToBot) {
+    repliedToContent = replied.content;
   }
 
-  let question = stripBotMention(content);
+  let question = hadExplicitMention ? stripBotMention(content) : content.trim();
   if (!question && repliedToContent) question = repliedToContent;
   if (!question) {
     await sendMessage(channelId, "Please include your question after tagging me.", messageId);
@@ -255,7 +263,8 @@ async function handleMessage(eventData: any): Promise<void> {
     username: author.username,
     displayName: author.global_name,
     repliedToContent,
-    repliedToAuthor,
+    // Intentionally not sending replied-to author to prevent the model from addressing other users.
+    repliedToAuthor: undefined,
   });
 
   await sendMessage(channelId, reply, messageId);
