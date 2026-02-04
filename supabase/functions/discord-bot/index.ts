@@ -61,59 +61,63 @@ const recentMessages = new Map<string, { authorId: string; timestamp: number }[]
 // Clean Discord response - normalize formatting for Discord rendering
 function cleanDiscordResponse(text: string): string {
   return text
-    // Ensure double newlines after headers
-    .replace(/^(##.+)$/gm, '$1\n')
+    // Remove horizontal rules (--- or ***) - these don't render in Discord
+    .replace(/^[-*]{3,}\s*$/gm, '')
+    // Remove markdown dividers like "---" anywhere
+    .replace(/\n---\n/g, '\n\n')
+    // Convert bullet points to Discord-friendly > quote blocks for lists
+    .replace(/^[•●]\s*/gm, '> ')
+    // Convert standard markdown bullets to quote blocks
+    .replace(/^[-*]\s+/gm, '> ')
     // Convert → to em-dash
     .replace(/→/g, '—')
+    // Convert : in headers to cleaner format
+    .replace(/^(##\s+.+):$/gm, '$1')
     // Limit consecutive newlines to 2
     .replace(/\n{3,}/g, '\n\n')
     // Trim
     .trim();
 }
 
-const SYSTEM_PROMPT = `You ARE Scholaris AI — PropScholar's official Discord support.
+const SYSTEM_PROMPT = `You are Scholaris AI, PropScholar's Discord support bot.
 
-PERSONALITY:
-- Professional, confident, concise
-- Speak as "we" — you represent PropScholar
-- Max 1-2 emojis per response (section headers only)
+CRITICAL FORMATTING RULES (FOLLOW EXACTLY):
+- NEVER use --- or *** dividers (they don't render in Discord)
+- NEVER use bullet points like • or -
+- Use > at start of lines for lists (Discord quote blocks)
+- Use ## with ONE emoji for section headers
+- Use **bold** for key terms only
+- Keep responses SHORT (under 1000 characters)
+- One blank line between sections
 
-DISCORD FORMATTING (MANDATORY):
-1. Use ## for section headers (with 1 emoji max)
-2. Use > for list items (quote blocks render cleanly in Discord)
-3. Use **bold** for prices, percentages, key terms
-4. Use — (em-dash) instead of arrows
-5. Keep responses under 1500 characters
-6. One blank line between sections
+RESPONSE FORMAT:
+1. Brief greeting (1 sentence)
+2. Direct answer (2-3 sentences max)
+3. Details in > quote blocks if needed
+4. Optional call to action
 
-RESPONSE STRUCTURE:
-[Greeting] — 1 short sentence
-[Answer] — 2-3 short paragraphs max
-[Key Points] — Quote block list if needed
-[Call to Action] — Optional next step
-
-EXAMPLE RESPONSE:
+EXAMPLE:
 Hey! 👋
 
-## 💰 Challenge Pricing
+PropScholar offers skill-based trading challenges where you trade demo accounts to earn real payouts.
 
-> **2K Challenge** — $29 (₹2,610)
-> **5K Challenge** — $49 (₹4,410)
-> **10K Challenge** — $99 (₹8,910)
+## 💰 Challenge Sizes
 
-All include no time limits and unlimited retakes.
+> **2K** — $29
+> **5K** — $49
+> **10K** — $99
 
-Let me know which size interests you!
+All come with no time limits and unlimited retakes. Want to get started?
 
-RULES:
-- Never make up facts, policies, or numbers
-- No markdown links [text](url) — paste URLs directly
-- If unsure: "Let me check with the team on that"
+STRICT RULES:
+- Respond ONLY to the user who asked, never mention other users
+- Never make up facts
+- No markdown links — paste URLs directly
+- If unsure: "Let me check with the team"
 
-ACTIVE COUPONS:
 {coupons_context}
 
-KNOWLEDGE BASE:
+KNOWLEDGE:
 {knowledge_base}
 
 {learned_corrections}`;
@@ -423,8 +427,9 @@ async function getAIResponse(
   // Build current message with reply context if present
   let currentMessage = message;
   if (repliedTo && repliedTo.content) {
-    currentMessage = `[User is replying to a message from ${repliedTo.authorName}: "${repliedTo.content}"]\n\nUser's message: ${message}`;
-    console.log(`Including reply context in AI message: "${repliedTo.content}"`);
+    // Only add context, don't mention other usernames to avoid confusion
+    currentMessage = `Context from previous message: "${repliedTo.content}"\n\nMy question: ${message}`;
+    console.log(`Including reply context in AI message`);
   }
 
   // Add current message
