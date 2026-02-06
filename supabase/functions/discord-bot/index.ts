@@ -58,6 +58,22 @@ const MODERATOR_ROLE_IDS: string[] = [];
 // Track recent messages per channel for conversation detection
 const recentMessages = new Map<string, { authorId: string; timestamp: number }[]>();
 
+function sanitizeDiscordPromptText(text: string): string {
+  // This is used ONLY for model context (history / learned corrections), not user-facing output.
+  // Goal: prevent cross-user name bleed and reduce "addressing" artifacts.
+  return (text || "")
+    // Strip Discord user mentions
+    .replace(/<@!?\d+>/g, "")
+    // Strip @handles ONLY when they look like a Discord mention (keep emails intact)
+    .replace(/(^|\s)@[\w._-]{2,32}\b/gm, "$1")
+    // Strip greeting lines that tend to introduce/randomly address names
+    .replace(/^(?:hey|hi|hello)\b[^\n]{0,240}\n+/gim, "")
+    // Avoid divider noise in context
+    .replace(/^\s*[-*_]{3,}\s*$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 // Clean Discord response - normalize formatting for Discord rendering
 function cleanDiscordResponse(text: string): string {
   let cleaned = (text || "")
@@ -84,15 +100,19 @@ function cleanDiscordResponse(text: string): string {
     .replace(/^[\t ]*>\s*>\s*/gm, "> ")
     // Inside quote blocks, remove "- " bullets for cleaner rendering
     .replace(/^>\s*[-*]\s+/gm, "> ")
+    // Strip Discord mentions that sometimes leak through the model output
+    .replace(/<@!?\d+>/g, "")
     // Limit consecutive newlines
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  // Strip common greeting-only first line (removes preamble before the answer).
-  cleaned = cleaned.replace(
-    /^(?:hey|hi|hello|absolutely|great question)[^\n]{0,60}\n\n/gi,
-    ""
-  );
+  // Strip greeting/preamble paragraphs anywhere (they often contain random names).
+  cleaned = cleaned
+    // First paragraph preamble
+    .replace(/^(?:hey|hi|hello|absolutely|great question)[^\n]{0,240}\n\n/gi, "")
+    // Any standalone greeting paragraph later in the message
+    .replace(/(\n\n|^)(?:hey|hi|hello)\b[^\n]{0,80}(!|\.)\s*\n\n/gi, "$1")
+    .trim();
 
   // Remove common "ask for more" closers (user requested: full answer, no follow-up prompting).
   cleaned = cleaned
@@ -184,7 +204,7 @@ async function getOrCreateUserProfile(
   displayName?: string
 ): Promise<DiscordUserProfile | null> {
   console.log(`[UserProfile] Getting/creating profile for ${username} (${discordUserId})`);
-  
+
   try {
     // Try to get existing profile
     const { data: existing, error: fetchError } = await supabase
@@ -250,14 +270,11 @@ async function getOrCreateUserProfile(
 
 function buildUserContextPrompt(profile: DiscordUserProfile | null): string {
   if (!profile) return "";
-  
+
   const firstSeen = new Date(profile.first_seen_at);
   const daysSinceFirst = Math.floor((Date.now() - firstSeen.getTime()) / (1000 * 60 * 60 * 24));
-  const isNew = profile.message_count <= 3;
-  const isRegular = profile.message_count > 10;
-  
-  let context = `\n\nUSER PROFILE:
-- Name: ${profile.username}${profile.display_name ? ` (${profile.display_name})` : ""}
+
+  let context = `\n\nUSER PROFILE (for internal context only):
 - Messages sent: ${profile.message_count}
 - First seen: ${firstSeen.toLocaleDateString()} (${daysSinceFirst === 0 ? "today" : daysSinceFirst === 1 ? "yesterday" : `${daysSinceFirst} days ago`})`;
 
@@ -265,12 +282,8 @@ function buildUserContextPrompt(profile: DiscordUserProfile | null): string {
     context += `\n- Notes: ${profile.notes}`;
   }
 
-  if (isNew) {
-    context += `\n\nThis is a newer user - be extra welcoming and helpful! Make them feel like part of the PropScholar community.`;
-  } else if (isRegular) {
-    context += `\n\nThis is a regular user who's been around! Feel free to be more familiar and reference that you remember them.`;
-  }
-
+  // IMPORTANT: Do not include usernames/display names in the prompt.
+  // The bot must never address people by name to avoid "random name" bleed.
   return context;
 }
 
@@ -362,21 +375,37 @@ async function getLearnedCorrections(
     }
 
     // Simple keyword matching to find relevant corrections
-    const userWords = userQuestion.toLowerCase().split(/\s+/).filter(w => w.length > 3);
-    const relevantCorrections = corrections.filter((c: any) => {
-      const questionWords = c.question.toLowerCase();
-      return userWords.some((word: string) => questionWords.includes(word));
-    }).slice(0, 5);
+    const userWords = userQuestion
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((w) => w.length > 3);
+
+    const relevantCorrections = corrections
+      .filter((c: any) => {
+        const questionWords = String(c.question || "").toLowerCase();
+        return userWords.some((word: string) => questionWords.includes(word));
+      })
+      .slice(0, 5);
 
     if (relevantCorrections.length === 0) {
       return "";
     }
 
-    const correctionsText = relevantCorrections.map((c: any) => 
-      `Q: ${c.question}\nCorrect Answer: ${c.corrected_answer}`
-    ).join("\n\n");
+    // IMPORTANT: Only include the verified answers (not the original questions), and sanitize
+    // to avoid leaking other usernames into the model context.
+    const answers = relevantCorrections
+      .map((c: any) => sanitizeDiscordPromptText(String(c.corrected_answer || "")))
+      .filter(Boolean);
 
-    return `\n\nLEARNED CORRECTIONS (Use these verified answers for similar questions):\n${correctionsText}`;
+    if (answers.length === 0) {
+      return "";
+    }
+
+    const correctionsText = answers
+      .map((a, i) => `(${i + 1}) ${a}`)
+      .join("\n\n");
+
+    return `\n\nLEARNED CORRECTIONS (Verified answers for similar questions; do not mention usernames):\n${correctionsText}`;
   } catch (e) {
     console.error("Error fetching learned corrections:", e);
     return "";
@@ -444,15 +473,16 @@ async function getAIResponse(
     .replace("{knowledge_base}", knowledgeContext)
     .replace("{learned_corrections}", learnedCorrections)
     .replace("{coupons_context}", couponsContext);
-  
+
   // Add user profile context
   if (userProfile) {
     systemPrompt += buildUserContextPrompt(userProfile);
   }
-  
-  // Add conversation history context
-  if (conversationHistory.length > 0 && userName) {
-    systemPrompt += `\n\nYou are continuing a conversation with ${userName}. Here is your previous conversation with them - use this context to provide personalized responses and remember what they've asked before.`;
+
+  // Add conversation continuity context (no names)
+  if (conversationHistory.length > 0) {
+    systemPrompt +=
+      "\n\nYou are continuing a conversation with the same Discord user. Use the prior messages for continuity, but do not greet or address anyone by name.";
   }
 
   // Build messages array with history
@@ -460,21 +490,23 @@ async function getAIResponse(
     { role: "system", content: systemPrompt },
   ];
 
-  // Add conversation history
+  // Add conversation history (sanitized to prevent old name bleed)
   for (const msg of conversationHistory) {
-    messages.push({ role: msg.role, content: msg.content });
+    messages.push({ role: msg.role, content: sanitizeDiscordPromptText(msg.content) });
   }
 
   // Build current message with reply context if present
   let currentMessage = message;
   if (repliedTo && repliedTo.content) {
     // Only add context, don't mention other usernames to avoid confusion
-    currentMessage = `Context from previous message: "${repliedTo.content}"\n\nMy question: ${message}`;
+    const ctx = sanitizeDiscordPromptText(repliedTo.content);
+    currentMessage = `Context from previous message: "${ctx}"\n\nMy question: ${message}`;
     console.log(`Including reply context in AI message`);
   }
 
   // Add current message
   messages.push({ role: "user", content: currentMessage });
+
 
   try {
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
