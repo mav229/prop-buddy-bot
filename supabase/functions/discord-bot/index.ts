@@ -60,74 +60,100 @@ const recentMessages = new Map<string, { authorId: string; timestamp: number }[]
 
 // Clean Discord response - normalize formatting for Discord rendering
 function cleanDiscordResponse(text: string): string {
-  const cleaned = (text || "")
-    // Remove horizontal rules (--- or ***) - Discord doesn't render these reliably
+  let cleaned = (text || "")
+    // Remove horizontal rules (--- / *** / ___) - Discord rendering is inconsistent
     .replace(/^\s*[-*_]{3,}\s*$/gm, "")
     .replace(/\n\s*[-*_]{3,}\s*\n/g, "\n\n")
     // Remove common ASCII/box divider lines
     .replace(/^\s*[═━─]{8,}\s*$/gm, "")
-    // Convert bullet points to Discord-friendly quote blocks
+    // Convert bullets to quote blocks (Discord-native)
     .replace(/^[\t ]*[•●]\s*/gm, "> ")
     .replace(/^[\t ]*[-*]\s+/gm, "> ")
     // Normalize arrows
     .replace(/→/g, "—")
-    // Avoid markdown links (Discord supports them, but we prefer plain URLs for reliability)
+    // Avoid markdown links - flatten to plain URL
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, "$1 — $2")
-    // Convert : in headers to cleaner format
-    .replace(/^(##\s+.+):$/gm, "$1")
+    // Normalize heading levels to ## (Discord-friendly + consistent)
+    .replace(/^#\s+/gm, "## ")
+    .replace(/^###\s+/gm, "## ")
+    // Remove trailing ':' in headers
+    .replace(/^(##\s+.+):\s*$/gm, "$1")
+    // Ensure a blank line after headers
+    .replace(/^(##[^\n]+)\n(?!\n)/gm, "$1\n\n")
+    // Flatten nested quote blocks ("> >") to a single quote level
+    .replace(/^[\t ]*>\s*>\s*/gm, "> ")
+    // Inside quote blocks, remove "- " bullets for cleaner rendering
+    .replace(/^>\s*[-*]\s+/gm, "> ")
     // Limit consecutive newlines
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  // Ensure we use Discord headers when the answer is longer than a short blurb.
-  const hasHeader = /^\s*##\s+/m.test(cleaned);
-  const shouldForceHeader = !hasHeader && cleaned.length > 260;
-  const withHeader = shouldForceHeader
-    ? `## ✅ Quick answer\n\n${cleaned}`
-    : cleaned;
+  // Strip common greeting-only first line (removes preamble before the answer).
+  cleaned = cleaned.replace(
+    /^(?:hey|hi|hello|absolutely|great question)[^\n]{0,60}\n\n/gi,
+    ""
+  );
 
-  // Hard cap to keep replies crisp (Discord allows 2000 chars, but we want scannable output).
-  const MAX = 1100;
-  if (withHeader.length <= MAX) return withHeader;
-  return withHeader.slice(0, MAX - 60).trimEnd() + "\n\n> Want more detail? Ask a quick follow-up.";
+  // Remove common "ask for more" closers (user requested: full answer, no follow-up prompting).
+  cleaned = cleaned
+    .replace(/\n?\s*for more (?:info|information)[^\n]*$/i, "")
+    .replace(/\n?\s*feel free to ask[^\n]*$/i, "")
+    .replace(/\n?\s*let me know if you (?:have|need)[^\n]*$/i, "")
+    .replace(/\n?\s*want me to[^\n]*\?\s*$/i, "")
+    .trim();
+
+  // Force a clean, Discord-native start.
+  if (!/^##\s+/m.test(cleaned)) {
+    cleaned = `## Quick answer\n\n${cleaned}`.trim();
+  }
+
+  // Safety cap only (gateway bot will split into 2000-char Discord messages).
+  const MAX = 8000;
+  if (cleaned.length <= MAX) return cleaned;
+
+  // Prefer cutting at a paragraph boundary if possible.
+  const slice = cleaned.slice(0, MAX);
+  const cutAt = Math.max(slice.lastIndexOf("\n\n"), slice.lastIndexOf("\n"));
+  const truncated = (cutAt > 200 ? slice.slice(0, cutAt) : slice).trimEnd();
+  return truncated + "\n\n…";
 }
 
-const SYSTEM_PROMPT = `You are Scholaris AI, PropScholar's Discord support bot.
+const SYSTEM_PROMPT = `You are Scholaris AI, PropScholar's official Discord support.
 
-CRITICAL FORMATTING RULES (FOLLOW EXACTLY):
-- NEVER use --- or *** dividers (they don't render in Discord)
-- NEVER use bullet points like • or -
-- Use > at start of lines for lists (Discord quote blocks)
-- Use ## with ONE emoji for section headers
-- Use **bold** for key terms only
-- Keep responses SHORT (under 1000 characters)
-- One blank line between sections
+CRITICAL OUTPUT REQUIREMENTS:
+- Give the FULL answer in one response (do not ask the user to follow up).
+- Start immediately with the answer. No greeting. No fluff.
+- Never address the user by name.
 
-RESPONSE FORMAT:
-1. Brief greeting (1 sentence)
-2. Direct answer (2-3 sentences max)
-3. Details in > quote blocks if needed
-4. Optional call to action
+DISCORD MARKDOWN (MANDATORY):
+- First line MUST be: ## Quick answer
+- Use ONLY ## headers for section titles (no #, no ###).
+- Use > quote blocks for lists / key points.
+- NEVER use divider lines like --- / *** / ___.
+- Use **bold** sparingly for prices, limits, rule names, and key terms.
+- Use — (em dash) instead of arrows.
 
-EXAMPLE:
-Hey! 👋
+STYLE:
+- Be concise but complete: cover all key facts and rules the user asked for.
+- Do NOT end with: "feel free to ask", "want more detail", "let me know".
+- Only ask a question back if a missing detail makes the answer impossible.
 
-PropScholar offers skill-based trading challenges where you trade demo accounts to earn real payouts.
+SUGGESTED STRUCTURE:
+## Quick answer
+1–3 sentences.
 
-## 💰 Challenge Sizes
+## Details
+> Item
+> Item
 
-> **2K** — $29
-> **5K** — $49
-> **10K** — $99
+## Links (only if relevant)
+Paste full URLs.
 
-All come with no time limits and unlimited retakes. Want to get started?
+RULES:
+- Never invent facts; if unsure: "Let me check with the team."
+- Respond ONLY to the user who asked; never mention or address other users.
 
-STRICT RULES:
-- Respond ONLY to the user who asked, never mention other users
-- Never make up facts
-- No markdown links — paste URLs directly
-- If unsure: "Let me check with the team"
-
+ACTIVE COUPONS:
 {coupons_context}
 
 KNOWLEDGE:
@@ -460,6 +486,8 @@ async function getAIResponse(
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages,
+        // Prevent "half-cut" answers by allowing a larger output.
+        max_tokens: 1400,
       }),
     });
 
