@@ -22,11 +22,125 @@ const isRealAgentRequest = (text: string) => {
   return REAL_AGENT_PHRASES.some((p) => lower.includes(p));
 };
 
+// Extract emails from conversation messages
+function extractEmailsFromMessages(messages: any[]): string[] {
+  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+  const emails: string[] = [];
+  for (const msg of messages) {
+    if (typeof msg?.content === "string") {
+      const found = msg.content.match(emailRegex);
+      if (found) emails.push(...found);
+    }
+  }
+  return [...new Set(emails)];
+}
+
+// Fetch user context from MongoDB via our edge function
+async function fetchMongoUserContext(email: string): Promise<any | null> {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/mongo-user-context`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${supabaseKey}`,
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      console.error("MongoDB context fetch failed:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    if (!data.user) return null;
+    return data;
+  } catch (err) {
+    console.error("Error fetching MongoDB user context:", err);
+    return null;
+  }
+}
+
+// Format MongoDB user context for the AI prompt
+function formatUserContext(ctx: any): string {
+  const sections: string[] = [];
+
+  // User profile
+  if (ctx.user) {
+    const u = ctx.user;
+    const fields = Object.entries(u)
+      .filter(([k]) => k !== "_id" && k !== "password" && k !== "passwordHash" && k !== "hash" && k !== "salt")
+      .map(([k, v]) => `  ${k}: ${JSON.stringify(v)}`)
+      .join("\n");
+    sections.push(`USER PROFILE:\n${fields}`);
+  }
+
+  // Accounts
+  if (ctx.accounts?.length > 0) {
+    const accs = ctx.accounts.map((a: any, i: number) => {
+      const fields = Object.entries(a)
+        .filter(([k]) => k !== "_id")
+        .map(([k, v]) => `    ${k}: ${JSON.stringify(v)}`)
+        .join("\n");
+      return `  Account ${i + 1}:\n${fields}`;
+    }).join("\n\n");
+    sections.push(`TRADING ACCOUNTS (${ctx.accounts.length}):\n${accs}`);
+  } else {
+    sections.push("TRADING ACCOUNTS: None found");
+  }
+
+  // Violations
+  if (ctx.violations?.length > 0) {
+    const viols = ctx.violations.map((v: any, i: number) => {
+      const fields = Object.entries(v)
+        .filter(([k]) => k !== "_id")
+        .map(([k, val]) => `    ${k}: ${JSON.stringify(val)}`)
+        .join("\n");
+      return `  Violation ${i + 1}:\n${fields}`;
+    }).join("\n\n");
+    sections.push(`VIOLATIONS (${ctx.violations.length}):\n${viols}`);
+  } else {
+    sections.push("VIOLATIONS: None");
+  }
+
+  // Tickets
+  if (ctx.tickets?.length > 0) {
+    const tix = ctx.tickets.map((t: any, i: number) => {
+      const fields = Object.entries(t)
+        .filter(([k]) => k !== "_id")
+        .map(([k, v]) => `    ${k}: ${JSON.stringify(v)}`)
+        .join("\n");
+      return `  Ticket ${i + 1}:\n${fields}`;
+    }).join("\n\n");
+    sections.push(`SUPPORT TICKETS (${ctx.tickets.length}):\n${tix}`);
+  } else {
+    sections.push("SUPPORT TICKETS: None");
+  }
+
+  // Purchases
+  if (ctx.purchases?.length > 0) {
+    const purch = ctx.purchases.map((p: any, i: number) => {
+      const fields = Object.entries(p)
+        .filter(([k]) => k !== "_id")
+        .map(([k, v]) => `    ${k}: ${JSON.stringify(v)}`)
+        .join("\n");
+      return `  Purchase ${i + 1}:\n${fields}`;
+    }).join("\n\n");
+    sections.push(`PURCHASES (${ctx.purchases.length}):\n${purch}`);
+  } else {
+    sections.push("PURCHASES: None");
+  }
+
+  return sections.join("\n\n");
+}
+
 const createSseTextStream = (text: string, inputTokens = 0) => {
   const encoder = new TextEncoder();
   const outputTokens = Math.ceil(text.length / 4);
 
-  // chunk to feel "streamy" without being too spammy
   const chunkSize = 80;
   const chunks: string[] = [];
   for (let i = 0; i < text.length; i += chunkSize) {
@@ -107,6 +221,19 @@ User: "john@gmail.com"
 You: "Thanks! Here's your exclusive code: **PS2026** - 20% off all challenges..."
 
 ═══════════════════════════════════════════════════════════════
+USER DATA CONTEXT (FROM DATABASE):
+═══════════════════════════════════════════════════════════════
+
+{user_data_context}
+
+When you have user data above, USE IT to provide personalized answers:
+- Reference their specific accounts, statuses, credentials, balances
+- If they ask about "my account" or "my status", use the data above
+- Report account details, trading credentials, violations, purchase history accurately
+- Be specific: mention account numbers, statuses, dates, amounts from the data
+- If a user provides their email but no data is found, let them know we couldn't find an account with that email and ask them to double-check
+
+═══════════════════════════════════════════════════════════════
 FORMATTING RULES (MANDATORY - FOLLOW EXACTLY OR YOU FAIL):
 ═══════════════════════════════════════════════════════════════
 
@@ -180,7 +307,6 @@ serve(async (req) => {
     const { messages, sessionId } = await req.json();
 
     // Hard override: if the user explicitly asks for a real agent, we ALWAYS open the form.
-    // This avoids relying on the model to output markers correctly.
     const lastUserMsg = Array.isArray(messages)
       ? [...messages].reverse().find((m: any) => m?.role === "user" && typeof m?.content === "string")
       : null;
@@ -207,26 +333,28 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch knowledge base entries
-    const { data: knowledgeEntries, error: kbError } = await supabase
-      .from("knowledge_base")
-      .select("title, content, category")
-      .order("category");
+    // Fetch knowledge base, coupons, and MongoDB user context in parallel
+    const emails = extractEmailsFromMessages(messages || []);
+    const latestEmail = emails.length > 0 ? emails[emails.length - 1] : null;
 
-    if (kbError) {
-      console.error("Error fetching knowledge base:", kbError);
-    }
+    const [kbResult, couponsResult, mongoContext] = await Promise.all([
+      supabase
+        .from("knowledge_base")
+        .select("title, content, category")
+        .order("category"),
+      supabase
+        .from("coupons")
+        .select("code, discount_type, discount_value, description, benefits, min_purchase, valid_until")
+        .eq("is_active", true)
+        .or("valid_until.is.null,valid_until.gt." + new Date().toISOString()),
+      latestEmail ? fetchMongoUserContext(latestEmail) : Promise.resolve(null),
+    ]);
 
-    // Fetch active coupons
-    const { data: coupons, error: couponsError } = await supabase
-      .from("coupons")
-      .select("code, discount_type, discount_value, description, benefits, min_purchase, valid_until")
-      .eq("is_active", true)
-      .or("valid_until.is.null,valid_until.gt." + new Date().toISOString());
+    const { data: knowledgeEntries, error: kbError } = kbResult;
+    const { data: coupons, error: couponsError } = couponsResult;
 
-    if (couponsError) {
-      console.error("Error fetching coupons:", couponsError);
-    }
+    if (kbError) console.error("Error fetching knowledge base:", kbError);
+    if (couponsError) console.error("Error fetching coupons:", couponsError);
 
     // Format knowledge base for context
     let knowledgeContext = "";
@@ -258,12 +386,20 @@ serve(async (req) => {
       couponsContext = "No active coupons at the moment.";
     }
 
+    // Format user data context
+    let userDataContext = "No user email detected in conversation yet. If the user provides their email, their account data will be loaded automatically.";
+    if (latestEmail && mongoContext) {
+      userDataContext = `Data found for email: ${latestEmail}\n\n${formatUserContext(mongoContext)}`;
+      console.log(`MongoDB user context loaded for: ${latestEmail}`);
+    } else if (latestEmail && !mongoContext) {
+      userDataContext = `Email detected: ${latestEmail}\nNo account found in our database for this email.`;
+      console.log(`No MongoDB data found for: ${latestEmail}`);
+    }
+
     const systemPromptWithKnowledge = SYSTEM_PROMPT
       .replace("{knowledge_base}", knowledgeContext)
-      .replace("{coupons_context}", couponsContext);
-
-    // Note: Chat history storage is handled by the frontend useChat hook
-    // to avoid duplicate entries
+      .replace("{coupons_context}", couponsContext)
+      .replace("{user_data_context}", userDataContext);
 
     console.log("Sending request to Lovable AI Gateway...");
 
@@ -321,7 +457,6 @@ serve(async (req) => {
       async pull(controller) {
         const { done, value } = await reader.read();
         if (done) {
-          // Send usage data as final SSE event
           const usageData = {
             inputTokens: estimatedInputTokens,
             outputTokens: outputTokens,
@@ -332,7 +467,6 @@ serve(async (req) => {
           return;
         }
         
-        // Count output tokens from the stream
         const text = decoder.decode(value, { stream: true });
         const lines = text.split("\n");
         for (const line of lines) {
@@ -347,7 +481,6 @@ serve(async (req) => {
           }
         }
         
-        // Filter out [DONE] from original stream - we'll send our own
         const filteredText = text.replace(/data: \[DONE\]\n\n/g, "");
         if (filteredText) {
           controller.enqueue(encoder.encode(filteredText));
