@@ -244,6 +244,13 @@ AFTER VERIFICATION - what to show:
 - Be specific: mention account numbers, statuses, dates, amounts from the data
 - If a user provides their email but no data is found, let them know we couldn't find an account with that email and ask them to double-check
 
+CRITICAL - READING CREDENTIALS REPORT DATA CORRECTLY:
+In the credentials_reports data, under evaluation.metrics:
+- "profitable_days" = the ACTUAL number of profitable days the trader has achieved so far
+- "min_profitable_days" (under evaluation.rulesApplied) = the MINIMUM REQUIRED number of profitable days (this is the RULE/TARGET, NOT the actual count)
+DO NOT confuse these two! When telling the user about their profitable days, ALWAYS use the value from evaluation.metrics.profitable_days (the actual count), NOT evaluation.rulesApplied.min_profitable_days (the requirement).
+Example: If metrics.profitable_days = 1 and rulesApplied.min_profitable_days = 3, the user has completed 1 profitable day out of the required 3.
+
 ═══════════════════════════════════════════════════════════════
 FORMATTING RULES (MANDATORY - FOLLOW EXACTLY OR YOU FAIL):
 ═══════════════════════════════════════════════════════════════
