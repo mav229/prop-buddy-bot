@@ -114,16 +114,64 @@ Deno.serve(async (req) => {
 async function fetchAllCollections(db: any, userId: any, user: any, email: string) {
   const collections: Record<string, unknown[]> = {};
 
-  // Fetch all collections in parallel, searching by userId OR email
   const userIdStr = userId.toString();
-  // Try to create ObjectId version for matching
   let userOid: any = null;
   try { userOid = new ObjectId(userIdStr); } catch (_) { /* not a valid ObjectId */ }
+
+  // --- SPECIAL: credentialkeys - search nested credentials array by assignedTo email ---
+  let userAccountNumbers: number[] = [];
+  try {
+    const credKeyDocs = await db.collection("credentialkeys").find({
+      "credentials.assignedTo": { $regex: new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
+    }).limit(50).toArray();
+
+    if (credKeyDocs.length > 0) {
+      // Filter credentials array to only show this user's credentials
+      const filtered = credKeyDocs.map((doc: any) => {
+        const userCreds = (doc.credentials || []).filter((c: any) =>
+          c.assignedTo && c.assignedTo.toLowerCase() === email
+        );
+        // Collect account numbers (loginId) for credentials_reports lookup
+        for (const c of userCreds) {
+          if (c.loginId) {
+            const num = parseInt(c.loginId, 10);
+            if (!isNaN(num)) userAccountNumbers.push(num);
+          }
+        }
+        return { ...doc, credentials: userCreds };
+      });
+      collections["credentialkeys"] = filtered;
+      console.log(`Found ${filtered.length} credentialkeys docs, ${userAccountNumbers.length} account numbers: ${userAccountNumbers.join(", ")}`);
+    } else {
+      console.log(`No credentialkeys found for email ${email}`);
+    }
+  } catch (err) {
+    console.error("Error fetching credentialkeys:", err);
+  }
+
+  // --- SPECIAL: credentials_reports - search by account numbers ---
+  if (userAccountNumbers.length > 0) {
+    try {
+      const reportDocs = await db.collection("credentials_reports").find({
+        account: { $in: userAccountNumbers }
+      }).limit(50).toArray();
+      if (reportDocs.length > 0) {
+        collections["credentials_reports"] = reportDocs;
+        console.log(`Found ${reportDocs.length} credentials_reports for accounts ${userAccountNumbers.join(", ")}`);
+      } else {
+        console.log(`No credentials_reports found for accounts ${userAccountNumbers.join(", ")}`);
+      }
+    } catch (err) {
+      console.error("Error fetching credentials_reports:", err);
+    }
+  }
+
+  // --- All other collections: standard userId/email search ---
+  const skipCollections = new Set(["users", "credentialkeys", "credentials_reports"]);
   
-  const fetchPromises = COLLECTIONS.filter(c => c !== "users").map(async (colName) => {
+  const fetchPromises = COLLECTIONS.filter(c => !skipCollections.has(c)).map(async (colName) => {
     try {
       const col = db.collection(colName);
-      // Build comprehensive OR query to match any possible field pattern
       const orConditions: any[] = [
         { userId: userId },
         { user_id: userId },
@@ -149,7 +197,6 @@ async function fetchAllCollections(db: any, userId: any, user: any, email: strin
         { assignedTo: userId },
         { assignedTo: userIdStr },
       ];
-      // Also add ObjectId versions if valid
       if (userOid) {
         orConditions.push(
           { userId: userOid },
