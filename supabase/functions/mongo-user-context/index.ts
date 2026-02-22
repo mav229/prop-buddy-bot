@@ -9,6 +9,35 @@ function safeArray(data: unknown): unknown[] {
   return Array.isArray(data) ? data : [];
 }
 
+// All collections in the test database to scan
+const COLLECTIONS = [
+  "users",
+  "adminusers",
+  "accounts",
+  "credentialkeys",
+  "credentials_reports",
+  "orders",
+  "purchases",
+  "payouts",
+  "referrals",
+  "referralcommissions",
+  "referralpayouts",
+  "referralusages",
+  "coupons",
+  "couponusages",
+  "violations",
+  "tickets",
+  "qas",
+  "products",
+  "variants",
+  "blogs",
+  "blogposts",
+  "categories",
+  "collections",
+  "contentarticles",
+  "logs_automation",
+];
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -22,7 +51,7 @@ Deno.serve(async (req) => {
     );
   }
 
-  const dbName = Deno.env.get("MONGO_DB_NAME") || "propscholar";
+  const dbName = Deno.env.get("MONGO_DB_NAME") || "test";
   let client: MongoClient | null = null;
 
   try {
@@ -39,33 +68,32 @@ Deno.serve(async (req) => {
     await client.connect();
     const db = client.db(dbName);
 
+    const normalizedEmail = email.toLowerCase().trim();
+
     // 1. Find user by email
-    const user = await db.collection("users").findOne({ email: email.toLowerCase().trim() });
+    const user = await db.collection("users").findOne({ email: normalizedEmail });
 
     if (!user) {
-      return new Response(
-        JSON.stringify({ user: null, accounts: [], violations: [], tickets: [], purchases: [] }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      // Try case-insensitive search
+      const userAlt = await db.collection("users").findOne({ 
+        email: { $regex: new RegExp(`^${normalizedEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
+      });
+      if (!userAlt) {
+        return new Response(
+          JSON.stringify({ user: null, collections: {} }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      // Use the alt user
+      const userId = userAlt._id;
+      const result = await fetchAllCollections(db, userId, userAlt, normalizedEmail);
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const userId = user._id;
-
-    // 2. Fetch all related data in parallel
-    const [accounts, violations, tickets, purchases] = await Promise.all([
-      db.collection("accounts").find({ userId }).toArray().catch(() => []),
-      db.collection("violations").find({ userId }).toArray().catch(() => []),
-      db.collection("tickets").find({ userId }).toArray().catch(() => []),
-      db.collection("purchases").find({ userId }).toArray().catch(() => []),
-    ]);
-
-    const result = {
-      user,
-      accounts: safeArray(accounts),
-      violations: safeArray(violations),
-      tickets: safeArray(tickets),
-      purchases: safeArray(purchases),
-    };
+    const result = await fetchAllCollections(db, userId, user, normalizedEmail);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -82,3 +110,39 @@ Deno.serve(async (req) => {
     }
   }
 });
+
+async function fetchAllCollections(db: any, userId: any, user: any, email: string) {
+  const collections: Record<string, unknown[]> = {};
+
+  // Fetch all collections in parallel, searching by userId OR email
+  const fetchPromises = COLLECTIONS.filter(c => c !== "users").map(async (colName) => {
+    try {
+      const col = db.collection(colName);
+      // Try multiple field patterns to find related docs
+      const docs = await col.find({
+        $or: [
+          { userId: userId },
+          { user_id: userId },
+          { userId: userId.toString() },
+          { user_id: userId.toString() },
+          { email: email },
+          { userEmail: email },
+          { user_email: email },
+        ]
+      }).limit(50).toArray();
+      return { name: colName, docs: safeArray(docs) };
+    } catch (err) {
+      console.error(`Error fetching ${colName}:`, err);
+      return { name: colName, docs: [] };
+    }
+  });
+
+  const results = await Promise.all(fetchPromises);
+  for (const r of results) {
+    if (r.docs.length > 0) {
+      collections[r.name] = r.docs;
+    }
+  }
+
+  return { user, collections };
+}
