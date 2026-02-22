@@ -118,19 +118,44 @@ async function fetchAllCollections(db: any, userId: any, user: any, email: strin
   let userOid: any = null;
   try { userOid = new ObjectId(userIdStr); } catch (_) { /* not a valid ObjectId */ }
 
-  // --- SPECIAL: credentialkeys - search nested credentials array by assignedTo email ---
+
+  // --- SPECIAL: credentialkeys - search nested credentials array by assignedTo email OR userId ---
   let userAccountNumbers: number[] = [];
   try {
+    const emailRegex = new RegExp(email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    const credOrConditions: any[] = [
+      { "credentials.assignedTo": { $regex: emailRegex } },
+      { "credentials.assignedTo": { $regex: emailRegex } },
+      { "credentials.assignedTo": userIdStr },
+    ];
+    if (userOid) {
+      credOrConditions.push({ "credentials.assignedTo": userOid });
+    }
+    // Also search by user field at document level
+    credOrConditions.push(
+      { user: userId },
+      { user: userIdStr },
+      { userId: userId },
+      { userId: userIdStr },
+    );
+    if (userOid) {
+      credOrConditions.push(
+        { user: userOid },
+        { userId: userOid },
+      );
+    }
+
     const credKeyDocs = await db.collection("credentialkeys").find({
-      "credentials.assignedTo": { $regex: new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
+      $or: credOrConditions
     }).limit(50).toArray();
 
     if (credKeyDocs.length > 0) {
       // Filter credentials array to only show this user's credentials
       const filtered = credKeyDocs.map((doc: any) => {
-        const userCreds = (doc.credentials || []).filter((c: any) =>
-          c.assignedTo && c.assignedTo.toLowerCase() === email
-        );
+        const userCreds = (doc.credentials || []).filter((c: any) => {
+          const assignedTo = (c.assignedTo || "").toString().toLowerCase();
+          return assignedTo.includes(email) || assignedTo === userIdStr;
+        });
         // Collect account numbers (loginId) for credentials_reports lookup
         for (const c of userCreds) {
           if (c.loginId) {
@@ -138,12 +163,22 @@ async function fetchAllCollections(db: any, userId: any, user: any, email: strin
             if (!isNaN(num)) userAccountNumbers.push(num);
           }
         }
+        // If no matching credentials in array but doc matched at top level, include all credentials
+        if (userCreds.length === 0) {
+          for (const c of (doc.credentials || [])) {
+            if (c.loginId) {
+              const num = parseInt(c.loginId, 10);
+              if (!isNaN(num)) userAccountNumbers.push(num);
+            }
+          }
+          return doc;
+        }
         return { ...doc, credentials: userCreds };
       });
       collections["credentialkeys"] = filtered;
       console.log(`Found ${filtered.length} credentialkeys docs, ${userAccountNumbers.length} account numbers: ${userAccountNumbers.join(", ")}`);
     } else {
-      console.log(`No credentialkeys found for email ${email}`);
+      console.log(`No credentialkeys found for email ${email} or userId ${userIdStr}`);
     }
   } catch (err) {
     console.error("Error fetching credentialkeys:", err);
