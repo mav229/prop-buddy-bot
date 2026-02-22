@@ -68,70 +68,63 @@ async function fetchMongoUserContext(email: string): Promise<any | null> {
 function formatUserContext(ctx: any): string {
   const sections: string[] = [];
 
+  // Friendly collection name mapping
+  const COLLECTION_LABELS: Record<string, string> = {
+    accounts: "TRADING ACCOUNTS",
+    credentialkeys: "CREDENTIAL KEYS / LOGIN DETAILS",
+    credentials_reports: "CREDENTIALS REPORTS",
+    orders: "ORDERS",
+    purchases: "PURCHASES",
+    payouts: "PAYOUTS",
+    referrals: "REFERRALS",
+    referralcommissions: "REFERRAL COMMISSIONS",
+    referralpayouts: "REFERRAL PAYOUTS",
+    referralusages: "REFERRAL USAGES",
+    coupons: "COUPONS USED",
+    couponusages: "COUPON USAGES",
+    violations: "VIOLATIONS",
+    tickets: "SUPPORT TICKETS",
+    qas: "QA RECORDS",
+    products: "PRODUCTS",
+    variants: "VARIANTS",
+    blogs: "BLOGS",
+    blogposts: "BLOG POSTS",
+    categories: "CATEGORIES",
+    collections: "COLLECTIONS",
+    contentarticles: "CONTENT ARTICLES",
+    logs_automation: "AUTOMATION LOGS",
+    adminusers: "ADMIN USER RECORDS",
+  };
+
   // User profile
   if (ctx.user) {
     const u = ctx.user;
     const fields = Object.entries(u)
-      .filter(([k]) => k !== "_id" && k !== "password" && k !== "passwordHash" && k !== "hash" && k !== "salt")
+      .filter(([k]) => !["_id", "password", "passwordHash", "hash", "salt", "__v"].includes(k))
       .map(([k, v]) => `  ${k}: ${JSON.stringify(v)}`)
       .join("\n");
     sections.push(`USER PROFILE:\n${fields}`);
   }
 
-  // Accounts
-  if (ctx.accounts?.length > 0) {
-    const accs = ctx.accounts.map((a: any, i: number) => {
-      const fields = Object.entries(a)
-        .filter(([k]) => k !== "_id")
-        .map(([k, v]) => `    ${k}: ${JSON.stringify(v)}`)
-        .join("\n");
-      return `  Account ${i + 1}:\n${fields}`;
-    }).join("\n\n");
-    sections.push(`TRADING ACCOUNTS (${ctx.accounts.length}):\n${accs}`);
-  } else {
-    sections.push("TRADING ACCOUNTS: None found");
+  // All collections data
+  if (ctx.collections && typeof ctx.collections === "object") {
+    for (const [colName, docs] of Object.entries(ctx.collections)) {
+      const arr = docs as any[];
+      if (!arr || arr.length === 0) continue;
+      const label = COLLECTION_LABELS[colName] || colName.toUpperCase();
+      const formatted = arr.map((doc: any, i: number) => {
+        const fields = Object.entries(doc)
+          .filter(([k]) => !["_id", "__v", "password", "passwordHash", "hash", "salt"].includes(k))
+          .map(([k, v]) => `    ${k}: ${JSON.stringify(v)}`)
+          .join("\n");
+        return `  ${label} #${i + 1}:\n${fields}`;
+      }).join("\n\n");
+      sections.push(`${label} (${arr.length}):\n${formatted}`);
+    }
   }
 
-  // Violations
-  if (ctx.violations?.length > 0) {
-    const viols = ctx.violations.map((v: any, i: number) => {
-      const fields = Object.entries(v)
-        .filter(([k]) => k !== "_id")
-        .map(([k, val]) => `    ${k}: ${JSON.stringify(val)}`)
-        .join("\n");
-      return `  Violation ${i + 1}:\n${fields}`;
-    }).join("\n\n");
-    sections.push(`VIOLATIONS (${ctx.violations.length}):\n${viols}`);
-  } else {
-    sections.push("VIOLATIONS: None");
-  }
-
-  // Tickets
-  if (ctx.tickets?.length > 0) {
-    const tix = ctx.tickets.map((t: any, i: number) => {
-      const fields = Object.entries(t)
-        .filter(([k]) => k !== "_id")
-        .map(([k, v]) => `    ${k}: ${JSON.stringify(v)}`)
-        .join("\n");
-      return `  Ticket ${i + 1}:\n${fields}`;
-    }).join("\n\n");
-    sections.push(`SUPPORT TICKETS (${ctx.tickets.length}):\n${tix}`);
-  } else {
-    sections.push("SUPPORT TICKETS: None");
-  }
-
-  // Purchases
-  if (ctx.purchases?.length > 0) {
-    const purch = ctx.purchases.map((p: any, i: number) => {
-      const fields = Object.entries(p)
-        .filter(([k]) => k !== "_id")
-        .map(([k, v]) => `    ${k}: ${JSON.stringify(v)}`)
-        .join("\n");
-      return `  Purchase ${i + 1}:\n${fields}`;
-    }).join("\n\n");
-    sections.push(`PURCHASES (${ctx.purchases.length}):\n${purch}`);
-  } else {
-    sections.push("PURCHASES: None");
+  if (sections.length <= 1) {
+    sections.push("No additional data found in any collections for this user.");
   }
 
   return sections.join("\n\n");
