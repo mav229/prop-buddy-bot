@@ -1,4 +1,4 @@
-import { MongoClient } from "npm:mongodb@6.12.0";
+import { MongoClient, ObjectId } from "npm:mongodb@6.12.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -115,21 +115,57 @@ async function fetchAllCollections(db: any, userId: any, user: any, email: strin
   const collections: Record<string, unknown[]> = {};
 
   // Fetch all collections in parallel, searching by userId OR email
+  const userIdStr = userId.toString();
+  // Try to create ObjectId version for matching
+  let userOid: any = null;
+  try { userOid = new ObjectId(userIdStr); } catch (_) { /* not a valid ObjectId */ }
+  
   const fetchPromises = COLLECTIONS.filter(c => c !== "users").map(async (colName) => {
     try {
       const col = db.collection(colName);
-      // Try multiple field patterns to find related docs
-      const docs = await col.find({
-        $or: [
-          { userId: userId },
-          { user_id: userId },
-          { userId: userId.toString() },
-          { user_id: userId.toString() },
-          { email: email },
-          { userEmail: email },
-          { user_email: email },
-        ]
-      }).limit(50).toArray();
+      // Build comprehensive OR query to match any possible field pattern
+      const orConditions: any[] = [
+        { userId: userId },
+        { user_id: userId },
+        { userId: userIdStr },
+        { user_id: userIdStr },
+        { user: userId },
+        { user: userIdStr },
+        { email: email },
+        { userEmail: email },
+        { user_email: email },
+        { customerEmail: email },
+        { customer_email: email },
+        { buyerEmail: email },
+        { ownerEmail: email },
+        { owner: userId },
+        { owner: userIdStr },
+        { customerId: userId },
+        { customerId: userIdStr },
+        { customer_id: userId },
+        { customer_id: userIdStr },
+        { createdBy: userId },
+        { createdBy: userIdStr },
+        { assignedTo: userId },
+        { assignedTo: userIdStr },
+      ];
+      // Also add ObjectId versions if valid
+      if (userOid) {
+        orConditions.push(
+          { userId: userOid },
+          { user_id: userOid },
+          { user: userOid },
+          { owner: userOid },
+          { customerId: userOid },
+          { customer_id: userOid },
+          { createdBy: userOid },
+          { assignedTo: userOid },
+        );
+      }
+      const docs = await col.find({ $or: orConditions }).limit(50).toArray();
+      if (docs.length === 0) {
+        console.log(`No docs found in ${colName} for user ${userIdStr}`);
+      }
       return { name: colName, docs: safeArray(docs) };
     } catch (err) {
       console.error(`Error fetching ${colName}:`, err);
