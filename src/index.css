@@ -204,14 +204,20 @@ body.widget-mode #root {
   animation: none;
 }
 
-/* Typing dots (smooth) */
+/* Typing dots (bouncing) */
 .typing-dot {
-  animation: typing-pulse 1.4s ease-in-out infinite;
+  animation: typing-bounce 1.4s ease-in-out infinite;
 }
 
-@keyframes typing-pulse {
-  0%, 60%, 100% { opacity: 0.3; }
-  30% { opacity: 1; }
+@keyframes typing-bounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
 }
 
 /* ===== PURE PNG LAUNCHER (zero background) ===== */

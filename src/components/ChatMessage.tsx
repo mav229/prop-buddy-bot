@@ -17,9 +17,9 @@ interface ChatMessageProps {
 }
 
 const TypingIndicator = () => (
-  <div className="flex items-center gap-1.5 py-1.5">
+  <div className="flex items-center gap-[5px] py-1">
     {[0, 1, 2].map((i) => (
-      <span key={i} className="w-[5px] h-[5px] rounded-full bg-gray-400 typing-dot" style={{ animationDelay: `${i * 150}ms` }} />
+      <span key={i} className="w-[7px] h-[7px] rounded-full bg-gray-400 typing-dot" style={{ animationDelay: `${i * 200}ms` }} />
     ))}
   </div>
 );
