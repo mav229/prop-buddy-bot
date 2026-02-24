@@ -81,22 +81,30 @@ const Landing = () => {
         y: 60, opacity: 0, duration: 0.9, delay: 0.15, ease: "power3.out",
       });
 
-      // Each feature card - stacked reveal one by one
-      document.querySelectorAll(".feature-card").forEach((card) => {
-        gsap.set(card, { opacity: 0, y: 120, scale: 0.94 });
-        ScrollTrigger.create({
-          trigger: card,
-          start: "top 92%",
-          once: true,
-          onEnter: () => {
-            gsap.to(card, {
-              opacity: 1,
-              y: 0,
-              scale: 1,
-              duration: 1,
-              ease: "power3.out",
-            });
+      // Pinned feature cards - stack on scroll like privatetraders.space
+      const cards = document.querySelectorAll(".feature-card");
+      cards.forEach((card, i) => {
+        if (i < cards.length - 1) {
+          ScrollTrigger.create({
+            trigger: card,
+            start: "top 15%",
+            endTrigger: cards[cards.length - 1],
+            end: "top 15%",
+            pin: true,
+            pinSpacing: false,
+          });
+        }
+        // Fade + slide in each card
+        gsap.from(card, {
+          scrollTrigger: {
+            trigger: card,
+            start: "top bottom",
+            end: "top 40%",
+            scrub: 0.5,
           },
+          y: 150,
+          opacity: 0,
+          scale: 0.92,
         });
       });
 
@@ -196,8 +204,8 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Features - Stacked cards */}
-      <section ref={featuresRef} className="relative py-32 px-6">
+      {/* Features - Pinned stacked cards */}
+      <section ref={featuresRef} className="relative pt-32 pb-16 px-6">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-20">
             <p className="features-label text-xs tracking-[0.3em] uppercase text-muted-foreground mb-4">Features</p>
@@ -207,26 +215,20 @@ const Landing = () => {
             </h2>
           </div>
 
-          <div className="space-y-6">
+          <div className="features-stack relative">
             {features.map((feature, i) => (
               <div
                 key={feature.title}
-                className="feature-card group rounded-2xl border border-border/30 bg-card/30 backdrop-blur-sm p-8 sm:p-10 hover:bg-card/50 transition-all duration-500 relative overflow-hidden"
+                className="feature-card group rounded-2xl border border-border/30 bg-[hsl(0,0%,6%)] p-8 sm:p-10 hover:bg-card/50 transition-all duration-500 relative overflow-hidden mb-8"
               >
-                {/* Top glow line */}
                 <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-foreground/10 to-transparent" />
-                
-                {/* Counter */}
                 <p className="text-xs text-muted-foreground/50 tracking-widest mb-6">
                   {String(i + 1).padStart(2, "0")} / {String(features.length).padStart(2, "0")}
                 </p>
-
                 <div className="flex items-start gap-5">
-                  {/* Icon box */}
                   <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-foreground/5 border border-border/30 flex items-center justify-center group-hover:bg-foreground/10 transition-colors duration-500">
                     <feature.icon className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors duration-500" />
                   </div>
-
                   <div className="flex-1">
                     <h3 className="text-xl font-semibold text-foreground mb-2 tracking-tight">{feature.title}</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed font-light max-w-lg">
@@ -234,8 +236,6 @@ const Landing = () => {
                     </p>
                   </div>
                 </div>
-
-                {/* Bottom label */}
                 <div className="mt-8 pt-4 border-t border-border/20">
                   <p className="text-[10px] tracking-[0.25em] uppercase text-muted-foreground/40">Scholaris</p>
                 </div>
