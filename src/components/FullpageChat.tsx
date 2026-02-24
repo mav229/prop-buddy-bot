@@ -159,31 +159,12 @@ const FullpageChat = () => {
       />
 
       {/* Main chat area */}
-      <div className="flex flex-col flex-1 relative min-w-0 bg-[hsl(0,0%,7%)]">
-        {/* Ambient vortex texture */}
+      <div className="flex flex-col flex-1 relative min-w-0 bg-[hsl(0,0%,5%)]">
+        {/* Subtle ambient glow */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          {/* Central vortex glow */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-30"
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full opacity-20"
             style={{
-              background: 'radial-gradient(circle, hsl(0,0%,18%) 0%, hsl(0,0%,10%) 30%, hsl(0,0%,6%) 55%, transparent 75%)',
-            }}
-          />
-          {/* Outer ring */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full opacity-15"
-            style={{
-              background: 'radial-gradient(circle, transparent 40%, hsl(0,0%,14%) 55%, hsl(0,0%,8%) 70%, transparent 85%)',
-            }}
-          />
-          {/* Subtle spiral texture via conic gradient */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full opacity-[0.07] animate-[spin_60s_linear_infinite]"
-            style={{
-              background: 'conic-gradient(from 0deg, transparent, hsl(0,0%,25%), transparent, hsl(0,0%,20%), transparent, hsl(0,0%,25%), transparent)',
-            }}
-          />
-          {/* Deep inner core */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200px] h-[200px] rounded-full opacity-50"
-            style={{
-              background: 'radial-gradient(circle, hsl(0,0%,3%) 0%, hsl(0,0%,8%) 50%, transparent 100%)',
+              background: 'radial-gradient(circle, hsl(0,0%,14%) 0%, hsl(0,0%,8%) 40%, transparent 70%)',
             }}
           />
         </div>
@@ -281,7 +262,7 @@ const FullpageChat = () => {
               {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowUp className="w-4 h-4" strokeWidth={2.5} />}
             </button>
           </div>
-          <p className="text-[9px] text-white/10 text-center mt-2 font-light">scholaris.space</p>
+          <p className="text-[10px] text-white/20 text-center mt-2 font-light">Scholaris AI <span className="text-white/10">powered by</span> PropScholar</p>
         </div>
       </div>
     </div>
