@@ -39,7 +39,7 @@ const Bubble = ({ role, content, isStreaming }: { role: "user" | "assistant"; co
         {isUser ? (
           <span className="text-[10px] font-bold text-black">U</span>
         ) : (
-          <img src={scholarisLogo} alt="S" className="w-full h-full object-cover rounded-full" />
+          <img src={propscholarIcon} alt="S" className="w-full h-full object-cover rounded-full" />
         )}
       </div>
       <div className={cn(
