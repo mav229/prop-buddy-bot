@@ -1,4 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Send, Loader2, Sparkles, RefreshCw, AlertTriangle } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { InlineTicketForm } from "@/components/InlineTicketForm";
@@ -61,7 +62,23 @@ const Bubble = ({ role, content, isStreaming }: { role: "user" | "assistant"; co
 };
 
 const FullpageChat = () => {
-  const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, sessionId, appendAssistantMessage } = useChat();
+  const [searchParams] = useSearchParams();
+  const [preloadEmail, setPreloadEmail] = useState<string | undefined>(
+    searchParams.get("email") || undefined
+  );
+
+  // Listen for postMessage from parent window
+  useEffect(() => {
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === "scholaris:user" && event.data?.email) {
+        setPreloadEmail(event.data.email);
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, []);
+
+  const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, sessionId, appendAssistantMessage } = useChat(preloadEmail);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [input, setInput] = useState("");
