@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from "react";
-import { Bot, RefreshCw, Settings, AlertTriangle, Monitor } from "lucide-react";
+import { Bot, RefreshCw, ArrowLeft, AlertTriangle } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
@@ -82,9 +82,9 @@ Our support team will reach out to you within **4 hours**.`);
           </div>
 
           <div className="flex items-center gap-2">
-            <Link to="/embed-checker">
-              <Button variant="ghost" size="icon" title="Embed checker">
-                <Monitor className="w-4 h-4" />
+            <Link to="/">
+              <Button variant="ghost" size="icon" title="Home">
+                <ArrowLeft className="w-4 h-4" />
               </Button>
             </Link>
             <Button
@@ -95,11 +95,6 @@ Our support team will reach out to you within **4 hours**.`);
             >
               <RefreshCw className="w-4 h-4" />
             </Button>
-            <Link to="/admin">
-              <Button variant="ghost" size="icon" title="Admin Dashboard">
-                <Settings className="w-4 h-4" />
-              </Button>
-            </Link>
           </div>
         </div>
       </header>
