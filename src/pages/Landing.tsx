@@ -44,7 +44,6 @@ const Landing = () => {
   const heroRef = useRef<HTMLDivElement>(null);
   const featuresRef = useRef<HTMLDivElement>(null);
   const ctaRef = useRef<HTMLDivElement>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -67,65 +66,67 @@ const Landing = () => {
         .from(".hero-glow", { scale: 0, opacity: 0, duration: 1.5, ease: "power2.out" }, "-=1");
 
       // Floating orbs
-      gsap.to(".orb-1", {
-        y: -20,
-        x: 10,
-        duration: 4,
-        repeat: -1,
-        yoyo: true,
-        ease: "sine.inOut",
-      });
-      gsap.to(".orb-2", {
-        y: 15,
-        x: -15,
-        duration: 5,
-        repeat: -1,
-        yoyo: true,
-        ease: "sine.inOut",
-      });
-      gsap.to(".orb-3", {
-        y: -10,
-        x: 20,
-        duration: 3.5,
-        repeat: -1,
-        yoyo: true,
-        ease: "sine.inOut",
+      gsap.to(".orb-1", { y: -20, x: 10, duration: 4, repeat: -1, yoyo: true, ease: "sine.inOut" });
+      gsap.to(".orb-2", { y: 15, x: -15, duration: 5, repeat: -1, yoyo: true, ease: "sine.inOut" });
+      gsap.to(".orb-3", { y: -10, x: 20, duration: 3.5, repeat: -1, yoyo: true, ease: "sine.inOut" });
+
+      // Features label
+      gsap.from(".features-label", {
+        scrollTrigger: { trigger: featuresRef.current, start: "top 85%" },
+        y: 30, opacity: 0, duration: 0.6, ease: "power3.out",
       });
 
-      // Features section
-      gsap.from(".features-title", {
-        scrollTrigger: {
-          trigger: featuresRef.current,
-          start: "top 80%",
-        },
-        y: 50,
-        opacity: 0,
-        duration: 0.8,
-        ease: "power3.out",
+      // Features title - words split
+      gsap.from(".features-title-main", {
+        scrollTrigger: { trigger: featuresRef.current, start: "top 80%" },
+        y: 60, opacity: 0, duration: 0.9, ease: "power3.out",
       });
 
-      gsap.from(".feature-card", {
-        scrollTrigger: {
-          trigger: gridRef.current,
-          start: "top 85%",
-        },
-        y: 60,
-        opacity: 0,
-        duration: 0.7,
-        stagger: 0.1,
-        ease: "power3.out",
+      gsap.from(".features-title-sub", {
+        scrollTrigger: { trigger: featuresRef.current, start: "top 78%" },
+        y: 60, opacity: 0, duration: 0.9, delay: 0.15, ease: "power3.out",
+      });
+
+      // Each feature card one by one on scroll
+      document.querySelectorAll(".feature-card").forEach((card, i) => {
+        gsap.from(card, {
+          scrollTrigger: {
+            trigger: card,
+            start: "top 90%",
+          },
+          y: 80,
+          opacity: 0,
+          duration: 0.7,
+          delay: i * 0.08,
+          ease: "power3.out",
+        });
       });
 
       // CTA section
-      gsap.from(".cta-content", {
-        scrollTrigger: {
-          trigger: ctaRef.current,
-          start: "top 80%",
-        },
-        y: 40,
-        opacity: 0,
-        duration: 0.8,
-        ease: "power3.out",
+      gsap.from(".cta-label", {
+        scrollTrigger: { trigger: ctaRef.current, start: "top 80%" },
+        y: 30, opacity: 0, duration: 0.6, ease: "power3.out",
+      });
+
+      gsap.from(".cta-title", {
+        scrollTrigger: { trigger: ctaRef.current, start: "top 78%" },
+        y: 50, opacity: 0, duration: 0.8, delay: 0.1, ease: "power3.out",
+      });
+
+      gsap.from(".cta-desc", {
+        scrollTrigger: { trigger: ctaRef.current, start: "top 76%" },
+        y: 40, opacity: 0, duration: 0.8, delay: 0.2, ease: "power3.out",
+      });
+
+      gsap.from(".cta-button", {
+        scrollTrigger: { trigger: ctaRef.current, start: "top 74%" },
+        y: 30, opacity: 0, duration: 0.6, delay: 0.35, ease: "power3.out",
+      });
+
+      // Footer
+      gsap.from(".landing-footer", {
+        scrollTrigger: { trigger: ".landing-footer", start: "top 95%" },
+        y: 20, opacity: 0, duration: 0.6, ease: "power3.out",
       });
     });
 
@@ -133,7 +134,7 @@ const Landing = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
+    <div className="min-h-screen bg-background text-foreground overflow-hidden">
       {/* Nav */}
       <nav
         ref={navRef}
@@ -221,16 +222,16 @@ const Landing = () => {
       {/* Features */}
       <section ref={featuresRef} className="relative py-32 px-6">
         <div className="max-w-6xl mx-auto">
-          <div className="features-title text-center mb-20">
-            <p className="text-xs tracking-[0.3em] uppercase text-muted-foreground mb-4">Features</p>
-            <h2 className="text-3xl sm:text-5xl font-semibold tracking-tight text-foreground">
-              Built for scale.
-              <span className="text-foreground/30"> Designed for humans.</span>
+          <div className="text-center mb-20">
+            <p className="features-label text-xs tracking-[0.3em] uppercase text-muted-foreground mb-4">Features</p>
+            <h2 className="text-3xl sm:text-5xl font-semibold tracking-tight">
+              <span className="features-title-main text-foreground">Built for scale.</span>
+              <span className="features-title-sub text-foreground/30"> Designed for humans.</span>
             </h2>
           </div>
 
-          <div ref={gridRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-border/30 border border-border/30 rounded-2xl overflow-hidden">
-            {features.map((feature, i) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-border/30 border border-border/30 rounded-2xl overflow-hidden">
+            {features.map((feature) => (
               <div
                 key={feature.title}
                 className="feature-card group p-8 sm:p-10 bg-background hover:bg-card/50 transition-colors duration-500"
@@ -248,19 +249,19 @@ const Landing = () => {
 
       {/* CTA */}
       <section ref={ctaRef} className="relative py-32 px-6">
-        <div className="cta-content max-w-3xl mx-auto text-center">
+        <div className="max-w-3xl mx-auto text-center">
           <div className="border border-border/30 rounded-3xl p-12 sm:p-16 bg-card/20 backdrop-blur-sm relative overflow-hidden">
             {/* Subtle glow */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[300px] h-[1px] bg-gradient-to-r from-transparent via-foreground/20 to-transparent" />
             
-            <p className="text-xs tracking-[0.3em] uppercase text-muted-foreground mb-6">For Businesses</p>
-            <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground mb-4">
+            <p className="cta-label text-xs tracking-[0.3em] uppercase text-muted-foreground mb-6">For Businesses</p>
+            <h2 className="cta-title text-3xl sm:text-4xl font-semibold tracking-tight text-foreground mb-4">
               Get Scholaris on your website
             </h2>
-            <p className="text-muted-foreground mb-10 font-light max-w-md mx-auto">
+            <p className="cta-desc text-muted-foreground mb-10 font-light max-w-md mx-auto">
               Add an AI support agent that actually knows your product. One line of code, infinite support capacity.
             </p>
-            <a href="mailto:support@propscholar.com?subject=Scholaris%20for%20my%20website">
+            <a href="mailto:support@propscholar.com?subject=Scholaris%20for%20my%20website" className="cta-button inline-block">
               <Button size="xl" variant="premium" className="group gap-3">
                 Contact Us
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
@@ -271,7 +272,7 @@ const Landing = () => {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border/20 py-8 px-6">
+      <footer className="landing-footer border-t border-border/20 py-8 px-6">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <span className="text-xs text-muted-foreground">
             © {new Date().getFullYear()} Scholaris — Made by{" "}
