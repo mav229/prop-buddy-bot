@@ -81,18 +81,22 @@ const Landing = () => {
         y: 60, opacity: 0, duration: 0.9, delay: 0.15, ease: "power3.out",
       });
 
-      // Each feature card - stacked reveal on scroll
+      // Each feature card - stacked reveal one by one
       document.querySelectorAll(".feature-card").forEach((card) => {
-        gsap.from(card, {
-          scrollTrigger: {
-            trigger: card,
-            start: "top 88%",
+        gsap.set(card, { opacity: 0, y: 120, scale: 0.94 });
+        ScrollTrigger.create({
+          trigger: card,
+          start: "top 92%",
+          once: true,
+          onEnter: () => {
+            gsap.to(card, {
+              opacity: 1,
+              y: 0,
+              scale: 1,
+              duration: 1,
+              ease: "power3.out",
+            });
           },
-          y: 100,
-          opacity: 0,
-          scale: 0.96,
-          duration: 0.8,
-          ease: "power3.out",
         });
       });
 
