@@ -159,7 +159,7 @@ const FullpageChat = () => {
       />
 
       {/* Main chat area */}
-      <div className="flex flex-col flex-1 relative min-w-0">
+      <div className="flex flex-col flex-1 relative min-w-0 bg-[hsl(0,0%,13%)]">
         {/* Ambient */}
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute top-0 right-1/4 w-[300px] h-[300px] bg-[hsl(0,0%,10%)] rounded-full blur-[100px] opacity-40" />
@@ -167,7 +167,7 @@ const FullpageChat = () => {
         </div>
 
         {/* Header - sticky */}
-        <header className="flex-shrink-0 sticky top-0 z-10 px-5 pt-4 pb-3 bg-[hsl(0,0%,4%)]/90 backdrop-blur-xl">
+        <header className="flex-shrink-0 sticky top-0 z-10 px-5 pt-4 pb-3 bg-[hsl(0,0%,13%)]/90 backdrop-blur-xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full overflow-hidden border border-[hsl(0,0%,18%)] bg-black">
