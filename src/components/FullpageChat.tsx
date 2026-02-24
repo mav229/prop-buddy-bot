@@ -4,8 +4,6 @@ import { Send, Loader2, RefreshCw, AlertTriangle } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { InlineTicketForm } from "@/components/InlineTicketForm";
 import { ChatSidebar } from "@/components/ChatSidebar";
-import { VoiceInput } from "@/components/VoiceInput";
-import { ImageUploadButton } from "@/components/ImageUploadButton";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import propscholarIcon from "@/assets/propscholar-icon.png";
@@ -85,7 +83,7 @@ const FullpageChat = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [input, setInput] = useState("");
-  const [pendingImage, setPendingImage] = useState<{ base64: string; mimeType: string } | null>(null);
+  
   const [showTicketForm, setShowTicketForm] = useState(false);
   const [ticketSubmitted, setTicketSubmitted] = useState(false);
   const lastTicketTriggerIdRef = useRef<string | null>(null);
@@ -113,12 +111,11 @@ const FullpageChat = () => {
   }, [input]);
 
   const handleSend = useCallback(() => {
-    if ((!input.trim() && !pendingImage) || isLoading || isRateLimited) return;
-    sendMessage(input.trim(), pendingImage || undefined);
+    if (!input.trim() || isLoading || isRateLimited) return;
+    sendMessage(input.trim());
     setInput("");
-    setPendingImage(null);
     setTimeout(() => inputRef.current?.focus(), 0);
-  }, [input, isLoading, isRateLimited, sendMessage, pendingImage]);
+  }, [input, isLoading, isRateLimited, sendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
@@ -242,20 +239,7 @@ const FullpageChat = () => {
 
         {/* Input */}
         <div className="flex-shrink-0 relative z-10 px-5 pb-4">
-          {/* Image preview */}
-          {pendingImage && (
-            <div className="mb-2 flex items-center gap-2 px-4">
-              <div className="w-10 h-10 rounded-lg overflow-hidden border border-[hsl(0,0%,16%)] bg-[hsl(0,0%,8%)]">
-                <img src={`data:${pendingImage.mimeType};base64,${pendingImage.base64}`} alt="Upload" className="w-full h-full object-cover" />
-              </div>
-              <button onClick={() => setPendingImage(null)} className="text-[10px] text-white/30 hover:text-white/60">✕ Remove</button>
-            </div>
-          )}
-          <div className="rounded-full border border-[hsl(0,0%,16%)] bg-[hsl(0,0%,8%)]/90 backdrop-blur-xl px-4 py-1.5 flex items-end gap-2 focus-within:border-[hsl(0,0%,22%)] transition-colors">
-            <ImageUploadButton
-              onImageSelected={(base64, mimeType) => setPendingImage({ base64, mimeType })}
-              disabled={isRateLimited}
-            />
+          <div className="rounded-full border border-[hsl(0,0%,20%)] bg-[hsl(0,0%,10%)] px-4 py-1 flex items-center gap-2 transition-colors focus-within:border-[hsl(0,0%,28%)]">
             <textarea
               ref={inputRef}
               value={input}
@@ -264,19 +248,12 @@ const FullpageChat = () => {
               placeholder="Ask Scholaris..."
               disabled={isRateLimited}
               rows={1}
-              className="flex-1 bg-transparent border-0 resize-none focus:ring-0 focus:outline-none py-2 max-h-24 scrollbar-hide text-[13px] font-light text-white/80 placeholder:text-white/25"
-            />
-            <VoiceInput
-              onTranscript={(text) => {
-                setInput((prev) => (prev ? prev + " " + text : text));
-                setTimeout(() => inputRef.current?.focus(), 0);
-              }}
-              disabled={isRateLimited}
+              className="flex-1 bg-transparent border-0 resize-none focus:ring-0 focus:outline-none py-2 max-h-20 scrollbar-hide text-[13px] font-light text-white/80 placeholder:text-white/25"
             />
             <button
               onClick={handleSend}
-              disabled={(!input.trim() && !pendingImage) || isLoading || isRateLimited}
-              className="flex-shrink-0 w-8 h-8 rounded-full bg-white text-black flex items-center justify-center disabled:opacity-20 hover:bg-white/90 transition-all mb-0.5"
+              disabled={!input.trim() || isLoading || isRateLimited}
+              className="flex-shrink-0 w-8 h-8 rounded-full bg-[hsl(0,0%,18%)] border border-[hsl(0,0%,25%)] text-white/70 flex items-center justify-center disabled:opacity-20 hover:bg-[hsl(0,0%,24%)] transition-all"
             >
               {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5 -rotate-45" />}
             </button>
