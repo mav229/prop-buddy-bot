@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { MessageSquarePlus, Search, MessageCircle } from "lucide-react";
+import { MessageSquarePlus, Search, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import propscholarIcon from "@/assets/propscholar-icon.png";
 import { cn } from "@/lib/utils";
@@ -63,6 +63,24 @@ export const ChatSidebar = ({
     }
 
     setSessions(Array.from(sessionMap.values()));
+  };
+
+  const deleteSession = async (sessionId: string) => {
+    // Remove from localStorage
+    const saved = JSON.parse(localStorage.getItem("scholaris_sessions") || "[]") as string[];
+    localStorage.setItem("scholaris_sessions", JSON.stringify(saved.filter((id: string) => id !== sessionId)));
+
+    // Remove from DB
+    await supabase.from("chat_history").delete().eq("session_id", sessionId);
+    await supabase.from("training_feedback").delete().eq("session_id", sessionId);
+
+    // Update local state
+    setSessions((prev) => prev.filter((s) => s.session_id !== sessionId));
+
+    // If deleting the current session, start a new chat
+    if (sessionId === currentSessionId) {
+      onNewChat();
+    }
   };
 
   const filtered = sessions.filter((s) =>
@@ -155,18 +173,34 @@ export const ChatSidebar = ({
         ) : (
           <div className="space-y-0.5">
             {filtered.map((session) => (
-              <button
+              <div
                 key={session.session_id}
-                onClick={() => onSelectSession(session.session_id)}
                 className={cn(
-                  "w-full text-left px-3 py-2.5 rounded-lg text-[13px] font-light truncate transition-colors",
+                  "group flex items-center rounded-lg transition-colors",
                   session.session_id === currentSessionId
-                    ? "bg-[hsl(0,0%,10%)] text-[hsl(0,0%,85%)]"
-                    : "text-[hsl(0,0%,50%)] hover:text-[hsl(0,0%,75%)] hover:bg-[hsl(0,0%,7%)]"
+                    ? "bg-[hsl(0,0%,10%)]"
+                    : "hover:bg-[hsl(0,0%,7%)]"
                 )}
               >
-                {session.title}
-              </button>
+                <button
+                  onClick={() => onSelectSession(session.session_id)}
+                  className={cn(
+                    "flex-1 text-left px-3 py-2.5 text-[13px] font-light truncate",
+                    session.session_id === currentSessionId
+                      ? "text-[hsl(0,0%,85%)]"
+                      : "text-[hsl(0,0%,50%)] hover:text-[hsl(0,0%,75%)]"
+                  )}
+                >
+                  {session.title}
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); deleteSession(session.session_id); }}
+                  className="opacity-0 group-hover:opacity-100 p-1.5 mr-1.5 rounded text-[hsl(0,0%,40%)] hover:text-red-400 hover:bg-[hsl(0,0%,14%)] transition-all"
+                  title="Delete chat"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
             ))}
           </div>
         )}
