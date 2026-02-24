@@ -167,7 +167,7 @@ const FullpageChat = () => {
         </div>
 
         {/* Header - sticky */}
-        <header className="flex-shrink-0 sticky top-0 z-10 px-5 pt-4 pb-3 bg-[hsl(0,0%,13%)] border-b border-[hsl(0,0%,16%)]">
+        <header className="flex-shrink-0 sticky top-0 z-10 px-5 pt-4 pb-3 bg-[hsl(0,0%,4%)] border-b border-[hsl(0,0%,10%)]">
           <div className="flex items-center">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full overflow-hidden border border-[hsl(0,0%,18%)] bg-black">
