@@ -87,7 +87,7 @@ const Landing = () => {
       const cards = document.querySelectorAll(".card-stack-item");
       const cardCount = cards.length;
 
-      if (section && viewport && !CSS.supports("animation-timeline", "scroll()")) {
+      if (section && viewport) {
         // Pin the viewport for the entire section scroll
         ScrollTrigger.create({
           trigger: section,
