@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Send, Loader2, RefreshCw, AlertTriangle } from "lucide-react";
+import { ArrowUp, Loader2, RefreshCw, AlertTriangle } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { InlineTicketForm } from "@/components/InlineTicketForm";
 import { ChatSidebar } from "@/components/ChatSidebar";
@@ -253,9 +253,13 @@ const FullpageChat = () => {
             <button
               onClick={handleSend}
               disabled={!input.trim() || isLoading || isRateLimited}
-              className="flex-shrink-0 w-8 h-8 rounded-full bg-[hsl(0,0%,20%)] border border-[hsl(0,0%,28%)] text-white/60 flex items-center justify-center disabled:opacity-15 hover:bg-[hsl(0,0%,28%)] transition-all mb-0.5"
+              className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all mb-0.5 ${
+                input.trim() && !isLoading && !isRateLimited
+                  ? "bg-white text-black hover:bg-white/90"
+                  : "bg-[hsl(0,0%,20%)] text-white/40 cursor-default"
+              }`}
             >
-              {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5 -rotate-45" />}
+              {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowUp className="w-4 h-4" strokeWidth={2.5} />}
             </button>
           </div>
           <p className="text-[9px] text-white/10 text-center mt-2 font-light">scholaris.space</p>
