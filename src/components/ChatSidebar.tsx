@@ -71,7 +71,7 @@ export const ChatSidebar = ({
 
   if (collapsed) {
     return (
-      <div className="flex flex-col items-center w-14 flex-shrink-0 bg-[hsl(0,0%,4%)] border-r border-[hsl(0,0%,10%)] py-4 gap-3">
+      <div className="flex flex-col items-center w-14 flex-shrink-0 bg-[hsl(0,0%,13%)] border-r border-[hsl(0,0%,18%)] py-4 gap-3">
         <button
           onClick={onToggle}
           className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-[hsl(0,0%,10%)] transition-colors"
@@ -97,7 +97,7 @@ export const ChatSidebar = ({
   }
 
   return (
-    <div className="flex flex-col w-64 flex-shrink-0 bg-[hsl(0,0%,4%)] border-r border-[hsl(0,0%,10%)] h-full">
+    <div className="flex flex-col w-64 flex-shrink-0 bg-[hsl(0,0%,13%)] border-r border-[hsl(0,0%,18%)] h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <button onClick={onToggle} className="flex items-center gap-2.5">
