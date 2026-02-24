@@ -8,6 +8,7 @@ import Landing from "./pages/Landing";
 import Index from "./pages/Index";
 import Admin from "./pages/Admin";
 import Embed from "./pages/Embed";
+import FullpageEmbed from "./pages/FullpageEmbed";
 import Widget from "./pages/Widget";
 import EmbedChecker from "./pages/EmbedChecker";
 import NotFound from "./pages/NotFound";
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/chat" element={<Index />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/embed" element={<Embed />} />
+            <Route path="/fullpage" element={<FullpageEmbed />} />
             <Route path="/widget" element={<Widget />} />
             <Route path="/embed-checker" element={<EmbedChecker />} />
             <Route path="*" element={<NotFound />} />
