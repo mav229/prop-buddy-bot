@@ -238,7 +238,7 @@ const FullpageChat = () => {
 
         {/* Input */}
         <div className="flex-shrink-0 relative z-10 px-5 pb-4">
-          <div className="rounded-xl border border-[hsl(0,0%,13%)] bg-[hsl(0,0%,6%)]/80 backdrop-blur-xl p-1 flex items-end gap-1.5 focus-within:border-[hsl(0,0%,20%)] transition-colors">
+          <div className="rounded-full border border-[hsl(0,0%,16%)] bg-[hsl(0,0%,8%)]/90 backdrop-blur-xl px-4 py-1.5 flex items-end gap-2 focus-within:border-[hsl(0,0%,22%)] transition-colors">
             <textarea
               ref={inputRef}
               value={input}
@@ -247,14 +247,14 @@ const FullpageChat = () => {
               placeholder="Ask Scholaris..."
               disabled={isRateLimited}
               rows={1}
-              className="flex-1 bg-transparent border-0 resize-none focus:ring-0 focus:outline-none px-3 py-2 max-h-24 scrollbar-hide text-[13px] font-light text-white/80 placeholder:text-white/20"
+              className="flex-1 bg-transparent border-0 resize-none focus:ring-0 focus:outline-none py-2 max-h-24 scrollbar-hide text-[13px] font-light text-white/80 placeholder:text-white/25"
             />
             <button
               onClick={handleSend}
               disabled={!input.trim() || isLoading || isRateLimited}
-              className="flex-shrink-0 w-8 h-8 rounded-lg bg-white text-black flex items-center justify-center disabled:opacity-20 hover:bg-white/90 transition-all"
+              className="flex-shrink-0 w-8 h-8 rounded-full bg-white text-black flex items-center justify-center disabled:opacity-20 hover:bg-white/90 transition-all mb-0.5"
             >
-              {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+              {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5 rotate-90" />}
             </button>
           </div>
           <p className="text-[9px] text-white/10 text-center mt-2 font-light">scholaris.space</p>
