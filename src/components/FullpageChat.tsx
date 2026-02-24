@@ -6,6 +6,7 @@ import { InlineTicketForm } from "@/components/InlineTicketForm";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import scholarisLogo from "@/assets/scholaris-logo.png";
+import propscholarIcon from "@/assets/propscholar-icon.png";
 
 const OPEN_TICKET_FORM_MARKER = "[[OPEN_TICKET_FORM]]";
 
@@ -138,11 +139,14 @@ const FullpageChat = () => {
       <header className="flex-shrink-0 relative z-10 px-5 pt-4 pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg overflow-hidden border border-[hsl(0,0%,18%)]">
-              <img src={scholarisLogo} alt="Scholaris" className="w-full h-full object-cover" />
+            <div className="w-9 h-9 rounded-full overflow-hidden border border-[hsl(0,0%,18%)] bg-black">
+              <img src={propscholarIcon} alt="PropScholar" className="w-full h-full object-cover" />
             </div>
             <div>
-              <h1 className="text-[14px] font-semibold tracking-tight text-white/90">Scholaris</h1>
+              <div className="flex items-center gap-1.5">
+                <h1 className="text-[14px] font-semibold tracking-tight text-white/90">PropScholar</h1>
+                <span className="text-[10px] text-white/20 font-light">× Scholaris</span>
+              </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 online-dot" />
                 <span className="text-[10px] text-white/30 font-light">Online</span>
@@ -159,8 +163,8 @@ const FullpageChat = () => {
       <div className="flex-1 overflow-y-auto scrollbar-hide relative z-10 px-5 py-4">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="w-12 h-12 rounded-xl bg-[hsl(0,0%,8%)] border border-[hsl(0,0%,15%)] flex items-center justify-center mb-5">
-              <Sparkles className="w-5 h-5 text-white/20" />
+            <div className="w-14 h-14 rounded-full overflow-hidden border border-[hsl(0,0%,15%)] mb-5 bg-black">
+              <img src={propscholarIcon} alt="PropScholar" className="w-full h-full object-cover" />
             </div>
             <h2 className="text-lg font-semibold tracking-tight text-white/85 mb-1">How can I help?</h2>
             <p className="text-white/25 text-xs font-light mb-6 max-w-xs">Ask about evaluations, rules, payouts, or trading conditions.</p>
