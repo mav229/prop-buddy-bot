@@ -22,7 +22,7 @@ const Widget = () => {
   }, []);
 
   return (
-    <div className="w-full h-full flex items-center justify-center relative overflow-hidden rounded-2xl" style={{ background: "hsl(0,0%,6%)" }}>
+    <div className="w-full h-full sm:aspect-video flex items-center justify-center relative overflow-hidden rounded-2xl" style={{ background: "hsl(0,0%,6%)" }}>
       {/* Blurred background mockup */}
       <div className="absolute inset-0 flex flex-col opacity-30 blur-[6px] scale-105 pointer-events-none select-none">
         <div className="px-4 pt-4 pb-3 flex items-center gap-3 border-b border-white/10">
