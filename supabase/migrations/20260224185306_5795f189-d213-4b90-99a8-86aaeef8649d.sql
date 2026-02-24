@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Anyone can read chat history" ON public.chat_history;

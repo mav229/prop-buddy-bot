@@ -1,0 +1,1 @@
+CREATE POLICY "Public can read chat history" ON public.chat_history FOR SELECT USING (true);
