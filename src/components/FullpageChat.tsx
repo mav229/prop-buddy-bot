@@ -160,6 +160,9 @@ const FullpageChat = () => {
             {messages.map((msg, i) => (
               <Bubble key={msg.id} role={msg.role} content={msg.content} isStreaming={isLoading && i === messages.length - 1 && msg.role === "assistant"} />
             ))}
+            {isLoading && messages[messages.length - 1]?.role === "user" && (
+              <Bubble role="assistant" content="" isStreaming />
+            )}
             {showTicketForm && (
               <div className="max-w-xs mx-auto">
                 <InlineTicketForm onClose={() => setShowTicketForm(false)} onSuccess={handleTicketSuccess} sessionId={sessionId || "web"} chatHistory={messages.map((m) => ({ role: m.role, content: m.content }))} />
