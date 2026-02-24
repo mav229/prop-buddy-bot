@@ -187,7 +187,7 @@ export const ChatInterface = () => {
               </div>
               <div>
                 <h1 className="text-[15px] font-semibold tracking-tight text-[hsl(0,0%,92%)]">
-                  Scholaris
+                  Scholaris AI
                 </h1>
                 <div className="flex items-center gap-1.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-[hsl(142,76%,46%)] online-dot" />
