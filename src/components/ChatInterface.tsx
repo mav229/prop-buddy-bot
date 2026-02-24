@@ -207,7 +207,7 @@ export const ChatInterface = () => {
         </div>
 
         {/* ── Header ── */}
-        <header className="flex-shrink-0 relative z-20">
+        <header className="flex-shrink-0 sticky top-0 z-20">
           <div className="mx-5 mt-4 rounded-2xl border border-[hsl(0,0%,12%)] bg-[hsl(0,0%,5%)]/80 backdrop-blur-2xl px-5 py-3.5">
             <div className="max-w-3xl mx-auto flex items-center justify-between">
               <div className="flex items-center gap-3.5">
