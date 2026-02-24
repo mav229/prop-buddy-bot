@@ -6,6 +6,7 @@ import { InlineTicketForm } from "./InlineTicketForm";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import scholarisLogo from "@/assets/scholaris-logo.png";
+import propscholarIcon from "@/assets/propscholar-icon.png";
 
 const OPEN_TICKET_FORM_MARKER = "[[OPEN_TICKET_FORM]]";
 
@@ -57,7 +58,7 @@ const Bubble = ({
         {isUser ? (
           <span className="text-xs font-semibold text-[hsl(0,0%,15%)]">Y</span>
         ) : (
-          <img src={scholarisLogo} alt="S" className="w-full h-full object-cover rounded-full" />
+          <img src={propscholarIcon} alt="S" className="w-full h-full object-cover rounded-full" />
         )}
       </div>
 
@@ -181,8 +182,8 @@ export const ChatInterface = () => {
         <div className="mx-5 mt-4 rounded-2xl border border-[hsl(0,0%,12%)] bg-[hsl(0,0%,5%)]/80 backdrop-blur-2xl px-5 py-3.5">
           <div className="max-w-3xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-3.5">
-              <div className="w-9 h-9 rounded-xl overflow-hidden border border-[hsl(0,0%,16%)]">
-                <img src={scholarisLogo} alt="Scholaris" className="w-full h-full object-cover" />
+              <div className="w-9 h-9 rounded-full overflow-hidden border border-[hsl(0,0%,16%)] bg-black">
+                <img src={propscholarIcon} alt="Scholaris" className="w-full h-full object-cover" />
               </div>
               <div>
                 <h1 className="text-[15px] font-semibold tracking-tight text-[hsl(0,0%,92%)]">
@@ -216,8 +217,8 @@ export const ChatInterface = () => {
       <div className="flex-1 overflow-y-auto scrollbar-hide relative z-10 px-5 py-8">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center animate-fade-in">
-            <div className="w-16 h-16 rounded-2xl bg-[hsl(0,0%,7%)] border border-[hsl(0,0%,14%)] flex items-center justify-center mb-8">
-              <Sparkles className="w-7 h-7 text-[hsl(0,0%,35%)]" />
+            <div className="w-16 h-16 rounded-full overflow-hidden border border-[hsl(0,0%,14%)] mb-8 bg-black">
+              <img src={propscholarIcon} alt="Scholaris" className="w-full h-full object-cover" />
             </div>
             <h2 className="text-2xl font-semibold tracking-tight text-[hsl(0,0%,90%)] mb-2">
               How can I help?

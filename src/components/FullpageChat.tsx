@@ -144,8 +144,8 @@ const FullpageChat = () => {
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <h1 className="text-[14px] font-semibold tracking-tight text-white/90">PropScholar</h1>
-                <span className="text-[10px] text-white/20 font-light">× Scholaris</span>
+                <h1 className="text-[14px] font-semibold tracking-tight text-white/90">Scholaris</h1>
+                <span className="text-[10px] text-white/20 font-light">by PropScholar</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 online-dot" />
