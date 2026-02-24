@@ -81,75 +81,22 @@ const Landing = () => {
         y: 60, opacity: 0, duration: 0.9, delay: 0.15, ease: "power3.out",
       });
 
-      // GSAP fallback for card stacking (browsers without scroll-timeline)
-      const section = document.querySelector(".card-stack-section") as HTMLElement;
-      const viewport = document.querySelector(".card-stack-viewport") as HTMLElement;
-      const cards = document.querySelectorAll(".card-stack-item");
-      const cardCount = cards.length;
-
-      if (section && viewport) {
-        // Pin the viewport for the entire section scroll
-        ScrollTrigger.create({
-          trigger: section,
-          start: "top top",
-          end: "bottom bottom",
-          pin: viewport,
-          pinSpacing: false,
-        });
-
-        cards.forEach((card, i) => {
-          if (i === 0) {
-            // First card visible, shrinks as you scroll
-            gsap.set(card, { y: "0%", scale: 1 });
-            gsap.to(card, {
-              scale: 0.9,
-              y: "-8%",
-              scrollTrigger: {
-                trigger: section,
-                start: () => `top+=${(i / cardCount) * section.offsetHeight} top`,
-                end: () => `top+=${((i + 1) / cardCount) * section.offsetHeight} top`,
-                scrub: 0.3,
-              },
-            });
-          } else if (i < cardCount - 1) {
-            // Middle cards: slide up, then shrink
-            gsap.set(card, { y: "100%" });
-            gsap.to(card, {
-              y: "0%",
-              scale: 1,
-              scrollTrigger: {
-                trigger: section,
-                start: () => `top+=${((i - 1) / cardCount) * section.offsetHeight} top`,
-                end: () => `top+=${(i / cardCount) * section.offsetHeight} top`,
-                scrub: 0.3,
-              },
-            });
-            gsap.to(card, {
-              scale: 0.9,
-              y: "-8%",
-              scrollTrigger: {
-                trigger: section,
-                start: () => `top+=${(i / cardCount) * section.offsetHeight} top`,
-                end: () => `top+=${((i + 1) / cardCount) * section.offsetHeight} top`,
-                scrub: 0.3,
-              },
-            });
-          } else {
-            // Last card: slides up, never shrinks
-            gsap.set(card, { y: "100%" });
-            gsap.to(card, {
-              y: "0%",
-              scale: 1,
-              scrollTrigger: {
-                trigger: section,
-                start: () => `top+=${((i - 1) / cardCount) * section.offsetHeight} top`,
-                end: () => `top+=${(i / cardCount) * section.offsetHeight} top`,
-                scrub: 0.3,
-              },
-            });
-          }
-        });
-      }
+      // Simple sticky card stack — each card sticks and the next scrolls over
+      const cards = gsap.utils.toArray<HTMLElement>(".stack-card");
+      cards.forEach((card, i) => {
+        if (i < cards.length - 1) {
+          gsap.to(card, {
+            scale: 0.92,
+            opacity: 0.4,
+            scrollTrigger: {
+              trigger: cards[i + 1],
+              start: "top bottom",
+              end: "top 20%",
+              scrub: true,
+            },
+          });
+        }
+      });
 
       // CTA section elements
       gsap.from(".cta-label", {
@@ -247,54 +194,46 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Features - Stacked card scroll */}
-      <section
-        ref={featuresRef}
-        className="card-stack-section relative"
-        style={{ "--card-count": features.length } as React.CSSProperties}
-      >
-        {/* Title - not sticky, scrolls away naturally */}
-        <div className="pt-24 pb-8 bg-background relative z-10">
-          <div className="text-center">
+      {/* Features - Simple sticky card stack */}
+      <section ref={featuresRef} className="relative px-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="pt-24 pb-12 text-center">
             <p className="features-label text-xs tracking-[0.3em] uppercase text-muted-foreground mb-4">Features</p>
             <h2 className="text-3xl sm:text-5xl font-semibold tracking-tight">
               <span className="features-title-main text-foreground">Built for scale.</span>
               <span className="features-title-sub text-foreground/30"> Powered by intelligence.</span>
             </h2>
           </div>
-        </div>
 
-        <div className="card-stack-viewport">
           {features.map((feature, i) => (
             <div
               key={feature.title}
-              className="card-stack-item"
-              style={{ "--card-index": i + 1 } as React.CSSProperties}
+              className="stack-card sticky top-20 mb-4"
+              style={{ zIndex: i + 1 }}
             >
-              <div className="w-full max-w-4xl mx-auto">
-                <div className="group rounded-2xl border border-border/30 bg-[hsl(0,0%,6%)] p-8 sm:p-10 hover:bg-card/50 transition-colors duration-500 relative overflow-hidden">
-                  <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-foreground/10 to-transparent" />
-                  <p className="text-xs text-muted-foreground/50 tracking-widest mb-6">
-                    {String(i + 1).padStart(2, "0")} / {String(features.length).padStart(2, "0")}
-                  </p>
-                  <div className="flex items-start gap-5">
-                    <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-foreground/5 border border-border/30 flex items-center justify-center group-hover:bg-foreground/10 transition-colors duration-500">
-                      <feature.icon className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors duration-500" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-xl font-semibold text-foreground mb-2 tracking-tight">{feature.title}</h3>
-                      <p className="text-sm text-muted-foreground leading-relaxed font-light max-w-lg">
-                        {feature.description}
-                      </p>
-                    </div>
+              <div className="group rounded-2xl border border-border/30 bg-[hsl(0,0%,6%)] p-8 sm:p-10 hover:bg-card/50 transition-colors duration-500 relative overflow-hidden">
+                <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-foreground/10 to-transparent" />
+                <p className="text-xs text-muted-foreground/50 tracking-widest mb-6">
+                  {String(i + 1).padStart(2, "0")} / {String(features.length).padStart(2, "0")}
+                </p>
+                <div className="flex items-start gap-5">
+                  <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-foreground/5 border border-border/30 flex items-center justify-center group-hover:bg-foreground/10 transition-colors duration-500">
+                    <feature.icon className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors duration-500" />
                   </div>
-                  <div className="mt-8 pt-4 border-t border-border/20">
-                    <p className="text-[10px] tracking-[0.25em] uppercase text-muted-foreground/40">Scholaris</p>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-semibold text-foreground mb-2 tracking-tight">{feature.title}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed font-light max-w-lg">
+                      {feature.description}
+                    </p>
                   </div>
+                </div>
+                <div className="mt-8 pt-4 border-t border-border/20">
+                  <p className="text-[10px] tracking-[0.25em] uppercase text-muted-foreground/40">Scholaris</p>
                 </div>
               </div>
             </div>
           ))}
+          <div className="h-[40vh]" />
         </div>
       </section>
 

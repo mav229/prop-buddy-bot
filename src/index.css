@@ -331,32 +331,6 @@ body.widget-mode #root {
   }
 }
 
-/* ===== CARD STACK SCROLL ANIMATION ===== */
-
-.card-stack-section {
-  height: calc(var(--card-count, 6) * 100vh);
-  position: relative;
-}
-
-.card-stack-viewport {
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  width: 100%;
-  overflow: hidden;
-}
-
-.card-stack-item {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-  z-index: var(--card-index, 1);
-  /* GSAP controls transform */
-}
-
 /* Default shadcn components */
 @layer components {
   .glass-panel { @apply bg-card backdrop-blur-xl border border-border rounded-xl; }
