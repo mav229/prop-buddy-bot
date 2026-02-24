@@ -183,7 +183,12 @@ async function fetchAllCollections(db: any, userId: any, user: any, email: strin
           }
           return doc;
         }
-        return { ...doc, credentials: userCreds };
+        // Strip sensitive password fields from credentials
+        const sanitizedDoc = { ...doc, credentials: userCreds.map((c: any) => {
+          const { investorPassword, investor_password, masterPassword, master_password, password, passwordHash, ...safe } = c;
+          return safe;
+        })};
+        return sanitizedDoc;
       });
       collections["credentialkeys"] = filtered;
       console.log(`Found ${filtered.length} credentialkeys docs, ${userAccountNumbers.length} account numbers: ${userAccountNumbers.join(", ")}`);
