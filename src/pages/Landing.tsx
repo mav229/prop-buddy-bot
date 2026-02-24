@@ -253,13 +253,13 @@ const Landing = () => {
         className="card-stack-section relative"
         style={{ "--card-count": features.length } as React.CSSProperties}
       >
-        {/* Title pinned at top initially */}
-        <div className="sticky top-0 z-10 pt-32 pb-16 bg-background">
+        {/* Title - not sticky, scrolls away naturally */}
+        <div className="pt-24 pb-8 bg-background relative z-10">
           <div className="text-center">
             <p className="features-label text-xs tracking-[0.3em] uppercase text-muted-foreground mb-4">Features</p>
             <h2 className="text-3xl sm:text-5xl font-semibold tracking-tight">
               <span className="features-title-main text-foreground">Built for scale.</span>
-              <span className="features-title-sub text-foreground/30"> Designed for humans.</span>
+              <span className="features-title-sub text-foreground/30"> Powered by intelligence.</span>
             </h2>
           </div>
         </div>
