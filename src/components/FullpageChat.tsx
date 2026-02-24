@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ArrowUp, Loader2, RefreshCw, AlertTriangle } from "lucide-react";
+import { ArrowUp, Loader2, RefreshCw, AlertTriangle, Menu } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { InlineTicketForm } from "@/components/InlineTicketForm";
 import { ChatSidebar } from "@/components/ChatSidebar";
@@ -44,7 +44,7 @@ const Bubble = ({ role, content, isStreaming }: { role: "user" | "assistant"; co
         )}
       </div>
       <div className={cn(
-        "px-4 py-3 max-w-[75%] text-[13px] font-light leading-relaxed",
+        "px-3 sm:px-4 py-2.5 sm:py-3 max-w-[85%] sm:max-w-[75%] text-[13px] font-light leading-relaxed",
         isUser
           ? "rounded-2xl rounded-tr-sm bg-white text-black"
           : "rounded-2xl rounded-tl-sm bg-[hsl(0,0%,10%)] border border-[hsl(0,0%,16%)] text-[hsl(0,0%,78%)]"
@@ -88,6 +88,7 @@ const FullpageChat = () => {
   const [ticketSubmitted, setTicketSubmitted] = useState(false);
   const lastTicketTriggerIdRef = useRef<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
@@ -148,15 +149,33 @@ const FullpageChat = () => {
   const suggestions = ["What are the drawdown rules?", "How do payouts work?", "Tell me about evaluations", "What is Scholar Score?"];
 
   return (
-    <div className="w-full h-full flex bg-[hsl(0,0%,4%)] overflow-hidden" style={{ aspectRatio: "16/9" }}>
-      {/* Sidebar */}
-      <ChatSidebar
-        currentSessionId={sessionId}
-        onNewChat={clearChat}
-        onSelectSession={handleSelectSession}
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-      />
+    <div className="w-full h-full flex bg-[hsl(0,0%,4%)] overflow-hidden sm:aspect-video">
+      {/* Mobile sidebar overlay */}
+      {mobileSidebarOpen && (
+        <div className="fixed inset-0 z-50 flex sm:hidden">
+          <div className="w-72 h-full flex-shrink-0">
+            <ChatSidebar
+              currentSessionId={sessionId}
+              onNewChat={() => { clearChat(); setMobileSidebarOpen(false); }}
+              onSelectSession={(sid) => { handleSelectSession(sid); setMobileSidebarOpen(false); }}
+              collapsed={false}
+              onToggle={() => setMobileSidebarOpen(false)}
+            />
+          </div>
+          <div className="flex-1 bg-black/60" onClick={() => setMobileSidebarOpen(false)} />
+        </div>
+      )}
+
+      {/* Desktop sidebar */}
+      <div className="hidden sm:flex">
+        <ChatSidebar
+          currentSessionId={sessionId}
+          onNewChat={clearChat}
+          onSelectSession={handleSelectSession}
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
+      </div>
 
       {/* Main chat area */}
       <div className="flex flex-col flex-1 relative min-w-0 bg-[hsl(0,0%,5%)]">
@@ -170,8 +189,11 @@ const FullpageChat = () => {
         </div>
 
         {/* Header - sticky */}
-        <header className="flex-shrink-0 sticky top-0 z-10 px-5 pt-4 pb-3 bg-[hsl(0,0%,4%)] border-b border-[hsl(0,0%,10%)]">
+        <header className="flex-shrink-0 sticky top-0 z-10 px-3 sm:px-5 pt-3 sm:pt-4 pb-2 sm:pb-3 bg-[hsl(0,0%,4%)] border-b border-[hsl(0,0%,10%)]">
           <div className="flex items-center">
+            <button onClick={() => setMobileSidebarOpen(true)} className="sm:hidden mr-2 p-1.5 rounded-lg text-white/40 hover:text-white/70 hover:bg-[hsl(0,0%,10%)] transition-colors">
+              <Menu className="w-5 h-5" />
+            </button>
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full overflow-hidden border border-[hsl(0,0%,18%)] bg-black">
                 <img src={propscholarIcon} alt="PropScholar" className="w-full h-full object-cover" />
@@ -191,7 +213,7 @@ const FullpageChat = () => {
         </header>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto scrollbar-hide relative z-10 px-5 py-4">
+        <div className="flex-1 overflow-y-auto scrollbar-hide relative z-10 px-3 sm:px-5 py-3 sm:py-4">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <div className="w-14 h-14 rounded-full overflow-hidden border border-[hsl(0,0%,15%)] mb-5 bg-black">
@@ -199,7 +221,7 @@ const FullpageChat = () => {
               </div>
               <h2 className="text-lg font-semibold tracking-tight text-white/85 mb-1">How can I help?</h2>
               <p className="text-white/25 text-xs font-light mb-6 max-w-xs">Ask about evaluations, rules, payouts, or trading conditions.</p>
-              <div className="grid grid-cols-2 gap-2 w-full max-w-md">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
                 {suggestions.map((s) => (
                   <button key={s} onClick={() => sendMessage(s)} className="rounded-lg border border-[hsl(0,0%,12%)] bg-[hsl(0,0%,6%)] px-3 py-2.5 text-[11px] text-left text-white/40 hover:text-white/70 hover:border-[hsl(0,0%,18%)] hover:bg-[hsl(0,0%,8%)] transition-all font-light">
                     {s}
@@ -238,8 +260,8 @@ const FullpageChat = () => {
         </div>
 
         {/* Input */}
-        <div className="flex-shrink-0 relative z-10 px-5 pb-4 flex flex-col items-center">
-          <div className="w-full max-w-2xl rounded-2xl border border-[hsl(0,0%,22%)] bg-[hsl(0,0%,17%)] px-4 py-2 flex items-end gap-2 transition-all focus-within:border-[hsl(0,0%,30%)]">
+        <div className="flex-shrink-0 relative z-10 px-3 sm:px-5 pb-3 sm:pb-4 flex flex-col items-center">
+          <div className="w-full max-w-2xl rounded-2xl border border-[hsl(0,0%,22%)] bg-[hsl(0,0%,17%)] px-3 sm:px-4 py-2 flex items-end gap-2 transition-all focus-within:border-[hsl(0,0%,30%)]">
             <textarea
               ref={inputRef}
               value={input}
