@@ -354,66 +354,7 @@ body.widget-mode #root {
   justify-content: center;
   padding: 1.5rem;
   z-index: var(--card-index, 1);
-  transform: translateY(100%);
-  transition: none;
-}
-
-/* Native scroll-driven animation for modern browsers */
-@supports (animation-timeline: scroll()) {
-  .card-stack-section {
-    timeline-scope: --card-scroll;
-  }
-  .card-stack-viewport {
-    scroll-timeline: --card-scroll block;
-  }
-
-  @keyframes card-enter {
-    0%   { transform: translateY(100%); }
-    100% { transform: translateY(0%) scale(1); }
-  }
-  @keyframes card-shrink {
-    0%   { transform: translateY(0%) scale(1); }
-    100% { transform: translateY(-8%) scale(0.9); }
-  }
-
-  .card-stack-item:nth-child(1) {
-    transform: translateY(0%);
-    animation: card-shrink linear forwards;
-    animation-timeline: --card-scroll;
-    animation-range: 0% 20%;
-  }
-  .card-stack-item:nth-child(2) {
-    animation: card-enter linear forwards, card-shrink linear forwards;
-    animation-timeline: --card-scroll, --card-scroll;
-    animation-range: 0% 20%, 20% 40%;
-  }
-  .card-stack-item:nth-child(3) {
-    animation: card-enter linear forwards, card-shrink linear forwards;
-    animation-timeline: --card-scroll, --card-scroll;
-    animation-range: 20% 40%, 40% 60%;
-  }
-  .card-stack-item:nth-child(4) {
-    animation: card-enter linear forwards, card-shrink linear forwards;
-    animation-timeline: --card-scroll, --card-scroll;
-    animation-range: 40% 60%, 60% 80%;
-  }
-  .card-stack-item:nth-child(5) {
-    animation: card-enter linear forwards, card-shrink linear forwards;
-    animation-timeline: --card-scroll, --card-scroll;
-    animation-range: 60% 80%, 80% 100%;
-  }
-  .card-stack-item:nth-child(6) {
-    animation: card-enter linear forwards;
-    animation-timeline: --card-scroll;
-    animation-range: 80% 100%;
-  }
-}
-
-/* GSAP fallback */
-@supports not (animation-timeline: scroll()) {
-  .card-stack-item {
-    transform: none;
-  }
+  /* GSAP controls transform */
 }
 
 /* Default shadcn components */
