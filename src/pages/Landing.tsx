@@ -237,39 +237,67 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* CTA */}
+      {/* CTA - Premium glassmorphic */}
       <section ref={ctaRef} className="relative py-32 px-6">
-        <div className="max-w-3xl mx-auto text-center">
-          <div className="border border-border/30 rounded-3xl p-12 sm:p-16 bg-card/20 backdrop-blur-sm relative overflow-hidden">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[300px] h-[1px] bg-gradient-to-r from-transparent via-foreground/20 to-transparent" />
-            <p className="cta-label text-xs tracking-[0.3em] uppercase text-muted-foreground mb-6">For Businesses</p>
-            <h2 className="cta-title text-3xl sm:text-4xl font-semibold tracking-tight text-foreground mb-4">
-              Get Scholaris on your website
-            </h2>
-            <p className="cta-desc text-muted-foreground mb-10 font-light max-w-md mx-auto">
-              Add an AI support agent that actually knows your product. One line of code, infinite support capacity.
-            </p>
-            <a href="mailto:support@propscholar.com?subject=Scholaris%20for%20my%20website" className="cta-button inline-block">
-              <Button size="xl" variant="premium" className="group gap-3">
-                Contact Us
-                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-              </Button>
-            </a>
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="relative rounded-3xl overflow-hidden">
+            {/* Ambient glow behind card */}
+            <div className="absolute -inset-1 bg-gradient-to-b from-[hsl(0,0%,20%)] via-[hsl(0,0%,8%)] to-[hsl(0,0%,4%)] rounded-3xl blur-sm opacity-60" />
+            
+            <div className="relative border border-[hsl(0,0%,14%)] rounded-3xl p-14 sm:p-20 bg-[hsl(0,0%,5%)]">
+              {/* Top highlight line */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2/3 h-px bg-gradient-to-r from-transparent via-[hsl(0,0%,25%)] to-transparent" />
+              {/* Corner accents */}
+              <div className="absolute top-0 left-0 w-24 h-24 bg-gradient-to-br from-[hsl(0,0%,15%)]/10 to-transparent rounded-tl-3xl" />
+              <div className="absolute bottom-0 right-0 w-24 h-24 bg-gradient-to-tl from-[hsl(0,0%,15%)]/10 to-transparent rounded-br-3xl" />
+              
+              <p className="cta-label text-[10px] tracking-[0.4em] uppercase text-[hsl(0,0%,40%)] mb-8">For Businesses</p>
+              <h2 className="cta-title text-3xl sm:text-5xl font-semibold tracking-tight text-foreground mb-5 leading-tight">
+                Get Scholaris on<br />your website
+              </h2>
+              <p className="cta-desc text-[hsl(0,0%,45%)] mb-12 font-light max-w-md mx-auto leading-relaxed text-sm">
+                Add an AI support agent that actually knows your product. One line of code, infinite support capacity.
+              </p>
+              <a href="mailto:support@propscholar.com?subject=Scholaris%20for%20my%20website" className="cta-button inline-block">
+                <button className="group relative px-10 py-4 rounded-2xl bg-[hsl(0,0%,95%)] text-[hsl(0,0%,5%)] font-medium text-base tracking-tight hover:bg-white transition-all duration-300 hover:shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)]">
+                  <span className="flex items-center gap-3">
+                    Contact Us
+                    <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                  </span>
+                </button>
+              </a>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="landing-footer border-t border-border/20 py-8 px-6">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <span className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Scholaris — Made by{" "}
-            <a href="https://propscholar.com" target="_blank" rel="noopener noreferrer" className="text-foreground hover:underline">PropScholar</a>
-          </span>
-          <div className="flex items-center gap-6">
-            <Link to="/chat" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Chat</Link>
-            <a href="https://propscholar.com" target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-foreground transition-colors">PropScholar</a>
+      {/* Footer - Minimal premium */}
+      <footer className="landing-footer py-12 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="h-px w-full bg-gradient-to-r from-transparent via-[hsl(0,0%,15%)] to-transparent mb-10" />
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-sm text-foreground tracking-tight">Scholaris</span>
+              <span className="text-[hsl(0,0%,25%)]">·</span>
+              <span className="text-xs text-[hsl(0,0%,35%)]">
+                Made by{" "}
+                <a href="https://propscholar.com" target="_blank" rel="noopener noreferrer" className="text-[hsl(0,0%,55%)] hover:text-foreground transition-colors">
+                  PropScholar
+                </a>
+              </span>
+            </div>
+            <div className="flex items-center gap-8">
+              <Link to="/chat" className="text-xs text-[hsl(0,0%,35%)] hover:text-foreground transition-colors duration-300">
+                Chat
+              </Link>
+              <a href="https://propscholar.com" target="_blank" rel="noopener noreferrer" className="text-xs text-[hsl(0,0%,35%)] hover:text-foreground transition-colors duration-300">
+                PropScholar
+              </a>
+            </div>
           </div>
+          <p className="text-center text-[10px] text-[hsl(0,0%,20%)] mt-8">
+            © {new Date().getFullYear()} All rights reserved.
+          </p>
         </div>
       </footer>
     </div>
