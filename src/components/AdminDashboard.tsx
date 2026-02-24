@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { 
   Bot, LogOut, MessageSquare, Database, ArrowLeft, Brain, Users, 
-  LayoutDashboard, Settings, Code, Palette, Ticket, Menu, Mail, Headphones 
+  LayoutDashboard, Settings, Code, Palette, Ticket, Menu, Mail, Headphones, Monitor
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -31,6 +31,7 @@ const navItems = [
   { value: "coupons", label: "Coupons", icon: Ticket },
   { value: "customizer", label: "Customize", icon: Palette },
   { value: "embed", label: "Embed", icon: Code },
+  { value: "fullpage", label: "16:9", icon: Monitor },
   { value: "discord", label: "Settings", icon: Settings },
 ];
 
@@ -213,6 +214,42 @@ export const AdminDashboard = () => {
 
           <TabsContent value="embed">
             <EmbedCustomization />
+          </TabsContent>
+
+          <TabsContent value="fullpage">
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold">16:9 Full-Page Chat</h2>
+                <p className="text-muted-foreground">A premium full-screen chat experience for scholaris.space</p>
+              </div>
+              
+              <div className="border border-border/50 rounded-xl p-6 bg-card/30 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold">Preview</h3>
+                  <a href="/fullpage" target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
+                    Open Full Screen <Monitor className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+                
+                <div className="rounded-xl overflow-hidden border border-border/30 bg-black" style={{ aspectRatio: "16/9" }}>
+                  <iframe
+                    src="/fullpage"
+                    className="w-full h-full border-0"
+                    title="16:9 Fullpage Chat Preview"
+                  />
+                </div>
+                
+                <div className="pt-4 border-t border-border/30">
+                  <h4 className="text-sm font-medium mb-2">Embed Code</h4>
+                  <p className="text-xs text-muted-foreground mb-3">Use this to embed the full-page chat on any website.</p>
+                  <div className="bg-background border border-border rounded-lg p-3">
+                    <code className="text-xs text-muted-foreground break-all">
+                      {`<iframe src="https://scholaris.space/fullpage" style="width:100%;height:100vh;border:none;" allow="clipboard-write"></iframe>`}
+                    </code>
+                  </div>
+                </div>
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="discord">
