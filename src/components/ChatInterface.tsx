@@ -4,6 +4,8 @@ import { useChat } from "@/hooks/useChat";
 import { Link } from "react-router-dom";
 import { InlineTicketForm } from "./InlineTicketForm";
 import { ChatSidebar } from "./ChatSidebar";
+import { VoiceInput } from "./VoiceInput";
+import { ImageUploadButton } from "./ImageUploadButton";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import propscholarIcon from "@/assets/propscholar-icon.png";
@@ -99,6 +101,7 @@ export const ChatInterface = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [input, setInput] = useState("");
+  const [pendingImage, setPendingImage] = useState<{ base64: string; mimeType: string } | null>(null);
   const [showTicketForm, setShowTicketForm] = useState(false);
   const [ticketSubmitted, setTicketSubmitted] = useState(false);
   const lastTicketTriggerIdRef = useRef<string | null>(null);
@@ -139,11 +142,12 @@ export const ChatInterface = () => {
   }, [input]);
 
   const handleSend = useCallback(() => {
-    if (!input.trim() || isLoading || isRateLimited) return;
-    sendMessage(input.trim());
+    if ((!input.trim() && !pendingImage) || isLoading || isRateLimited) return;
+    sendMessage(input.trim(), pendingImage || undefined);
     setInput("");
+    setPendingImage(null);
     setTimeout(() => inputRef.current?.focus(), 0);
-  }, [input, isLoading, isRateLimited, sendMessage]);
+  }, [input, isLoading, isRateLimited, sendMessage, pendingImage]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -324,7 +328,20 @@ export const ChatInterface = () => {
         {/* ── Input ── */}
         <div className="flex-shrink-0 relative z-20 px-5 pb-5">
           <div className="max-w-3xl mx-auto">
-            <div className="rounded-2xl border border-[hsl(0,0%,12%)] bg-[hsl(0,0%,5%)]/80 backdrop-blur-2xl p-1.5 flex items-end gap-2 transition-all focus-within:border-[hsl(0,0%,20%)]">
+            {/* Image preview */}
+            {pendingImage && (
+              <div className="mb-2 flex items-center gap-2 px-3">
+                <div className="w-12 h-12 rounded-lg overflow-hidden border border-[hsl(0,0%,16%)] bg-[hsl(0,0%,8%)]">
+                  <img src={`data:${pendingImage.mimeType};base64,${pendingImage.base64}`} alt="Upload" className="w-full h-full object-cover" />
+                </div>
+                <button onClick={() => setPendingImage(null)} className="text-[10px] text-white/30 hover:text-white/60">✕ Remove</button>
+              </div>
+            )}
+            <div className="rounded-full border border-[hsl(0,0%,12%)] bg-[hsl(0,0%,5%)]/80 backdrop-blur-2xl px-4 py-1.5 flex items-end gap-2 transition-all focus-within:border-[hsl(0,0%,20%)]">
+              <ImageUploadButton
+                onImageSelected={(base64, mimeType) => setPendingImage({ base64, mimeType })}
+                disabled={isRateLimited}
+              />
               <textarea
                 ref={inputRef}
                 value={input}
@@ -333,17 +350,24 @@ export const ChatInterface = () => {
                 placeholder="Ask Scholaris..."
                 disabled={isRateLimited}
                 rows={1}
-                className="flex-1 bg-transparent border-0 resize-none focus:ring-0 focus:outline-none px-3 py-2.5 max-h-28 scrollbar-hide text-[14px] font-light text-[hsl(0,0%,85%)] placeholder:text-[hsl(0,0%,30%)]"
+                className="flex-1 bg-transparent border-0 resize-none focus:ring-0 focus:outline-none py-2 max-h-28 scrollbar-hide text-[14px] font-light text-[hsl(0,0%,85%)] placeholder:text-[hsl(0,0%,30%)]"
+              />
+              <VoiceInput
+                onTranscript={(text) => {
+                  setInput((prev) => (prev ? prev + " " + text : text));
+                  setTimeout(() => inputRef.current?.focus(), 0);
+                }}
+                disabled={isRateLimited}
               />
               <button
                 onClick={handleSend}
-                disabled={!input.trim() || isLoading || isRateLimited}
-                className="flex-shrink-0 w-9 h-9 rounded-xl bg-[hsl(0,0%,90%)] text-[hsl(0,0%,8%)] flex items-center justify-center disabled:opacity-30 hover:bg-white transition-all duration-200 disabled:hover:bg-[hsl(0,0%,90%)]"
+                disabled={(!input.trim() && !pendingImage) || isLoading || isRateLimited}
+                className="flex-shrink-0 w-9 h-9 rounded-full bg-white text-[hsl(0,0%,8%)] flex items-center justify-center disabled:opacity-20 hover:bg-white/90 transition-all duration-200 mb-0.5"
               >
                 {isLoading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  <Send className="w-4 h-4" />
+                  <Send className="w-4 h-4 -rotate-45" />
                 )}
               </button>
             </div>

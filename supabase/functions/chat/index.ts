@@ -556,6 +556,30 @@ DATA ACCESS:
     const inputText = systemPromptWithKnowledge + messages.map((m: any) => m.content).join(" ");
     const estimatedInputTokens = Math.ceil(inputText.length / 4);
 
+    // Process messages - handle multimodal content (images)
+    const processedMessages = (messages || []).map((m: any) => {
+      if (m.role === "user" && typeof m.content === "string") {
+        try {
+          const parsed = JSON.parse(m.content);
+          if (parsed.type === "multimodal" && parsed.image) {
+            return {
+              role: "user",
+              content: [
+                { type: "text", text: parsed.text || "Describe this image." },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: `data:${parsed.image.mimeType};base64,${parsed.image.base64}`,
+                  },
+                },
+              ],
+            };
+          }
+        } catch {}
+      }
+      return m;
+    });
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -566,7 +590,7 @@ DATA ACCESS:
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPromptWithKnowledge },
-          ...messages,
+          ...processedMessages,
         ],
         stream: true,
       }),
