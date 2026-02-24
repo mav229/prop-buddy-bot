@@ -34,8 +34,8 @@ export const useChat = (preloadEmail?: string) => {
     }
   }, []);
 
-  const sendMessage = useCallback(async (content: string) => {
-    if (!content.trim()) return;
+  const sendMessage = useCallback(async (content: string, imageData?: { base64: string; mimeType: string }) => {
+    if (!content.trim() && !imageData) return;
 
     // Check if session is rate limited
     if (isRateLimited) {
@@ -44,10 +44,11 @@ export const useChat = (preloadEmail?: string) => {
     }
 
     setError(null);
+    const displayContent = imageData ? `📷 ${content || "Analyze this image"}` : content.trim();
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: "user",
-      content: content.trim(),
+      content: displayContent,
       timestamp: new Date(),
     };
 
@@ -78,6 +79,28 @@ export const useChat = (preloadEmail?: string) => {
     try {
       const chatUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
       
+      // Build message content - support multimodal if image is provided
+      const apiMessages = [...messages, userMessage].map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      // If this message has an image, replace the last user message content with multimodal format
+      if (imageData) {
+        const lastIdx = apiMessages.length - 1;
+        apiMessages[lastIdx] = {
+          role: "user",
+          content: JSON.stringify({
+            type: "multimodal",
+            text: content || "What do you see in this image? Describe and analyze it.",
+            image: {
+              base64: imageData.base64,
+              mimeType: imageData.mimeType,
+            },
+          }),
+        };
+      }
+
       const response = await fetch(chatUrl, {
         method: "POST",
         headers: {
@@ -85,10 +108,7 @@ export const useChat = (preloadEmail?: string) => {
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage].map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
+          messages: apiMessages,
           sessionId: sessionIdRef.current,
           ...(preloadEmail ? { userEmail: preloadEmail } : {}),
         }),
