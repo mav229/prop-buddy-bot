@@ -262,7 +262,7 @@ const FullpageChat = () => {
               {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowUp className="w-4 h-4" strokeWidth={2.5} />}
             </button>
           </div>
-          <p className="text-[10px] text-white/20 text-center mt-2 font-light">Scholaris AI <span className="text-white/10">powered by</span> PropScholar</p>
+          <p className="text-[11px] text-white/40 text-center mt-2 font-light">Scholaris AI <span className="text-white/20">powered by</span> <span className="text-white/40">PropScholar</span></p>
         </div>
       </div>
     </div>
