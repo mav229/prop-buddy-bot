@@ -48,10 +48,7 @@ const Widget = () => {
         <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-4">
           <Lock className="w-5 h-5 text-white/50" />
         </div>
-        <h2 className="text-white/90 text-lg font-semibold tracking-tight mb-1">Coming Soon</h2>
-        <p className="text-white/35 text-xs font-light max-w-[220px]">
-          The Scholaris widget is currently under development. Stay tuned!
-        </p>
+        <h2 className="text-white/90 text-lg font-semibold tracking-tight">Coming Soon</h2>
       </div>
     </div>
   );
