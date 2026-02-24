@@ -100,7 +100,7 @@ function formatUserContext(ctx: any): string {
   if (ctx.user) {
     const u = ctx.user;
     const fields = Object.entries(u)
-      .filter(([k]) => !["_id", "password", "passwordHash", "hash", "salt", "__v"].includes(k))
+      .filter(([k]) => !["_id", "password", "passwordHash", "hash", "salt", "investorPassword", "investor_password", "masterPassword", "master_password", "__v"].includes(k))
       .map(([k, v]) => `  ${k}: ${JSON.stringify(v)}`)
       .join("\n");
     sections.push(`USER PROFILE:\n${fields}`);
@@ -114,7 +114,7 @@ function formatUserContext(ctx: any): string {
       const label = COLLECTION_LABELS[colName] || colName.toUpperCase();
       const formatted = arr.map((doc: any, i: number) => {
         const fields = Object.entries(doc)
-          .filter(([k]) => !["_id", "__v", "password", "passwordHash", "hash", "salt"].includes(k))
+          .filter(([k]) => !["_id", "__v", "password", "passwordHash", "hash", "salt", "investorPassword", "investor_password", "masterPassword", "master_password"].includes(k))
           .map(([k, v]) => `    ${k}: ${JSON.stringify(v)}`)
           .join("\n");
         return `  ${label} #${i + 1}:\n${fields}`;
