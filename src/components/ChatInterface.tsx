@@ -1,25 +1,114 @@
 import { useRef, useEffect, useCallback, useState } from "react";
-import { Bot, RefreshCw, ArrowLeft, AlertTriangle, Sparkles } from "lucide-react";
+import { RefreshCw, ArrowLeft, AlertTriangle, Send, Loader2, Sparkles } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
-import { ChatMessage } from "./ChatMessage";
-import { ChatInput } from "./ChatInput";
-import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { InlineTicketForm } from "./InlineTicketForm";
+import { cn } from "@/lib/utils";
+import ReactMarkdown from "react-markdown";
+import scholarisLogo from "@/assets/scholaris-logo.png";
 
 const OPEN_TICKET_FORM_MARKER = "[[OPEN_TICKET_FORM]]";
 
+const stripMarkers = (text: string) =>
+  (text || "")
+    .replace(/\[\[OPEN_TICKET_FORM\]\]/g, "")
+    .replace(/!!OPEN_TICKET_FORM!!/g, "")
+    .replace(/\[\[SUPPORT_TICKET_BUTTON\]\]/g, "")
+    .replace(/!!SUPPORT_TICKET_BUTTON!!/g, "")
+    .trim();
+
+/* ── Typing dots ── */
+const TypingDots = () => (
+  <div className="flex items-center gap-1.5 py-1">
+    {[0, 1, 2].map((i) => (
+      <span
+        key={i}
+        className="w-[5px] h-[5px] rounded-full bg-[hsl(0,0%,40%)] typing-dot"
+        style={{ animationDelay: `${i * 150}ms` }}
+      />
+    ))}
+  </div>
+);
+
+/* ── Single message bubble ── */
+const Bubble = ({
+  role,
+  content,
+  isStreaming,
+}: {
+  role: "user" | "assistant";
+  content: string;
+  isStreaming?: boolean;
+}) => {
+  const isUser = role === "user";
+  const display = stripMarkers(content);
+
+  return (
+    <div className={cn("flex gap-3 max-w-3xl mx-auto", isUser ? "flex-row-reverse" : "flex-row")}>
+      {/* Avatar */}
+      <div
+        className={cn(
+          "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center overflow-hidden mt-1",
+          isUser
+            ? "bg-[hsl(0,0%,90%)]"
+            : "bg-[hsl(0,0%,10%)] border border-[hsl(0,0%,18%)]"
+        )}
+      >
+        {isUser ? (
+          <span className="text-xs font-semibold text-[hsl(0,0%,15%)]">Y</span>
+        ) : (
+          <img src={scholarisLogo} alt="S" className="w-full h-full object-cover rounded-full" />
+        )}
+      </div>
+
+      {/* Bubble */}
+      <div
+        className={cn(
+          "px-5 py-3.5 max-w-[80%] text-[14px] font-light leading-relaxed",
+          isUser
+            ? "rounded-2xl rounded-tr-md bg-[hsl(0,0%,90%)] text-[hsl(0,0%,8%)]"
+            : "rounded-2xl rounded-tl-md bg-[hsl(0,0%,9%)] border border-[hsl(0,0%,14%)] text-[hsl(0,0%,75%)]"
+        )}
+      >
+        {!content && isStreaming ? (
+          <TypingDots />
+        ) : isUser ? (
+          <span className="whitespace-pre-wrap">{display}</span>
+        ) : (
+          <div className="prose prose-sm prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-p:my-2 prose-p:leading-relaxed prose-ul:my-2 prose-li:my-0.5 prose-strong:font-semibold prose-strong:text-[hsl(0,0%,88%)] prose-code:text-[13px] prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:bg-[hsl(0,0%,14%)] prose-code:before:content-none prose-code:after:content-none">
+            <ReactMarkdown>{display}</ReactMarkdown>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/* ── Main Chat Interface ── */
 export const ChatInterface = () => {
-  const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, sessionId, appendAssistantMessage } = useChat();
+  const {
+    messages,
+    isLoading,
+    error,
+    sendMessage,
+    clearChat,
+    isRateLimited,
+    sessionId,
+    appendAssistantMessage,
+  } = useChat();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [input, setInput] = useState("");
   const [showTicketForm, setShowTicketForm] = useState(false);
   const [ticketSubmitted, setTicketSubmitted] = useState(false);
   const lastTicketTriggerIdRef = useRef<string | null>(null);
 
+  /* Auto-scroll */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  /* Reset ticket state */
   useEffect(() => {
     if (messages.length === 0) {
       setTicketSubmitted(false);
@@ -28,9 +117,9 @@ export const ChatInterface = () => {
     }
   }, [messages.length]);
 
+  /* Ticket form trigger */
   useEffect(() => {
-    if (isLoading) return;
-    if (ticketSubmitted || showTicketForm) return;
+    if (isLoading || ticketSubmitted || showTicketForm) return;
     const lastTrigger = [...messages]
       .reverse()
       .find((m) => m.role === "assistant" && m.content.includes(OPEN_TICKET_FORM_MARKER));
@@ -40,16 +129,35 @@ export const ChatInterface = () => {
     setShowTicketForm(true);
   }, [messages, ticketSubmitted, showTicketForm, isLoading]);
 
-  const handleSendMessage = useCallback(
-    (msg: string) => { sendMessage(msg); },
-    [sendMessage]
-  );
+  /* Auto-resize textarea */
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+      inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`;
+    }
+  }, [input]);
+
+  const handleSend = useCallback(() => {
+    if (!input.trim() || isLoading || isRateLimited) return;
+    sendMessage(input.trim());
+    setInput("");
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }, [input, isLoading, isRateLimited, sendMessage]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
 
   const handleTicketSuccess = (ticketNumber?: string) => {
     setShowTicketForm(false);
     setTicketSubmitted(true);
     if (ticketNumber) {
-      appendAssistantMessage(`✅ **Your ticket #${ticketNumber} has been created!**\n\nOur support team will reach out to you within **4 hours**.`);
+      appendAssistantMessage(
+        `✅ **Your ticket #${ticketNumber} has been created!**\n\nOur support team will reach out to you within **4 hours**.`
+      );
     }
   };
 
@@ -61,157 +169,156 @@ export const ChatInterface = () => {
   ];
 
   return (
-    <div className="flex flex-col h-screen bg-[hsl(0,0%,3%)] relative overflow-hidden">
-      {/* Ambient glow effects */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-[hsl(0,0%,15%)] rounded-full blur-[128px] opacity-30 pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-[hsl(0,0%,12%)] rounded-full blur-[100px] opacity-20 pointer-events-none" />
+    <div className="flex flex-col h-screen bg-[hsl(0,0%,3%)] relative">
+      {/* Ambient */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute top-0 left-1/3 w-[500px] h-[500px] bg-[hsl(0,0%,8%)] rounded-full blur-[150px] opacity-40" />
+        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-[hsl(0,0%,6%)] rounded-full blur-[120px] opacity-30" />
+      </div>
 
-      {/* Header - Glass */}
-      <header className="flex-shrink-0 relative z-10">
-        <div className="mx-4 mt-4 rounded-2xl border border-[hsl(0,0%,15%)] bg-[hsl(0,0%,6%)]/80 backdrop-blur-xl px-6 py-4">
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-11 h-11 rounded-xl bg-[hsl(0,0%,10%)] border border-[hsl(0,0%,18%)] flex items-center justify-center">
-                <Bot className="w-5 h-5 text-[hsl(0,0%,70%)]" />
+      {/* ── Header ── */}
+      <header className="flex-shrink-0 relative z-20">
+        <div className="mx-5 mt-4 rounded-2xl border border-[hsl(0,0%,12%)] bg-[hsl(0,0%,5%)]/80 backdrop-blur-2xl px-5 py-3.5">
+          <div className="max-w-3xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-3.5">
+              <div className="w-9 h-9 rounded-xl overflow-hidden border border-[hsl(0,0%,16%)]">
+                <img src={scholarisLogo} alt="Scholaris" className="w-full h-full object-cover" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold tracking-tight text-[hsl(0,0%,92%)]">
-                  PropScholar AI
+                <h1 className="text-[15px] font-semibold tracking-tight text-[hsl(0,0%,92%)]">
+                  Scholaris
                 </h1>
                 <div className="flex items-center gap-1.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-[hsl(142,76%,46%)] online-dot" />
-                  <p className="text-xs text-[hsl(0,0%,45%)] font-light">
-                    Online — Support Assistant
-                  </p>
+                  <span className="text-[11px] text-[hsl(0,0%,40%)] font-light">Online</span>
                 </div>
               </div>
             </div>
-
             <div className="flex items-center gap-1">
               <Link to="/">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  title="Home"
-                  className="rounded-xl text-[hsl(0,0%,45%)] hover:text-[hsl(0,0%,80%)] hover:bg-[hsl(0,0%,10%)]"
-                >
+                <button className="p-2 rounded-xl text-[hsl(0,0%,40%)] hover:text-[hsl(0,0%,75%)] hover:bg-[hsl(0,0%,10%)] transition-all">
                   <ArrowLeft className="w-4 h-4" />
-                </Button>
+                </button>
               </Link>
-              <Button
-                variant="ghost"
-                size="icon"
+              <button
                 onClick={clearChat}
-                title="Clear chat"
-                className="rounded-xl text-[hsl(0,0%,45%)] hover:text-[hsl(0,0%,80%)] hover:bg-[hsl(0,0%,10%)]"
+                className="p-2 rounded-xl text-[hsl(0,0%,40%)] hover:text-[hsl(0,0%,75%)] hover:bg-[hsl(0,0%,10%)] transition-all"
+                title="New chat"
               >
                 <RefreshCw className="w-4 h-4" />
-              </Button>
+              </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 scrollbar-hide relative z-10">
-        <div className="max-w-4xl mx-auto space-y-6">
-          {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center animate-fade-in">
-              {/* Glassy icon */}
-              <div className="w-20 h-20 rounded-2xl bg-[hsl(0,0%,8%)] border border-[hsl(0,0%,16%)] backdrop-blur-xl flex items-center justify-center mb-8 relative">
-                <Sparkles className="w-8 h-8 text-[hsl(0,0%,50%)]" />
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-[hsl(0,0%,20%)]/10 to-transparent pointer-events-none" />
-              </div>
-
-              <h2 className="text-2xl font-semibold tracking-tight text-[hsl(0,0%,92%)] mb-2">
-                Welcome to PropScholar Support
-              </h2>
-              <p className="text-[hsl(0,0%,45%)] max-w-md mb-10 text-sm font-light leading-relaxed">
-                I can help you with questions about evaluations, rules, payouts,
-                accounts, and trading conditions.
-              </p>
-
-              {/* Boxy suggestion cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg">
-                {suggestions.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    onClick={() => sendMessage(suggestion)}
-                    className="group relative rounded-xl border border-[hsl(0,0%,13%)] bg-[hsl(0,0%,7%)]/60 backdrop-blur-md px-5 py-4 text-sm text-left text-[hsl(0,0%,70%)] hover:text-[hsl(0,0%,90%)] hover:border-[hsl(0,0%,20%)] hover:bg-[hsl(0,0%,9%)]/80 transition-all duration-200"
-                  >
-                    <div className="absolute inset-0 rounded-xl bg-gradient-to-b from-[hsl(0,0%,15%)]/5 to-transparent pointer-events-none" />
-                    <span className="relative font-light">{suggestion}</span>
-                  </button>
-                ))}
-              </div>
+      {/* ── Messages ── */}
+      <div className="flex-1 overflow-y-auto scrollbar-hide relative z-10 px-5 py-8">
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center animate-fade-in">
+            <div className="w-16 h-16 rounded-2xl bg-[hsl(0,0%,7%)] border border-[hsl(0,0%,14%)] flex items-center justify-center mb-8">
+              <Sparkles className="w-7 h-7 text-[hsl(0,0%,35%)]" />
             </div>
-          )}
-
-          {messages.map((message, index) => (
-            <ChatMessage
-              key={message.id}
-              role={message.role}
-              content={message.content}
-              isStreaming={
-                isLoading &&
-                index === messages.length - 1 &&
-                message.role === "assistant"
-              }
-            />
-          ))}
-
-          {showTicketForm && (
-            <div className="max-w-sm">
-              <InlineTicketForm
-                onClose={() => setShowTicketForm(false)}
-                onSuccess={handleTicketSuccess}
-                sessionId={sessionId || "web"}
-                chatHistory={messages.map((m) => ({ role: m.role, content: m.content }))}
+            <h2 className="text-2xl font-semibold tracking-tight text-[hsl(0,0%,90%)] mb-2">
+              How can I help?
+            </h2>
+            <p className="text-[hsl(0,0%,40%)] max-w-sm mb-10 text-sm font-light leading-relaxed">
+              Ask me anything about PropScholar — evaluations, rules, payouts, trading conditions.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-lg">
+              {suggestions.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => sendMessage(s)}
+                  className="group rounded-xl border border-[hsl(0,0%,11%)] bg-[hsl(0,0%,5%)] px-4 py-3.5 text-[13px] text-left text-[hsl(0,0%,55%)] hover:text-[hsl(0,0%,85%)] hover:border-[hsl(0,0%,18%)] hover:bg-[hsl(0,0%,7%)] transition-all duration-200 font-light"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {messages.map((msg, i) => (
+              <Bubble
+                key={msg.id}
+                role={msg.role}
+                content={msg.content}
+                isStreaming={isLoading && i === messages.length - 1 && msg.role === "assistant"}
               />
-            </div>
-          )}
+            ))}
 
-          {error && (
-            <div className="rounded-xl border border-[hsl(0,72%,30%)] bg-[hsl(0,72%,10%)]/40 backdrop-blur-md text-[hsl(0,72%,70%)] px-5 py-4 text-sm">
-              {error}
-            </div>
-          )}
+            {showTicketForm && (
+              <div className="max-w-sm mx-auto">
+                <InlineTicketForm
+                  onClose={() => setShowTicketForm(false)}
+                  onSuccess={handleTicketSuccess}
+                  sessionId={sessionId || "web"}
+                  chatHistory={messages.map((m) => ({ role: m.role, content: m.content }))}
+                />
+              </div>
+            )}
 
-          {isRateLimited && (
-            <div className="rounded-xl border border-[hsl(38,80%,30%)] bg-[hsl(38,80%,10%)]/40 backdrop-blur-md px-5 py-5 animate-fade-in">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-[hsl(38,92%,50%)] flex-shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="font-semibold text-[hsl(38,92%,60%)] mb-1">Session Limit Reached</h4>
-                  <p className="text-sm text-[hsl(0,0%,50%)] mb-3 font-light">
-                    You've reached the AI usage limit for this session.
-                  </p>
-                  <Button
-                    onClick={clearChat}
-                    variant="outline"
-                    size="sm"
-                    className="rounded-xl border-[hsl(38,80%,30%)] text-[hsl(38,92%,60%)] hover:bg-[hsl(38,80%,15%)]"
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Start New Chat
-                  </Button>
+            {error && (
+              <div className="max-w-3xl mx-auto rounded-xl border border-[hsl(0,60%,25%)] bg-[hsl(0,60%,8%)] text-[hsl(0,60%,65%)] px-5 py-3.5 text-sm">
+                {error}
+              </div>
+            )}
+
+            {isRateLimited && (
+              <div className="max-w-3xl mx-auto rounded-xl border border-[hsl(38,70%,25%)] bg-[hsl(38,70%,8%)] px-5 py-5">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-[hsl(38,90%,50%)] flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-[hsl(38,90%,55%)] mb-1 text-sm">Session Limit</h4>
+                    <p className="text-[13px] text-[hsl(0,0%,45%)] mb-3 font-light">
+                      You've reached the limit for this session.
+                    </p>
+                    <button
+                      onClick={clearChat}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[hsl(38,70%,25%)] text-[hsl(38,90%,55%)] text-xs font-medium hover:bg-[hsl(38,70%,12%)] transition-colors"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      New Chat
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div ref={messagesEndRef} />
-        </div>
+            <div ref={messagesEndRef} />
+          </div>
+        )}
       </div>
 
-      {/* Input - Glass bottom bar */}
-      <div className="flex-shrink-0 px-4 pb-4 relative z-10">
-        <div className="max-w-4xl mx-auto">
-          <div className="rounded-2xl border border-[hsl(0,0%,13%)] bg-[hsl(0,0%,6%)]/70 backdrop-blur-xl p-1">
-            <ChatInput onSend={handleSendMessage} isLoading={isLoading} disabled={isRateLimited} />
+      {/* ── Input ── */}
+      <div className="flex-shrink-0 relative z-20 px-5 pb-5">
+        <div className="max-w-3xl mx-auto">
+          <div className="rounded-2xl border border-[hsl(0,0%,12%)] bg-[hsl(0,0%,5%)]/80 backdrop-blur-2xl p-1.5 flex items-end gap-2 transition-all focus-within:border-[hsl(0,0%,20%)]">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask Scholaris anything..."
+              disabled={isRateLimited}
+              rows={1}
+              className="flex-1 bg-transparent border-0 resize-none focus:ring-0 focus:outline-none px-3 py-2.5 max-h-28 scrollbar-hide text-[14px] font-light text-[hsl(0,0%,85%)] placeholder:text-[hsl(0,0%,30%)]"
+            />
+            <button
+              onClick={handleSend}
+              disabled={!input.trim() || isLoading || isRateLimited}
+              className="flex-shrink-0 w-9 h-9 rounded-xl bg-[hsl(0,0%,90%)] text-[hsl(0,0%,8%)] flex items-center justify-center disabled:opacity-30 hover:bg-white transition-all duration-200 disabled:hover:bg-[hsl(0,0%,90%)]"
+            >
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+            </button>
           </div>
-          <p className="text-[11px] text-[hsl(0,0%,30%)] text-center mt-3 font-light">
-            PropScholar AI can only answer questions related to PropScholar products and services.
+          <p className="text-[10px] text-[hsl(0,0%,22%)] text-center mt-3 font-light">
+            scholaris.space — AI support by PropScholar
           </p>
         </div>
       </div>
