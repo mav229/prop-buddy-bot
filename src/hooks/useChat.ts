@@ -226,6 +226,7 @@ export const useChat = (preloadEmail?: string) => {
 
   return {
     messages,
+    setMessages,
     isLoading,
     error,
     sendMessage,
