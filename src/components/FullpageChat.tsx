@@ -239,7 +239,7 @@ const FullpageChat = () => {
 
         {/* Input */}
         <div className="flex-shrink-0 relative z-10 px-5 pb-4 flex flex-col items-center">
-          <div className="w-full max-w-2xl rounded-2xl border border-[hsl(0,0%,16%)] bg-[hsl(0,0%,8%)] px-4 py-2 flex items-end gap-2 transition-all focus-within:border-[hsl(0,0%,24%)]">
+          <div className="w-full max-w-2xl rounded-2xl border border-[hsl(0,0%,22%)] bg-[hsl(0,0%,17%)] px-4 py-2 flex items-end gap-2 transition-all focus-within:border-[hsl(0,0%,30%)]">
             <textarea
               ref={inputRef}
               value={input}
