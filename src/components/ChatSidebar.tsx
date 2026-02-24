@@ -34,11 +34,18 @@ export const ChatSidebar = ({
   }, [currentSessionId]);
 
   const fetchSessions = async () => {
-    // Get distinct session_ids with their first user message as title
+    // Only fetch this user's sessions from localStorage
+    const mySessionIds = JSON.parse(localStorage.getItem("scholaris_sessions") || "[]") as string[];
+    if (mySessionIds.length === 0) {
+      setSessions([]);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("chat_history")
       .select("session_id, content, role, created_at")
       .eq("role", "user")
+      .in("session_id", mySessionIds)
       .order("created_at", { ascending: false });
 
     if (error || !data) return;

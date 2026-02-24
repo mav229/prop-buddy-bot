@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { playSound } from "@/hooks/useSounds";
 import { extractValidEmail } from "@/lib/emailValidation";
@@ -24,6 +24,15 @@ export const useChat = (preloadEmail?: string) => {
   const [userMessageCount, setUserMessageCount] = useState(0);
   const [emailCollectedInChat, setEmailCollectedInChat] = useState(false);
   const sessionIdRef = useRef<string>(crypto.randomUUID());
+  
+  // Save initial session to localStorage
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem("scholaris_sessions") || "[]") as string[];
+    if (!saved.includes(sessionIdRef.current)) {
+      saved.unshift(sessionIdRef.current);
+      localStorage.setItem("scholaris_sessions", JSON.stringify(saved.slice(0, 100)));
+    }
+  }, []);
 
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim()) return;
@@ -221,7 +230,14 @@ export const useChat = (preloadEmail?: string) => {
     setIsRateLimited(false);
     setUserMessageCount(0);
     setEmailCollectedInChat(false);
-    sessionIdRef.current = crypto.randomUUID();
+    const newId = crypto.randomUUID();
+    sessionIdRef.current = newId;
+    // Save new session to localStorage
+    const saved = JSON.parse(localStorage.getItem("scholaris_sessions") || "[]");
+    if (!saved.includes(newId)) {
+      saved.unshift(newId);
+      localStorage.setItem("scholaris_sessions", JSON.stringify(saved.slice(0, 100)));
+    }
   }, []);
 
   return {
