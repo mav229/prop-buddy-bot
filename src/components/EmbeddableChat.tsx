@@ -540,7 +540,7 @@ Our support team will reach out to you within **4 hours**.
         {/* MESSAGES */}
         {activeTab === "messages" && (
           <div className="flex flex-col h-full" style={{ background: config.chatBackgroundColor }}>
-            <div className="flex-1 px-3 py-3 space-y-3 overflow-y-auto scrollbar-hide">
+            <div className="flex-1 px-3 py-4 space-y-4 overflow-y-auto scrollbar-hide">
               {!isReady ? <ChatSkeleton /> : messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full min-h-[160px] text-center content-fade">
                   <BlurImage
@@ -580,13 +580,18 @@ Our support team will reach out to you within **4 hours**.
                   {isLoading && messages[messages.length - 1]?.role === "user" && (
                     <div className="flex items-start gap-2 content-fade">
                       <div 
-                        className="w-7 h-7 rounded-lg overflow-hidden flex-shrink-0" 
-                        style={{ background: "transparent" }}
+                        className="rounded-2xl px-4 py-3"
+                        style={{
+                          backgroundColor: config.aiMessageBgColor,
+                          border: `1px solid hsl(0 0% 18%)`,
+                          borderRadius: `${config.aiMessageBorderRadius}px`,
+                        }}
                       >
-                        <BlurImage src={launcherLogo} alt="" />
-                      </div>
-                      <div className="glass-surface-subtle rounded-xl px-2 py-1.5">
-                        <TypingIndicator />
+                        <div className="flex items-center gap-[5px]">
+                          <span className="w-[7px] h-[7px] rounded-full typing-dot" style={{ backgroundColor: config.aiMessageTextColor, opacity: 0.5, animationDelay: "0ms" }} />
+                          <span className="w-[7px] h-[7px] rounded-full typing-dot" style={{ backgroundColor: config.aiMessageTextColor, opacity: 0.5, animationDelay: "200ms" }} />
+                          <span className="w-[7px] h-[7px] rounded-full typing-dot" style={{ backgroundColor: config.aiMessageTextColor, opacity: 0.5, animationDelay: "400ms" }} />
+                        </div>
                       </div>
                     </div>
                   )}
