@@ -489,7 +489,21 @@ serve(async (req) => {
     let userDataContext = "No user email detected in conversation yet. If the user provides their email, their account data will be loaded automatically.";
     let preAuthNote = "";
     if (isPreAuthenticated) {
-      preAuthNote = `\n\n═══════════════════════════════════════════════════════════════\nPRE-AUTHENTICATED USER (FROM PROPSCHOLAR DASHBOARD):\n═══════════════════════════════════════════════════════════════\nThis user is pre-authenticated from the PropScholar dashboard. Their email is ${userEmail}.\nSKIP ALL identity verification — they are already verified. Do NOT ask for email or account number.\nGreet them by name if their name is available in the data. Be personal and helpful from the very first message.\nThey can ask about any of their accounts directly without verification.\n═══════════════════════════════════════════════════════════════`;
+      preAuthNote = `\n\n═══════════════════════════════════════════════════════════════
+PRE-AUTHENTICATED USER (FROM PROPSCHOLAR DASHBOARD):
+═══════════════════════════════════════════════════════════════
+This user is pre-authenticated from the PropScholar dashboard. Their email is ${userEmail}.
+SKIP ALL identity verification — they are already verified. Do NOT ask for email or account number.
+Greet them by name if their name is available in the data. Be personal and helpful from the very first message.
+They can ask about any of their accounts directly without verification.
+
+IMPORTANT FOR PRE-AUTH USERS:
+- You KNOW who this user is. Acknowledge it. Say things like "I can see your account" or "Looking at your data..."
+- If they ask "what is my email?" — confirm you have their account on file and can help with account-related questions, but explain you don't display sensitive info like full email addresses for security. You may hint at it (e.g., "the email starting with f***").
+- If they ask about their accounts, balances, orders, credentials — answer directly from the data without asking for verification.
+- Be warm, personal, and proactive. Offer to help with specific things you can see in their data.
+- You CAN reference their name, account numbers, order IDs, balances, statuses — just not passwords, full email, or phone numbers.
+═══════════════════════════════════════════════════════════════`;
     }
     if (latestEmail && mongoContext) {
       userDataContext = `Data found for email: ${latestEmail}\n\n${formatUserContext(mongoContext)}`;
