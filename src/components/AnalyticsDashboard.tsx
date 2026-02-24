@@ -38,8 +38,17 @@ import {
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+// CSV export utility
+function downloadCSV(filename: string, rows: string[][]) {
+  const csv = rows.map(r => r.map(c => `"${(c || "").replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 // Discord icon component
 const DiscordIcon = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
@@ -293,115 +302,41 @@ export const AnalyticsDashboard = () => {
   const exportToPDF = async () => {
     setExporting(true);
     try {
-      const doc = new jsPDF();
-      const pageWidth = doc.internal.pageSize.getWidth();
-      
-      doc.setFontSize(24);
-      doc.setFont("helvetica", "bold");
-      doc.text("PropScholar Analytics Report", pageWidth / 2, 20, { align: "center" });
-      
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(100);
-      doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, 28, { align: "center" });
-      
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(0);
-      doc.text("Summary Statistics", 14, 45);
-      
-      autoTable(doc, {
-        startY: 50,
-        head: [["Metric", "Value"]],
-        body: [
-          ["Total Messages", stats.totalMessages.toString()],
-          ["Discord Messages", stats.discordMessages.toString()],
-          ["Web Messages", stats.webMessages.toString()],
-          ["Discord Users", stats.discordUsers.toString()],
-          ["Web Sessions", stats.webSessions.toString()],
-          ["Knowledge Base Entries", stats.kbEntries.toString()],
-          ["Bot Accuracy", `${stats.trainingFeedback > 0 ? Math.round((stats.correctAnswers / stats.trainingFeedback) * 100) : 0}%`],
-          ["Engagement Rate", `${stats.engagementRate}%`],
-        ],
-        theme: "striped",
-        headStyles: { fillColor: [50, 50, 50] },
-      });
-
-      const finalY1 = (doc as any).lastAutoTable?.finalY || 50;
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.text("Daily Activity (Last 14 Days)", 14, finalY1 + 15);
-      
-      autoTable(doc, {
-        startY: finalY1 + 20,
-        head: [["Date", "Discord", "Web", "Total"]],
-        body: dailyActivity.map((d) => [d.date, d.discord.toString(), d.web.toString(), d.total.toString()]),
-        theme: "striped",
-        headStyles: { fillColor: [50, 50, 50] },
-      });
-
-      // Discord Questions
-      doc.addPage();
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.text("Top Discord Questions", 14, 20);
-      
-      autoTable(doc, {
-        startY: 25,
-        head: [["#", "Question", "Count"]],
-        body: discordQuestions.map((q, i) => [(i + 1).toString(), q.question, q.count.toString()]),
-        theme: "striped",
-        headStyles: { fillColor: [88, 101, 242] },
-        columnStyles: { 1: { cellWidth: 120 } },
-      });
-
-      // Web Questions
-      const finalY2 = (doc as any).lastAutoTable?.finalY || 25;
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.text("Top Web Widget Questions", 14, finalY2 + 15);
-      
-      autoTable(doc, {
-        startY: finalY2 + 20,
-        head: [["#", "Question", "Count"]],
-        body: webQuestions.map((q, i) => [(i + 1).toString(), q.question, q.count.toString()]),
-        theme: "striped",
-        headStyles: { fillColor: [16, 185, 129] },
-        columnStyles: { 1: { cellWidth: 120 } },
-      });
-
-      // Hourly Activity
-      doc.addPage();
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.text("Hourly Activity Distribution", 14, 20);
-      
-      autoTable(doc, {
-        startY: 25,
-        head: [["Hour", "Discord", "Web", "Total"]],
-        body: hourlyData.map((h) => [h.hour, h.discord.toString(), h.web.toString(), (h.discord + h.web).toString()]),
-        theme: "striped",
-        headStyles: { fillColor: [50, 50, 50] },
-      });
-
-      const pageCount = doc.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.setTextColor(150);
-        doc.text(
-          `Page ${i} of ${pageCount} | PropScholar Analytics`,
-          pageWidth / 2,
-          doc.internal.pageSize.getHeight() - 10,
-          { align: "center" }
-        );
-      }
-
-      doc.save(`propscholar-analytics-${new Date().toISOString().split("T")[0]}.pdf`);
-      toast.success("PDF exported successfully!");
+      const rows: string[][] = [
+        ["PropScholar Analytics Report"],
+        [`Generated: ${new Date().toLocaleString()}`],
+        [],
+        ["Metric", "Value"],
+        ["Total Messages", stats.totalMessages.toString()],
+        ["Discord Messages", stats.discordMessages.toString()],
+        ["Web Messages", stats.webMessages.toString()],
+        ["Discord Users", stats.discordUsers.toString()],
+        ["Web Sessions", stats.webSessions.toString()],
+        ["Knowledge Base Entries", stats.kbEntries.toString()],
+        ["Bot Accuracy", `${stats.trainingFeedback > 0 ? Math.round((stats.correctAnswers / stats.trainingFeedback) * 100) : 0}%`],
+        ["Engagement Rate", `${stats.engagementRate}%`],
+        [],
+        ["Daily Activity (Last 14 Days)"],
+        ["Date", "Discord", "Web", "Total"],
+        ...dailyActivity.map((d) => [d.date, d.discord.toString(), d.web.toString(), d.total.toString()]),
+        [],
+        ["Top Discord Questions"],
+        ["#", "Question", "Count"],
+        ...discordQuestions.map((q, i) => [(i + 1).toString(), q.question, q.count.toString()]),
+        [],
+        ["Top Web Widget Questions"],
+        ["#", "Question", "Count"],
+        ...webQuestions.map((q, i) => [(i + 1).toString(), q.question, q.count.toString()]),
+        [],
+        ["Hourly Activity Distribution"],
+        ["Hour", "Discord", "Web", "Total"],
+        ...hourlyData.map((h) => [h.hour, h.discord.toString(), h.web.toString(), (h.discord + h.web).toString()]),
+      ];
+      downloadCSV(`propscholar-analytics-${new Date().toISOString().split("T")[0]}.csv`, rows);
+      toast.success("Report exported successfully!");
     } catch (err) {
-      console.error("Error exporting PDF:", err);
-      toast.error("Failed to export PDF");
+      console.error("Error exporting report:", err);
+      toast.error("Failed to export report");
     } finally {
       setExporting(false);
     }
@@ -438,7 +373,7 @@ export const AnalyticsDashboard = () => {
           </Button>
           <Button size="sm" onClick={exportToPDF} disabled={exporting} className="bg-foreground text-background hover:bg-foreground/90">
             <Download className={`w-4 h-4 mr-2 ${exporting ? "animate-pulse" : ""}`} />
-            Export PDF
+            Export CSV
           </Button>
         </div>
       </div>
