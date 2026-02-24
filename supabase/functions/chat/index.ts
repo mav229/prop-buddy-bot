@@ -401,7 +401,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, sessionId } = await req.json();
+    const { messages, sessionId, userEmail } = await req.json();
 
     // Hard override: if the user explicitly asks for a real agent, we ALWAYS open the form.
     const lastUserMsg = Array.isArray(messages)
@@ -431,8 +431,10 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Fetch knowledge base, coupons, and MongoDB user context in parallel
+    // Priority: userEmail from pre-auth > emails extracted from messages
     const emails = extractEmailsFromMessages(messages || []);
-    const latestEmail = emails.length > 0 ? emails[emails.length - 1] : null;
+    const latestEmail = userEmail || (emails.length > 0 ? emails[emails.length - 1] : null);
+    const isPreAuthenticated = !!userEmail;
 
     const [kbResult, couponsResult, mongoContext] = await Promise.all([
       supabase
@@ -485,6 +487,10 @@ serve(async (req) => {
 
     // Format user data context
     let userDataContext = "No user email detected in conversation yet. If the user provides their email, their account data will be loaded automatically.";
+    let preAuthNote = "";
+    if (isPreAuthenticated) {
+      preAuthNote = `\n\n═══════════════════════════════════════════════════════════════\nPRE-AUTHENTICATED USER (FROM PROPSCHOLAR DASHBOARD):\n═══════════════════════════════════════════════════════════════\nThis user is pre-authenticated from the PropScholar dashboard. Their email is ${userEmail}.\nSKIP ALL identity verification — they are already verified. Do NOT ask for email or account number.\nGreet them by name if their name is available in the data. Be personal and helpful from the very first message.\nThey can ask about any of their accounts directly without verification.\n═══════════════════════════════════════════════════════════════`;
+    }
     if (latestEmail && mongoContext) {
       userDataContext = `Data found for email: ${latestEmail}\n\n${formatUserContext(mongoContext)}`;
       console.log(`MongoDB user context loaded for: ${latestEmail}`);
@@ -496,7 +502,7 @@ serve(async (req) => {
     const systemPromptWithKnowledge = SYSTEM_PROMPT
       .replace("{knowledge_base}", knowledgeContext)
       .replace("{coupons_context}", couponsContext)
-      .replace("{user_data_context}", userDataContext);
+      .replace("{user_data_context}", userDataContext + preAuthNote);
 
     console.log("Sending request to Lovable AI Gateway...");
 
