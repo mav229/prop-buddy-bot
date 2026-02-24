@@ -167,8 +167,8 @@ const FullpageChat = () => {
         </div>
 
         {/* Header - sticky */}
-        <header className="flex-shrink-0 sticky top-0 z-10 px-5 pt-4 pb-3 bg-[hsl(0,0%,13%)]/90 backdrop-blur-xl">
-          <div className="flex items-center justify-between">
+        <header className="flex-shrink-0 sticky top-0 z-10 px-5 pt-4 pb-3 bg-[hsl(0,0%,7%)]/95 backdrop-blur-xl border-b border-[hsl(0,0%,14%)]">
+          <div className="flex items-center">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full overflow-hidden border border-[hsl(0,0%,18%)] bg-black">
                 <img src={propscholarIcon} alt="PropScholar" className="w-full h-full object-cover" />
@@ -184,9 +184,6 @@ const FullpageChat = () => {
                 </div>
               </div>
             </div>
-            <button onClick={clearChat} className="p-1.5 rounded-lg text-white/25 hover:text-white/60 hover:bg-white/5 transition-all" title="New chat">
-              <RefreshCw className="w-3.5 h-3.5" />
-            </button>
           </div>
         </header>
 
