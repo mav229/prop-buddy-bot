@@ -573,6 +573,7 @@ Our support team will reach out to you within **4 hours**.
                         isWidget={true}
                         showAgentButton={shouldShowAgentButton}
                         onConnectAgent={() => setShowTicketForm(true)}
+                        timestamp={m.timestamp}
                       />
                     );
                   })}
