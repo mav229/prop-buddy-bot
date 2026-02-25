@@ -36,10 +36,10 @@ const Bubble = ({ role, content, isStreaming }: { role: "user" | "assistant"; co
       <div className="max-w-[85%] sm:max-w-[75%]">
         <div
           className={cn(
-            "rounded-2xl px-4 py-3 text-[13px] font-light leading-relaxed",
+            "rounded-2xl px-4 py-3 text-[13.5px] leading-[1.7]",
             isUser
-              ? "bg-white/90 text-black"
-              : "bg-[hsl(0,0%,10%)] text-[hsl(0,0%,80%)]"
+              ? "bg-white/90 text-black font-normal"
+              : "bg-[hsl(0,0%,10%)] text-[hsl(0,0%,82%)] font-light"
           )}
         >
           {!content && isStreaming ? (
@@ -47,12 +47,45 @@ const Bubble = ({ role, content, isStreaming }: { role: "user" | "assistant"; co
           ) : isUser ? (
             <span className="whitespace-pre-wrap">{display}</span>
           ) : (
-            <div className="prose prose-sm prose-invert max-w-none font-light [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-p:my-2 prose-p:leading-relaxed prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-strong:font-semibold prose-strong:text-[hsl(0,0%,90%)] prose-code:text-[12px] prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:bg-[hsl(0,0%,14%)] prose-code:before:content-none prose-code:after:content-none prose-blockquote:border-l-2 prose-blockquote:border-[hsl(0,0%,25%)] prose-blockquote:pl-3">
+            <div
+              className={cn(
+                "max-w-none",
+                "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
+                // Paragraphs
+                "[&_p]:my-2.5 [&_p]:leading-[1.75] [&_p]:tracking-[0.01em]",
+                // Bold / strong — slight glow effect
+                "[&_strong]:font-semibold [&_strong]:text-white",
+                // Lists
+                "[&_ul]:my-3 [&_ul]:space-y-1.5 [&_ul]:pl-1",
+                "[&_ol]:my-3 [&_ol]:space-y-1.5 [&_ol]:pl-1",
+                "[&_li]:text-[hsl(0,0%,78%)] [&_li]:leading-[1.7]",
+                // Headings
+                "[&_h1]:text-[16px] [&_h1]:font-semibold [&_h1]:text-white [&_h1]:mt-4 [&_h1]:mb-2 [&_h1]:tracking-tight",
+                "[&_h2]:text-[15px] [&_h2]:font-semibold [&_h2]:text-white/95 [&_h2]:mt-3.5 [&_h2]:mb-2 [&_h2]:tracking-tight",
+                "[&_h3]:text-[14px] [&_h3]:font-medium [&_h3]:text-white/90 [&_h3]:mt-3 [&_h3]:mb-1.5",
+                // Code
+                "[&_code]:text-[12px] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded-md [&_code]:bg-white/[0.06] [&_code]:text-[hsl(0,0%,88%)] [&_code]:font-mono",
+                // Blockquotes
+                "[&_blockquote]:border-l-2 [&_blockquote]:border-white/20 [&_blockquote]:pl-3.5 [&_blockquote]:my-3 [&_blockquote]:text-[hsl(0,0%,65%)] [&_blockquote]:italic",
+                // Links
+                "[&_a]:text-white/90 [&_a]:underline [&_a]:underline-offset-2 [&_a]:decoration-white/30 hover:[&_a]:decoration-white/60",
+              )}
+            >
               <ReactMarkdown
                 components={{
-                  p: ({ children }) => <p className="mb-2">{children}</p>,
-                  ul: ({ children }) => <ul className="my-2 space-y-1 list-disc list-inside">{children}</ul>,
-                  strong: ({ children }) => <strong className="font-semibold text-white/90">{children}</strong>,
+                  p: ({ children }) => <p>{children}</p>,
+                  ul: ({ children }) => <ul className="list-none">{children}</ul>,
+                  ol: ({ children }) => <ol className="list-decimal list-inside">{children}</ol>,
+                  li: ({ children }) => (
+                    <li className="flex items-start gap-2">
+                      <span className="mt-[9px] w-1 h-1 rounded-full bg-white/40 flex-shrink-0" />
+                      <span className="flex-1">{children}</span>
+                    </li>
+                  ),
+                  strong: ({ children }) => <strong>{children}</strong>,
+                  h1: ({ children }) => <h1>{children}</h1>,
+                  h2: ({ children }) => <h2>{children}</h2>,
+                  h3: ({ children }) => <h3>{children}</h3>,
                 }}
               >
                 {display}
