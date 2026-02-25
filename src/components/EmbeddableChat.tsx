@@ -68,7 +68,9 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const [activeTab, setActiveTab] = useState<TabType>("home");
   const [isMinimized, setIsMinimized] = useState<boolean>(isWidget);
   const [isClosing, setIsClosing] = useState(false);
-  const [inIframe, setInIframe] = useState(false);
+  const [inIframe, setInIframe] = useState(() => {
+    try { return window.self !== window.top; } catch { return true; }
+  });
   const [showEmailPopup, setShowEmailPopup] = useState(false);
   const [emailCollected, setEmailCollected] = useState(false);
   const [showTicketForm, setShowTicketForm] = useState(false);
@@ -214,15 +216,15 @@ Our support team will reach out to you within **4 hours**.
       }
     };
 
-    // Apply a non-transparent background to avoid any iframe white fallback flashes
-    // (some browsers render transparent iframe documents as white during transitions).
-    applyBg(config.backgroundColor);
+    // When minimized in iframe, keep transparent so launcher shows cleanly
+    // When expanded, use config background to prevent white flash
+    applyBg(isMinimized && inIframe ? "transparent" : config.backgroundColor);
 
     return () => {
       document.documentElement.style.overflow = "";
       document.body.style.overflow = "";
     };
-  }, [isWidget, isMinimized, config.backgroundColor]);
+  }, [isWidget, isMinimized, inIframe, config.backgroundColor]);
 
 
   useEffect(() => {
@@ -256,14 +258,25 @@ Our support team will reach out to you within **4 hours**.
     return () => window.removeEventListener("message", onMessage);
   }, [isWidget, inIframe]);
 
+  // Notify parent host of widget state changes (with retry for reliability)
   useEffect(() => {
     if (!isWidget || !inIframe) return;
-    try {
-      const action = isMinimized ? "minimized" : "expanded";
-      window.parent?.postMessage({ type: "scholaris:widget", action }, "*");
-      // Back-compat for older host snippets
-      window.parent?.postMessage({ type: "widgetStateChange", expanded: !isMinimized }, "*");
-    } catch {}
+
+    const action = isMinimized ? "minimized" : "expanded";
+    const send = () => {
+      try {
+        window.parent?.postMessage({ type: "scholaris:widget", action }, "*");
+        window.parent?.postMessage({ type: "widgetStateChange", expanded: !isMinimized }, "*");
+      } catch {}
+    };
+
+    // Send immediately + retry to handle race conditions with parent listener setup
+    send();
+    const t1 = setTimeout(send, 100);
+    const t2 = setTimeout(send, 300);
+    const t3 = setTimeout(send, 800);
+
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, [isMinimized, isWidget, inIframe]);
 
   const handleSendMessage = useCallback((msg: string) => {
