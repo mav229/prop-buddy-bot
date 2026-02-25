@@ -18,6 +18,7 @@ import { WidgetCustomizer } from "./WidgetCustomizer";
 import { CouponsManager } from "./CouponsManager";
 import { LeadsManager } from "./LeadsManager";
 import { TicketsManager } from "./TicketsManager";
+import { FullpageUsageLogs } from "./FullpageUsageLogs";
 import { Link } from "react-router-dom";
 
 const navItems = [
@@ -249,6 +250,8 @@ export const AdminDashboard = () => {
                   </div>
                 </div>
               </div>
+
+              <FullpageUsageLogs />
             </div>
           </TabsContent>
 
