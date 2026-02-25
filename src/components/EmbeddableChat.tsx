@@ -119,11 +119,14 @@ Our support team will reach out to you within **4 hours**.
 
   // Check if in iframe on mount and load email collection state
   useEffect(() => {
+    let iframe = false;
     try {
-      setInIframe(window.self !== window.top);
+      iframe = window.self !== window.top;
     } catch {
-      setInIframe(true);
+      iframe = true;
     }
+    setInIframe(iframe);
+    console.log("[scholaris-widget] mount: inIframe=", iframe, "isWidget=", isWidget);
     
     // Check if email was already collected
     try {
@@ -132,7 +135,7 @@ Our support team will reach out to you within **4 hours**.
         setEmailCollected(true);
       }
     } catch {}
-  }, []);
+  }, [isWidget]);
 
   // Show email popup after threshold messages (skip if email collected in chat)
   useEffect(() => {
@@ -182,19 +185,36 @@ Our support team will reach out to you within **4 hours**.
   // Use custom URL if set, otherwise pick from built-in styles
   const launcherLogo = config.launcherLogoUrl || launcherAssets[config.launcherStyle] || launcherAssets.nohalo;
 
+  // Immediately notify parent iframe of state change (don't wait for effect)
+  const notifyParent = useCallback((action: "expanded" | "minimized") => {
+    if (!inIframe) return;
+    try {
+      window.parent?.postMessage({ type: "scholaris:widget", action }, "*");
+      window.parent?.postMessage({ type: "widgetStateChange", expanded: action === "expanded" }, "*");
+      console.log("[scholaris-widget] sent postMessage:", action);
+    } catch (err) {
+      console.error("[scholaris-widget] postMessage failed:", err);
+    }
+  }, [inIframe]);
+
   const handleOpen = useCallback(() => {
+    console.log("[scholaris-widget] handleOpen called, inIframe:", inIframe);
     playSound("open", 0.12);
-    preloadAllSounds(); // Preload other sounds after first interaction
+    preloadAllSounds();
     setIsMinimized(false);
-  }, []);
+    // Immediately notify parent - don't rely solely on the effect
+    notifyParent("expanded");
+  }, [inIframe, notifyParent]);
   
   const handleClose = useCallback(() => {
+    console.log("[scholaris-widget] handleClose called");
+    notifyParent("minimized");
     setIsClosing(true);
     setTimeout(() => {
       setIsClosing(false);
       setIsMinimized(true);
-    }, 150); // Match panel-close animation duration
-  }, []);
+    }, 150);
+  }, [notifyParent]);
 
   // Use useLayoutEffect to set background BEFORE paint (prevents white flash)
   useLayoutEffect(() => {
