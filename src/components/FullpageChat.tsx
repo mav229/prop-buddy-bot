@@ -27,72 +27,77 @@ const TypingDots = () => (
   </div>
 );
 
-const Bubble = ({ role, content, isStreaming }: { role: "user" | "assistant"; content: string; isStreaming?: boolean }) => {
+const Bubble = ({ role, content, isStreaming, userName }: { role: "user" | "assistant"; content: string; isStreaming?: boolean; userName?: string }) => {
   const isUser = role === "user";
   const display = stripMarkers(content);
+  const initial = userName ? userName.charAt(0).toUpperCase() : "U";
 
   return (
-    <div className={cn("flex flex-col gap-1", isUser ? "items-end" : "items-start")}>
-      <div className="max-w-[85%] sm:max-w-[75%]">
-        <div
-          className={cn(
-            "rounded-2xl px-4 py-3 text-[13.5px] leading-[1.7]",
-            isUser
-              ? "bg-white/90 text-black font-normal"
-              : "bg-[hsl(0,0%,10%)] text-[hsl(0,0%,82%)] font-light"
-          )}
-        >
-          {!content && isStreaming ? (
-            <TypingDots />
-          ) : isUser ? (
-            <span className="whitespace-pre-wrap">{display}</span>
-          ) : (
-            <div
-              className={cn(
-                "max-w-none",
-                "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
-                // Paragraphs
-                "[&_p]:my-2.5 [&_p]:leading-[1.75] [&_p]:tracking-[0.01em]",
-                // Bold / strong — slight glow effect
-                "[&_strong]:font-semibold [&_strong]:text-white",
-                // Lists
-                "[&_ul]:my-3 [&_ul]:space-y-1.5 [&_ul]:pl-1",
-                "[&_ol]:my-3 [&_ol]:space-y-1.5 [&_ol]:pl-1",
-                "[&_li]:text-[hsl(0,0%,78%)] [&_li]:leading-[1.7]",
-                // Headings
-                "[&_h1]:text-[16px] [&_h1]:font-semibold [&_h1]:text-white [&_h1]:mt-4 [&_h1]:mb-2 [&_h1]:tracking-tight",
-                "[&_h2]:text-[15px] [&_h2]:font-semibold [&_h2]:text-white/95 [&_h2]:mt-3.5 [&_h2]:mb-2 [&_h2]:tracking-tight",
-                "[&_h3]:text-[14px] [&_h3]:font-medium [&_h3]:text-white/90 [&_h3]:mt-3 [&_h3]:mb-1.5",
-                // Code
-                "[&_code]:text-[12px] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded-md [&_code]:bg-white/[0.06] [&_code]:text-[hsl(0,0%,88%)] [&_code]:font-mono",
-                // Blockquotes
-                "[&_blockquote]:border-l-2 [&_blockquote]:border-white/20 [&_blockquote]:pl-3.5 [&_blockquote]:my-3 [&_blockquote]:text-[hsl(0,0%,65%)] [&_blockquote]:italic",
-                // Links
-                "[&_a]:text-white/90 [&_a]:underline [&_a]:underline-offset-2 [&_a]:decoration-white/30 hover:[&_a]:decoration-white/60",
-              )}
+    <div className={cn("flex gap-3", isUser ? "flex-row-reverse" : "flex-row")}>
+      {/* Avatar */}
+      <div className={cn(
+        "flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center overflow-hidden mt-1",
+        isUser
+          ? "bg-white/90"
+          : "bg-[hsl(0,0%,12%)] border border-[hsl(0,0%,20%)]"
+      )}>
+        {isUser ? (
+          <span className="text-[10px] font-bold text-black leading-none">{initial}</span>
+        ) : (
+          <img src={propscholarIcon} alt="S" className="w-full h-full object-cover rounded-full" />
+        )}
+      </div>
+
+      {/* Bubble */}
+      <div className={cn(
+        "max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3 text-[13.5px] leading-[1.7]",
+        isUser
+          ? "bg-white/90 text-black font-normal"
+          : "bg-[hsl(0,0%,10%)] text-[hsl(0,0%,82%)] font-light"
+      )}>
+        {!content && isStreaming ? (
+          <TypingDots />
+        ) : isUser ? (
+          <span className="whitespace-pre-wrap">{display}</span>
+        ) : (
+          <div
+            className={cn(
+              "max-w-none",
+              "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
+              "[&_p]:my-2.5 [&_p]:leading-[1.75] [&_p]:tracking-[0.01em]",
+              "[&_strong]:font-semibold [&_strong]:text-white",
+              "[&_ul]:my-3 [&_ul]:space-y-1.5 [&_ul]:pl-1",
+              "[&_ol]:my-3 [&_ol]:space-y-1.5 [&_ol]:pl-1",
+              "[&_li]:text-[hsl(0,0%,78%)] [&_li]:leading-[1.7]",
+              "[&_h1]:text-[16px] [&_h1]:font-semibold [&_h1]:text-white [&_h1]:mt-4 [&_h1]:mb-2 [&_h1]:tracking-tight",
+              "[&_h2]:text-[15px] [&_h2]:font-semibold [&_h2]:text-white/95 [&_h2]:mt-3.5 [&_h2]:mb-2 [&_h2]:tracking-tight",
+              "[&_h3]:text-[14px] [&_h3]:font-medium [&_h3]:text-white/90 [&_h3]:mt-3 [&_h3]:mb-1.5",
+              "[&_code]:text-[12px] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded-md [&_code]:bg-white/[0.06] [&_code]:text-[hsl(0,0%,88%)] [&_code]:font-mono",
+              "[&_blockquote]:border-l-2 [&_blockquote]:border-white/20 [&_blockquote]:pl-3.5 [&_blockquote]:my-3 [&_blockquote]:text-[hsl(0,0%,65%)] [&_blockquote]:italic",
+              "[&_a]:text-white/90 [&_a]:underline [&_a]:underline-offset-2 [&_a]:decoration-white/30",
+            )}
+          >
+            <ReactMarkdown
+              components={{
+                p: ({ children }) => <p>{children}</p>,
+                ul: ({ children }) => <ul className="list-none">{children}</ul>,
+                ol: ({ children }) => <ol className="list-decimal list-inside">{children}</ol>,
+                li: ({ children }) => (
+                  <li className="flex items-start gap-2">
+                    <span className="mt-[9px] w-1 h-1 rounded-full bg-white/40 flex-shrink-0" />
+                    <span className="flex-1">{children}</span>
+                  </li>
+                ),
+                strong: ({ children }) => <strong>{children}</strong>,
+                h1: ({ children }) => <h1>{children}</h1>,
+                h2: ({ children }) => <h2>{children}</h2>,
+                h3: ({ children }) => <h3>{children}</h3>,
+              }}
             >
-              <ReactMarkdown
-                components={{
-                  p: ({ children }) => <p>{children}</p>,
-                  ul: ({ children }) => <ul className="list-none">{children}</ul>,
-                  ol: ({ children }) => <ol className="list-decimal list-inside">{children}</ol>,
-                  li: ({ children }) => (
-                    <li className="flex items-start gap-2">
-                      <span className="mt-[9px] w-1 h-1 rounded-full bg-white/40 flex-shrink-0" />
-                      <span className="flex-1">{children}</span>
-                    </li>
-                  ),
-                  strong: ({ children }) => <strong>{children}</strong>,
-                  h1: ({ children }) => <h1>{children}</h1>,
-                  h2: ({ children }) => <h2>{children}</h2>,
-                  h3: ({ children }) => <h3>{children}</h3>,
-                }}
-              >
-                {display}
-              </ReactMarkdown>
-            </div>
-          )}
-        </div>
+              {display}
+            </ReactMarkdown>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -267,10 +272,10 @@ const FullpageChat = () => {
           ) : (
             <div className="space-y-4">
               {messages.map((msg, i) => (
-                <Bubble key={msg.id} role={msg.role} content={msg.content} isStreaming={isLoading && i === messages.length - 1 && msg.role === "assistant"} />
+                <Bubble key={msg.id} role={msg.role} content={msg.content} isStreaming={isLoading && i === messages.length - 1 && msg.role === "assistant"} userName={preloadEmail?.split("@")[0]} />
               ))}
               {isLoading && messages[messages.length - 1]?.role === "user" && (
-                <Bubble role="assistant" content="" isStreaming />
+                <Bubble role="assistant" content="" isStreaming userName={preloadEmail?.split("@")[0]} />
               )}
               {showTicketForm && (
                 <div className="max-w-xs mx-auto">
