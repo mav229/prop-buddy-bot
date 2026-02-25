@@ -232,6 +232,11 @@ export const EmbedCustomization = () => {
       if (e.data.action === 'minimized') close();
     });
 
+    // Re-send state after iframe loads (prevents lost messages)
+    iframe.onload = function() {
+      postToWidget(isExpanded ? 'expand' : 'minimize');
+    };
+
     close();
   }
 })();

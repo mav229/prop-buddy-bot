@@ -66,7 +66,9 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>("home");
-  const [isMinimized, setIsMinimized] = useState<boolean>(isWidget);
+  // Detect iframe synchronously so widget starts expanded when embedded
+  const isInIframeInit = (() => { try { return window.self !== window.top; } catch { return true; } })();
+  const [isMinimized, setIsMinimized] = useState<boolean>(isWidget && !isInIframeInit);
   const [isClosing, setIsClosing] = useState(false);
   const [inIframe, setInIframe] = useState(false);
   const [showEmailPopup, setShowEmailPopup] = useState(false);
