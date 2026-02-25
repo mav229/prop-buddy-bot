@@ -66,11 +66,11 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>("home");
-  const [isMinimized, setIsMinimized] = useState<boolean>(isWidget);
+  const isInIframe = (() => { try { return window.self !== window.top; } catch { return true; } })();
+  // When in iframe, parent controls visibility — widget stays expanded always
+  const [isMinimized, setIsMinimized] = useState<boolean>(isWidget && !isInIframe);
   const [isClosing, setIsClosing] = useState(false);
-  const [inIframe, setInIframe] = useState(() => {
-    try { return window.self !== window.top; } catch { return true; }
-  });
+  const [inIframe, setInIframe] = useState(isInIframe);
   const [showEmailPopup, setShowEmailPopup] = useState(false);
   const [emailCollected, setEmailCollected] = useState(false);
   const [showTicketForm, setShowTicketForm] = useState(false);
@@ -207,14 +207,19 @@ Our support team will reach out to you within **4 hours**.
   }, [inIframe, notifyParent]);
   
   const handleClose = useCallback(() => {
-    console.log("[scholaris-widget] handleClose called");
+    console.log("[scholaris-widget] handleClose called, inIframe:", inIframe);
     notifyParent("minimized");
+    if (inIframe) {
+      // In iframe: parent hides the panel, widget stays expanded but hidden
+      // Don't minimize — parent controls visibility
+      return;
+    }
     setIsClosing(true);
     setTimeout(() => {
       setIsClosing(false);
       setIsMinimized(true);
     }, 150);
-  }, [notifyParent]);
+  }, [notifyParent, inIframe]);
 
   // Use useLayoutEffect to set background BEFORE paint (prevents white flash)
   useLayoutEffect(() => {
