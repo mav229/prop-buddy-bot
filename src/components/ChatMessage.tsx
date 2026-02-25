@@ -66,7 +66,7 @@ export const ChatMessage = ({ role, content, isStreaming, isWidget = false, show
   }, [displayContent, isStreaming, role]);
 
   return (
-    <div className={cn("flex flex-col gap-1 message-in", isUser ? "items-end" : "items-start")}>
+    <div className={cn("flex flex-col gap-1", isUser ? "items-end" : "items-start")}>
       {/* Bubble – dark rounded card style */}
       <div className="max-w-[85%]">
         <div
@@ -82,7 +82,7 @@ export const ChatMessage = ({ role, content, isStreaming, isWidget = false, show
               ? `${isUser ? config.userMessageBorderRadius : config.aiMessageBorderRadius}px`
               : "16px",
             fontSize: isWidget ? `${config.chatMessageFontSize}px` : "14px",
-            border: "1px solid hsl(0 0% 18%)",
+            border: isWidget ? "none" : "1px solid hsl(0 0% 14%)",
           }}
         >
           {!content && isStreaming ? (
@@ -118,12 +118,7 @@ export const ChatMessage = ({ role, content, isStreaming, isWidget = false, show
           )}
         </div>
 
-        {/* Timestamp */}
-        {timeLabel && !isStreaming && (
-          <p className="text-[10px] font-light mt-1.5 px-1" style={{ color: "hsl(0 0% 35%)" }}>
-            {timeLabel}
-          </p>
-        )}
+        {/* Timestamp removed */}
 
         {/* Connect to Real Agent Button */}
         {showAgentButton && !isUser && !isStreaming && onConnectAgent && (
