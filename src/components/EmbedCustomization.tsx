@@ -43,7 +43,7 @@ export const EmbedCustomization = () => {
   window[GLOBAL_KEY] = true;
 
   var host = '${hostUrl}';
-  var configUrl = host + '/functions/v1/widget-config';
+  var configUrl = '${import.meta.env.VITE_SUPABASE_URL}/functions/v1/widget-config';
 
   var isMounting = false;
   var remountTimer = null;
