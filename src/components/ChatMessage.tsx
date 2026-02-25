@@ -92,23 +92,33 @@ export const ChatMessage = ({ role, content, isStreaming, isWidget = false, show
           ) : (
             <div
               className={cn(
-                "prose prose-sm max-w-none font-light whitespace-pre-line",
-                "prose-p:my-2 prose-p:leading-relaxed",
-                "prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5",
-                "prose-headings:my-2 prose-headings:font-medium",
-                "prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-[13px] prose-code:before:content-none prose-code:after:content-none prose-code:bg-[hsl(0,0%,10%)]",
-                "prose-blockquote:my-2 prose-blockquote:pl-3 prose-blockquote:border-l-2 prose-blockquote:border-[hsl(0,0%,25%)]",
-                "prose-strong:font-semibold prose-strong:text-[hsl(0,0%,90%)]",
+                "max-w-none font-light",
                 "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
-                "prose-invert"
+                "[&_p]:my-2.5 [&_p]:leading-[1.75] [&_p]:tracking-[0.01em]",
+                "[&_strong]:font-semibold [&_strong]:text-[hsl(0,0%,92%)]",
+                "[&_ul]:my-3 [&_ul]:space-y-1.5 [&_ul]:pl-1",
+                "[&_ol]:my-3 [&_ol]:space-y-1.5 [&_ol]:pl-1",
+                "[&_li]:text-[hsl(0,0%,78%)] [&_li]:leading-[1.7]",
+                "[&_h1]:text-[16px] [&_h1]:font-semibold [&_h1]:text-white [&_h1]:mt-4 [&_h1]:mb-2 [&_h1]:tracking-tight",
+                "[&_h2]:text-[15px] [&_h2]:font-semibold [&_h2]:text-white/95 [&_h2]:mt-3.5 [&_h2]:mb-2 [&_h2]:tracking-tight",
+                "[&_h3]:text-[14px] [&_h3]:font-medium [&_h3]:text-white/90 [&_h3]:mt-3 [&_h3]:mb-1.5",
+                "[&_code]:text-[12px] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded-md [&_code]:bg-white/[0.06] [&_code]:text-[hsl(0,0%,88%)] [&_code]:font-mono",
+                "[&_blockquote]:border-l-2 [&_blockquote]:border-white/20 [&_blockquote]:pl-3.5 [&_blockquote]:my-3 [&_blockquote]:text-[hsl(0,0%,65%)] [&_blockquote]:italic",
+                "[&_a]:text-white/90 [&_a]:underline [&_a]:underline-offset-2 [&_a]:decoration-white/30",
               )}
               style={isWidget ? { color: config.aiMessageTextColor } : undefined}
             >
               <ReactMarkdown
                 components={{
-                  p: ({ children }) => <p className="mb-2">{children}</p>,
-                  ul: ({ children }) => <ul className="my-2 space-y-1 list-disc list-inside">{children}</ul>,
-                  li: ({ children }) => <li style={isWidget ? { color: config.aiMessageTextColor } : undefined}>{children}</li>,
+                  p: ({ children }) => <p>{children}</p>,
+                  ul: ({ children }) => <ul className="list-none">{children}</ul>,
+                  ol: ({ children }) => <ol className="list-decimal list-inside">{children}</ol>,
+                  li: ({ children }) => (
+                    <li className="flex items-start gap-2" style={isWidget ? { color: config.aiMessageTextColor } : undefined}>
+                      <span className="mt-[9px] w-1 h-1 rounded-full bg-white/40 flex-shrink-0" />
+                      <span className="flex-1">{children}</span>
+                    </li>
+                  ),
                   strong: ({ children }) => <strong className="font-semibold" style={isWidget ? { color: config.aiMessageTextColor } : undefined}>{children}</strong>,
                 }}
               >
