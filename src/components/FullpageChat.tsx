@@ -32,32 +32,34 @@ const Bubble = ({ role, content, isStreaming }: { role: "user" | "assistant"; co
   const display = stripMarkers(content);
 
   return (
-    <div className={cn("flex gap-3", isUser ? "flex-row-reverse" : "flex-row")}>
-      <div className={cn(
-        "flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center overflow-hidden mt-0.5",
-        isUser ? "bg-white/90" : "bg-[hsl(0,0%,12%)] border border-[hsl(0,0%,20%)]"
-      )}>
-        {isUser ? (
-          <span className="text-[10px] font-bold text-black">U</span>
-        ) : (
-          <img src={propscholarIcon} alt="S" className="w-full h-full object-cover rounded-full" />
-        )}
-      </div>
-      <div className={cn(
-        "px-3 sm:px-4 py-2.5 sm:py-3 max-w-[85%] sm:max-w-[75%] text-[13px] font-light leading-relaxed",
-        isUser
-          ? "rounded-2xl rounded-tr-sm bg-white text-black"
-          : "rounded-2xl rounded-tl-sm bg-[hsl(0,0%,10%)] border border-[hsl(0,0%,16%)] text-[hsl(0,0%,78%)]"
-      )}>
-        {!content && isStreaming ? (
-          <TypingDots />
-        ) : isUser ? (
-          <span className="whitespace-pre-wrap">{display}</span>
-        ) : (
-          <div className="prose prose-sm prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-p:my-1.5 prose-p:leading-relaxed prose-strong:text-white/90 prose-code:text-[12px] prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:bg-white/5 prose-code:before:content-none prose-code:after:content-none">
-            <ReactMarkdown>{display}</ReactMarkdown>
-          </div>
-        )}
+    <div className={cn("flex flex-col gap-1", isUser ? "items-end" : "items-start")}>
+      <div className="max-w-[85%] sm:max-w-[75%]">
+        <div
+          className={cn(
+            "rounded-2xl px-4 py-3 text-[13px] font-light leading-relaxed",
+            isUser
+              ? "bg-white/90 text-black"
+              : "bg-[hsl(0,0%,10%)] text-[hsl(0,0%,80%)]"
+          )}
+        >
+          {!content && isStreaming ? (
+            <TypingDots />
+          ) : isUser ? (
+            <span className="whitespace-pre-wrap">{display}</span>
+          ) : (
+            <div className="prose prose-sm prose-invert max-w-none font-light [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-p:my-2 prose-p:leading-relaxed prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-strong:font-semibold prose-strong:text-[hsl(0,0%,90%)] prose-code:text-[12px] prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:bg-[hsl(0,0%,14%)] prose-code:before:content-none prose-code:after:content-none prose-blockquote:border-l-2 prose-blockquote:border-[hsl(0,0%,25%)] prose-blockquote:pl-3">
+              <ReactMarkdown
+                components={{
+                  p: ({ children }) => <p className="mb-2">{children}</p>,
+                  ul: ({ children }) => <ul className="my-2 space-y-1 list-disc list-inside">{children}</ul>,
+                  strong: ({ children }) => <strong className="font-semibold text-white/90">{children}</strong>,
+                }}
+              >
+                {display}
+              </ReactMarkdown>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
