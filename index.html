@@ -14,12 +14,24 @@
 
     <meta name="twitter:card" content="summary_large_image" />
     
+    <style>
+      /* Prevent any flash on widget/embed routes */
+      html, body, #root {
+        margin: 0;
+        padding: 0;
+      }
+    </style>
     <script>
       // Apply transparent background for widget route before first paint
-      if (window.location.pathname === '/widget' || window.location.pathname.startsWith('/widget')) {
-        document.documentElement.style.background = 'transparent';
-        document.documentElement.style.backgroundColor = 'transparent';
-      }
+      (function() {
+        var p = window.location.pathname;
+        if (p === '/widget' || p.startsWith('/widget')) {
+          document.documentElement.style.background = 'transparent';
+          document.documentElement.style.backgroundColor = 'transparent';
+          document.body.style.background = 'transparent';
+          document.body.style.backgroundColor = 'transparent';
+        }
+      })();
     </script>
   </head>
 
