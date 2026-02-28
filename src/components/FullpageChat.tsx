@@ -169,14 +169,13 @@ const FullpageChat = () => {
   };
 
   const handleSelectSession = async (sid: string) => {
-    const { data } = await supabase
-      .from("chat_history")
-      .select("*")
-      .eq("session_id", sid)
-      .order("created_at", { ascending: true });
+    const { data: response } = await supabase.functions.invoke("read-chat-history", {
+      body: { session_id: sid },
+    });
 
+    const data = response?.data;
     if (data && data.length > 0) {
-      const loaded = data.map((row) => ({
+      const loaded = data.map((row: any) => ({
         id: row.id,
         role: row.role as "user" | "assistant",
         content: row.content,

@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.elevenlabs-scribe-token]
 verify_jwt = false
+
+[functions.read-chat-history]
+verify_jwt = false

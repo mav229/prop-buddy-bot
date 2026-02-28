@@ -41,18 +41,19 @@ export const ChatSidebar = ({
       return;
     }
 
-    const { data, error } = await supabase
-      .from("chat_history")
-      .select("session_id, content, role, created_at")
-      .eq("role", "user")
-      .in("session_id", mySessionIds)
-      .order("created_at", { ascending: false });
+    const { data: response } = await supabase.functions.invoke("read-chat-history", {
+      body: { session_ids: mySessionIds },
+    });
 
-    if (error || !data) return;
+    const data = response?.data;
+    if (!data) return;
+
+    // Filter to user messages only
+    const userMessages = data.filter((row: any) => row.role === "user");
 
     // Group by session_id, take first user message as title
     const sessionMap = new Map<string, ChatSession>();
-    for (const row of data) {
+    for (const row of userMessages) {
       if (!sessionMap.has(row.session_id)) {
         sessionMap.set(row.session_id, {
           session_id: row.session_id,
