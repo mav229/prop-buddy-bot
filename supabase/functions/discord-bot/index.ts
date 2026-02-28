@@ -338,6 +338,7 @@ async function storeUserMessage(
       session_id: `discord-user-${discordUserId}`,
       role,
       content,
+      source: "discord",
     });
     
     if (error) {

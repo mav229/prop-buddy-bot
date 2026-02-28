@@ -119,7 +119,7 @@ const FullpageChat = () => {
     return () => window.removeEventListener("message", handler);
   }, []);
 
-  const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, sessionId, appendAssistantMessage, setMessages } = useChat(preloadEmail);
+  const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, sessionId, appendAssistantMessage, setMessages } = useChat(preloadEmail, "fullpage");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [input, setInput] = useState("");

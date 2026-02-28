@@ -1,0 +1,1 @@
+ALTER TABLE public.chat_history ADD COLUMN source text NOT NULL DEFAULT 'widget';

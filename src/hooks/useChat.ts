@@ -15,7 +15,7 @@ const INPUT_COST_PER_MILLION = 0.15; // $0.15 per 1M input tokens
 const OUTPUT_COST_PER_MILLION = 0.60; // $0.60 per 1M output tokens
 const SESSION_COST_LIMIT = 0.40; // $0.40 per session
 
-export const useChat = (preloadEmail?: string) => {
+export const useChat = (preloadEmail?: string, source: string = "widget") => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -207,6 +207,7 @@ export const useChat = (preloadEmail?: string) => {
           session_id: sessionIdRef.current,
           role: "user",
           content: content.trim(),
+          source,
         });
 
         // Store assistant response
@@ -214,6 +215,7 @@ export const useChat = (preloadEmail?: string) => {
           session_id: sessionIdRef.current,
           role: "assistant",
           content: assistantContent,
+          source,
         });
 
         // Log to training feedback for review
