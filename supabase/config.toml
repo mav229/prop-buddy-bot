@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.read-chat-history]
 verify_jwt = false
+
+[functions.mongo-backup]
+verify_jwt = false
