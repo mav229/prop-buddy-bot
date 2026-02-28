@@ -51,6 +51,7 @@ export type Database = {
           id: string
           role: string
           session_id: string
+          source: string
         }
         Insert: {
           content: string
@@ -58,6 +59,7 @@ export type Database = {
           id?: string
           role: string
           session_id: string
+          source?: string
         }
         Update: {
           content?: string
@@ -65,6 +67,7 @@ export type Database = {
           id?: string
           role?: string
           session_id?: string
+          source?: string
         }
         Relationships: []
       }
