@@ -122,13 +122,23 @@ export const FullpageUsageLogs = () => {
   const fetchLogs = async () => {
     setLoading(true);
     try {
-      const { data: chatData, error: chatErr } = await supabase
-        .from("chat_history")
-        .select("session_id, role, content, created_at, source")
-        .order("created_at", { ascending: false })
-        .limit(1000);
+      // Fetch in batches to get all data (bypass 1000 row limit)
+      let allChatData: any[] = [];
+      let offset = 0;
+      const batchSize = 1000;
+      while (true) {
+        const { data: chatData, error: chatErr } = await supabase
+          .from("chat_history")
+          .select("session_id, role, content, created_at, source")
+          .order("created_at", { ascending: false })
+          .range(offset, offset + batchSize - 1);
 
-      if (chatErr) throw chatErr;
+        if (chatErr) throw chatErr;
+        if (!chatData || chatData.length === 0) break;
+        allChatData = allChatData.concat(chatData);
+        if (chatData.length < batchSize) break;
+        offset += batchSize;
+      }
 
       const { data: leadsData } = await supabase
         .from("widget_leads")
@@ -141,11 +151,11 @@ export const FullpageUsageLogs = () => {
 
       const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
 
-      const sessionMap = new Map<string, { messages: typeof chatData; source: string }>();
-      (chatData || []).forEach((row) => {
+      const sessionMap = new Map<string, { messages: typeof allChatData; source: string }>();
+      allChatData.forEach((row) => {
         if (!sessionMap.has(row.session_id)) {
-          // Determine source: check column first, then fallback to session_id prefix
-          let source = (row as any).source || "widget";
+          // Use the stored source, but override for discord if session_id pattern matches
+          let source = row.source || "widget";
           if (row.session_id.startsWith("discord-user-")) source = "discord";
           sessionMap.set(row.session_id, { messages: [], source });
         }
