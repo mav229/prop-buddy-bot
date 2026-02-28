@@ -110,6 +110,7 @@ export const useChat = (preloadEmail?: string, source: string = "widget") => {
         body: JSON.stringify({
           messages: apiMessages,
           sessionId: sessionIdRef.current,
+          source,
           ...(preloadEmail ? { userEmail: preloadEmail } : {}),
         }),
       });

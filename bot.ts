@@ -48,6 +48,7 @@ async function getAIResponse(message: string): Promise<string> {
       body: JSON.stringify({
         messages: [{ role: "user", content: message }],
         sessionId: `discord-${Date.now()}`,
+        source: "discord",
       }),
     });
 
