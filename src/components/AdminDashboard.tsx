@@ -15,6 +15,7 @@ import { TrainingCenter } from "./TrainingCenter";
 import { AnalyticsDashboard } from "./AnalyticsDashboard";
 import { EmbedCustomization } from "./EmbedCustomization";
 import { WidgetCustomizer } from "./WidgetCustomizer";
+import { WidgetTestEmbed } from "./WidgetTestEmbed";
 import { CouponsManager } from "./CouponsManager";
 import { LeadsManager } from "./LeadsManager";
 import { TicketsManager } from "./TicketsManager";
@@ -260,6 +261,9 @@ export const AdminDashboard = () => {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Floating widget test embed */}
+      <WidgetTestEmbed />
     </div>
   );
 };
