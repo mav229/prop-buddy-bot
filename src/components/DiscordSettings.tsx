@@ -1,15 +1,17 @@
 import { useState } from "react";
-import { Bot, ExternalLink, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { Bot, ExternalLink, Loader2, CheckCircle, AlertCircle, DatabaseBackup } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export const DiscordSettings = () => {
   const [testMessage, setTestMessage] = useState("");
   const [testResponse, setTestResponse] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [registering, setRegistering] = useState(false);
+  const [backingUp, setBackingUp] = useState(false);
   const { toast } = useToast();
 
   const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/discord-bot`;
@@ -183,6 +185,46 @@ export const DiscordSettings = () => {
             </div>
           )}
         </div>
+      </div>
+
+      {/* MongoDB Backup */}
+      <div className="glass-panel p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <DatabaseBackup className="w-5 h-5 text-primary" />
+          <div>
+            <h3 className="font-display font-semibold">MongoDB Backup</h3>
+            <p className="text-sm text-muted-foreground">
+              Manually trigger a full backup of all 24 collections to the backup database. Runs automatically daily at midnight UTC.
+            </p>
+          </div>
+        </div>
+        <Button
+          onClick={async () => {
+            setBackingUp(true);
+            try {
+              const { data, error } = await supabase.functions.invoke("mongo-backup", { body: {} });
+              if (error) throw error;
+              if (data?.error) throw new Error(data.error);
+              toast({
+                title: "Backup complete",
+                description: `Copied ${data.total_docs} documents across ${Object.keys(data.collections || {}).length} collections in ${data.elapsed_seconds}s.`,
+              });
+            } catch (e) {
+              toast({
+                variant: "destructive",
+                title: "Backup failed",
+                description: e instanceof Error ? e.message : "Unknown error",
+              });
+            } finally {
+              setBackingUp(false);
+            }
+          }}
+          disabled={backingUp}
+          variant="secondary"
+        >
+          {backingUp ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <DatabaseBackup className="w-4 h-4 mr-2" />}
+          {backingUp ? "Backing up..." : "Backup Now"}
+        </Button>
       </div>
 
       {/* Usage Info */}
