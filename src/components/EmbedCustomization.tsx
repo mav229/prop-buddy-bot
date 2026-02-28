@@ -209,12 +209,32 @@ export const EmbedCustomization = () => {
     setImp(btn, 'transition', 'opacity 160ms ease-out, transform 200ms cubic-bezier(0.22, 1, 0.36, 1)');
     setImp(btn, 'will-change', 'opacity, transform');
 
+    // Loading spinner overlay
+    var spinner = document.createElement('div');
+    setImp(spinner, 'position', 'absolute');
+    setImp(spinner, 'inset', '0');
+    setImp(spinner, 'display', 'flex');
+    setImp(spinner, 'align-items', 'center');
+    setImp(spinner, 'justify-content', 'center');
+    setImp(spinner, 'background', '#0f172a');
+    setImp(spinner, 'border-radius', '24px');
+    setImp(spinner, 'z-index', '2');
+    setImp(spinner, 'transition', 'opacity 200ms ease-out');
+    spinner.innerHTML = '<div style="width:32px;height:32px;border:3px solid rgba(255,255,255,0.15);border-top-color:#246bfd;border-radius:50%;animation:scholaris-spin 0.7s linear infinite"></div>';
+
+    var spinStyle = document.createElement('style');
+    spinStyle.textContent = '@keyframes scholaris-spin{to{transform:rotate(360deg)}}';
+    document.head.appendChild(spinStyle);
+
+    setImp(panel, 'position', 'relative');
+    panel.appendChild(spinner);
     panel.appendChild(iframe);
     container.appendChild(btn);
     container.appendChild(panel);
     document.body.appendChild(container);
 
     var isExpanded = false;
+    var iframeReady = false;
 
     function postToWidget(action) {
       try { iframe.contentWindow.postMessage({ type: 'scholaris:host', action: action }, allowedOrigin || '*'); } catch(e) {}
@@ -229,13 +249,24 @@ export const EmbedCustomization = () => {
         setImp(container, 'top', '0'); setImp(container, 'bottom', '0');
         setImp(panel, 'width', '100vw'); setImp(panel, 'height', '100dvh');
         setImp(panel, 'border-radius', '0'); setImp(iframe, 'border-radius', '0');
+        setImp(spinner, 'border-radius', '0');
       } else {
         setImp(container, 'left', 'auto'); setImp(container, 'top', 'auto');
         setImp(container, 'right', 'calc(16px + env(safe-area-inset-right))');
         setImp(container, 'bottom', 'calc(16px + env(safe-area-inset-bottom))');
         setImp(panel, 'width', w + 'px'); setImp(panel, 'height', h + 'px');
         setImp(panel, 'border-radius', '24px'); setImp(iframe, 'border-radius', '24px');
+        setImp(spinner, 'border-radius', '24px');
       }
+    }
+
+    function showPanel() {
+      setImp(panel, 'visibility', 'visible');
+      setImp(panel, 'pointer-events', 'auto');
+      requestAnimationFrame(function() {
+        setImp(panel, 'opacity', '1');
+        setImp(panel, 'transform', 'translate3d(0, 0, 0) scale(1)');
+      });
     }
 
     function open() {
@@ -246,15 +277,18 @@ export const EmbedCustomization = () => {
       setImp(btn, 'opacity', '0');
       setImp(btn, 'transform', 'scale(0.92)');
 
-      setImp(panel, 'visibility', 'visible');
-      setImp(panel, 'pointer-events', 'auto');
-
-      requestAnimationFrame(function() {
-        setImp(panel, 'opacity', '1');
-        setImp(panel, 'transform', 'translate3d(0, 0, 0) scale(1)');
-      });
-
-      postToWidget('expand');
+      if (iframeReady) {
+        // Iframe already loaded — animate immediately, no spinner
+        setImp(spinner, 'opacity', '0');
+        setImp(spinner, 'pointer-events', 'none');
+        showPanel();
+        postToWidget('expand');
+      } else {
+        // Show panel with spinner, wait for iframe load
+        setImp(spinner, 'opacity', '1');
+        setImp(spinner, 'pointer-events', 'auto');
+        showPanel();
+      }
     }
 
     function close() {
@@ -286,8 +320,12 @@ export const EmbedCustomization = () => {
       if (e.data.action === 'minimized') close();
     });
 
-    // Re-send state after iframe loads (prevents lost messages)
+    // When iframe finishes loading, hide spinner and sync state
     iframe.onload = function() {
+      iframeReady = true;
+      setImp(spinner, 'opacity', '0');
+      setImp(spinner, 'pointer-events', 'none');
+      window.setTimeout(function() { setImp(spinner, 'display', 'none'); }, 250);
       postToWidget(isExpanded ? 'expand' : 'minimize');
     };
 
