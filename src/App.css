@@ -1,4 +1,5 @@
-#root {
+/* Only apply layout constraints to non-widget pages */
+#root:not(:has(.widget-glass)):not(:has(.fullpage-chat)) {
   max-width: 1280px;
   margin: 0 auto;
   padding: 2rem;

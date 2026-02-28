@@ -252,8 +252,9 @@ Our support team will reach out to you within **4 hours**.
   }, [isWidget, isMinimized, inIframe, config.backgroundColor]);
 
 
+  // Reduced delay for snappier load — config is already available via context
   useEffect(() => {
-    const timer = setTimeout(() => setIsReady(true), 400);
+    const timer = setTimeout(() => setIsReady(true), 80);
     return () => clearTimeout(timer);
   }, []);
 

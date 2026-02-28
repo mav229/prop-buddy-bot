@@ -16,7 +16,7 @@ export const EmbedCustomization = () => {
 
   // IMPORTANT: preview URLs change. Default the embed host to the published URL unless a custom domain is set.
   // Users can override this by saving a customDomain.
-  const publishedFallbackUrl = "https://prop-buddy-bot.lovable.app";
+  const publishedFallbackUrl = "https://scholaris.space";
   const isPreviewOrigin = window.location.hostname.includes("lovableproject.com") || window.location.hostname.startsWith("id-preview--");
 
   const hostUrl = (
@@ -294,7 +294,7 @@ export const EmbedCustomization = () => {
             </Label>
             <Input
               id="customDomain"
-              placeholder="https://your-app.lovable.app"
+              placeholder="https://scholaris.space"
               value={config.customDomain || ""}
               onChange={(e) => updateConfig({ customDomain: e.target.value })}
               className="bg-background/50"
