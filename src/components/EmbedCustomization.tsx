@@ -83,15 +83,31 @@ export const EmbedCustomization = () => {
     start();
   }
 
-  // SPA guard: if something removes our container, re-mount.
+  // Lightweight SPA guard: only watch direct body children to avoid page-wide mutation overhead.
   function attachObserver() {
     if (!window.MutationObserver || !document.body) return;
     try {
-      var obs = new MutationObserver(function() {
+      var obs = new MutationObserver(function(mutations) {
         if (isMounting) return;
-        if (!document.getElementById('scholaris-widget-container')) scheduleRemount();
+
+        var removed = false;
+        for (var i = 0; i < mutations.length; i++) {
+          var nodes = mutations[i].removedNodes || [];
+          for (var j = 0; j < nodes.length; j++) {
+            var n = nodes[j];
+            if (n && n.id === 'scholaris-widget-container') {
+              removed = true;
+              break;
+            }
+          }
+          if (removed) break;
+        }
+
+        if (removed || !document.getElementById('scholaris-widget-container')) {
+          scheduleRemount();
+        }
       });
-      obs.observe(document.body, { childList: true, subtree: true });
+      obs.observe(document.body, { childList: true, subtree: false });
     } catch (e) {}
   }
   if (!document.body) {
@@ -163,19 +179,35 @@ export const EmbedCustomization = () => {
 
     // Panel
     var panel = document.createElement('div');
-    setImp(panel, 'display', 'none');
+    setImp(panel, 'position', 'absolute');
+    setImp(panel, 'right', '0');
+    setImp(panel, 'bottom', '0');
     setImp(panel, 'overflow', 'hidden');
     setImp(panel, 'background', 'transparent');
+    setImp(panel, 'opacity', '0');
+    setImp(panel, 'visibility', 'hidden');
+    setImp(panel, 'pointer-events', 'none');
+    setImp(panel, 'transform', 'translate3d(0, 12px, 0) scale(0.96)');
+    setImp(panel, 'transform-origin', 'bottom right');
+    setImp(panel, 'will-change', 'opacity, transform');
+    setImp(panel, 'transition', 'opacity 190ms cubic-bezier(0.22, 1, 0.36, 1), transform 220ms cubic-bezier(0.22, 1, 0.36, 1)');
+    setImp(panel, 'contain', 'layout paint style');
 
     var iframe = document.createElement('iframe');
     iframe.src = host + '/widget?v=' + Date.now();
     iframe.allow = 'clipboard-write';
     iframe.title = 'Scholaris chat';
+    iframe.loading = 'eager';
     setImp(iframe, 'width', '100%');
     setImp(iframe, 'height', '100%');
     setImp(iframe, 'border', 'none');
     setImp(iframe, 'display', 'block');
-    setImp(iframe, 'background', '#0b1020');
+    setImp(iframe, 'background', 'transparent');
+    setImp(iframe, 'transform', 'translateZ(0)');
+    setImp(iframe, 'backface-visibility', 'hidden');
+
+    setImp(btn, 'transition', 'opacity 160ms ease-out, transform 200ms cubic-bezier(0.22, 1, 0.36, 1)');
+    setImp(btn, 'will-change', 'opacity, transform');
 
     panel.appendChild(iframe);
     container.appendChild(btn);
@@ -208,9 +240,20 @@ export const EmbedCustomization = () => {
 
     function open() {
       isExpanded = true;
-      btn.style.display = 'none';
-      panel.style.display = 'block';
       setSize(true);
+
+      setImp(btn, 'pointer-events', 'none');
+      setImp(btn, 'opacity', '0');
+      setImp(btn, 'transform', 'scale(0.92)');
+
+      setImp(panel, 'visibility', 'visible');
+      setImp(panel, 'pointer-events', 'auto');
+
+      requestAnimationFrame(function() {
+        setImp(panel, 'opacity', '1');
+        setImp(panel, 'transform', 'translate3d(0, 0, 0) scale(1)');
+      });
+
       postToWidget('expand');
     }
 
@@ -219,8 +262,19 @@ export const EmbedCustomization = () => {
       setImp(container, 'left', 'auto'); setImp(container, 'top', 'auto');
       setImp(container, 'right', 'calc(16px + env(safe-area-inset-right))');
       setImp(container, 'bottom', 'calc(16px + env(safe-area-inset-bottom))');
-      panel.style.display = 'none';
-      btn.style.display = 'block';
+
+      setImp(panel, 'pointer-events', 'none');
+      setImp(panel, 'opacity', '0');
+      setImp(panel, 'transform', 'translate3d(0, 12px, 0) scale(0.96)');
+
+      window.setTimeout(function() {
+        if (!isExpanded) setImp(panel, 'visibility', 'hidden');
+      }, 220);
+
+      setImp(btn, 'pointer-events', 'auto');
+      setImp(btn, 'opacity', '1');
+      setImp(btn, 'transform', 'scale(1)');
+
       postToWidget('minimize');
     }
 

@@ -64,7 +64,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, userMessageCount, sessionId, emailCollectedInChat, appendAssistantMessage } = useChat();
   const { config } = useWidgetConfig();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [isReady, setIsReady] = useState(false);
+  const [isReady, setIsReady] = useState(!isWidget);
   const [activeTab, setActiveTab] = useState<TabType>("home");
   const isInIframe = (() => { try { return window.self !== window.top; } catch { return true; } })();
   // When in iframe, parent controls visibility — widget stays expanded always
@@ -126,7 +126,6 @@ Our support team will reach out to you within **4 hours**.
       iframe = true;
     }
     setInIframe(iframe);
-    console.log("[scholaris-widget] mount: inIframe=", iframe, "isWidget=", isWidget);
     
     // Check if email was already collected
     try {
@@ -191,23 +190,20 @@ Our support team will reach out to you within **4 hours**.
     try {
       window.parent?.postMessage({ type: "scholaris:widget", action }, "*");
       window.parent?.postMessage({ type: "widgetStateChange", expanded: action === "expanded" }, "*");
-      console.log("[scholaris-widget] sent postMessage:", action);
-    } catch (err) {
-      console.error("[scholaris-widget] postMessage failed:", err);
+    } catch {
+      // no-op
     }
   }, [inIframe]);
 
   const handleOpen = useCallback(() => {
-    console.log("[scholaris-widget] handleOpen called, inIframe:", inIframe);
     playSound("open", 0.12);
     preloadAllSounds();
     setIsMinimized(false);
     // Immediately notify parent - don't rely solely on the effect
     notifyParent("expanded");
-  }, [inIframe, notifyParent]);
+  }, [notifyParent]);
   
   const handleClose = useCallback(() => {
-    console.log("[scholaris-widget] handleClose called, inIframe:", inIframe);
     notifyParent("minimized");
     if (inIframe) {
       // In iframe: parent hides the panel, widget stays expanded but hidden
@@ -252,11 +248,16 @@ Our support team will reach out to you within **4 hours**.
   }, [isWidget, isMinimized, inIframe, config.backgroundColor]);
 
 
-  // Reduced delay for snappier load — config is already available via context
+  // Keep widget iframe instantly interactive; tiny delay only for full-page embed skeletons
   useEffect(() => {
-    const timer = setTimeout(() => setIsReady(true), 80);
+    if (isWidget) {
+      const raf = window.requestAnimationFrame(() => setIsReady(true));
+      return () => window.cancelAnimationFrame(raf);
+    }
+
+    const timer = window.setTimeout(() => setIsReady(true), 100);
     return () => clearTimeout(timer);
-  }, []);
+  }, [isWidget]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
