@@ -34,6 +34,14 @@ const COLLECTIONS = [
   "logs_automation",
 ];
 
+function hasValidMongoScheme(uri: string): boolean {
+  return uri.startsWith("mongodb://") || uri.startsWith("mongodb+srv://");
+}
+
+function formatMongoError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -85,8 +93,8 @@ Deno.serve(async (req) => {
     }
   }
 
-  const sourceUri = Deno.env.get("MONGO_URI");
-  const destUri = Deno.env.get("MONGO_BACKUP_URI");
+  const sourceUri = Deno.env.get("MONGO_URI")?.trim();
+  const destUri = Deno.env.get("MONGO_BACKUP_URI")?.trim();
   const sourceDbName = Deno.env.get("MONGO_DB_NAME") || "test";
 
   if (!sourceUri) {
@@ -98,6 +106,20 @@ Deno.serve(async (req) => {
   if (!destUri) {
     return new Response(
       JSON.stringify({ error: "MONGO_BACKUP_URI not configured" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  if (!hasValidMongoScheme(sourceUri)) {
+    return new Response(
+      JSON.stringify({ error: "Invalid MONGO_URI scheme", details: "Expected mongodb:// or mongodb+srv://" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  if (!hasValidMongoScheme(destUri)) {
+    return new Response(
+      JSON.stringify({ error: "Invalid MONGO_BACKUP_URI scheme", details: "Expected mongodb:// or mongodb+srv://" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
@@ -116,10 +138,44 @@ Deno.serve(async (req) => {
   const startTime = Date.now();
 
   try {
-    sourceClient = new MongoClient(sourceUri);
-    destClient = new MongoClient(destUri);
+    sourceClient = new MongoClient(sourceUri, {
+      serverSelectionTimeoutMS: 15000,
+      connectTimeoutMS: 15000,
+    });
+    await sourceClient.connect();
 
-    await Promise.all([sourceClient.connect(), destClient.connect()]);
+    try {
+      destClient = new MongoClient(destUri, {
+        serverSelectionTimeoutMS: 15000,
+        connectTimeoutMS: 15000,
+      });
+      await destClient.connect();
+    } catch (destErr) {
+      const destMessage = formatMongoError(destErr);
+      const likelyTlsIssue =
+        destMessage.includes("received fatal alert") ||
+        destMessage.toLowerCase().includes("tls") ||
+        destMessage.toLowerCase().includes("ssl");
+
+      if (!likelyTlsIssue) {
+        throw new Error(`Destination Mongo connection failed: ${destMessage}`);
+      }
+
+      console.warn("Destination Mongo TLS handshake failed; retrying with relaxed TLS settings.");
+      const retryUri = `${destUri}${destUri.includes("?") ? "&" : "?"}tls=true&tlsAllowInvalidCertificates=true&tlsAllowInvalidHostnames=true`;
+      destClient = new MongoClient(retryUri, {
+        serverSelectionTimeoutMS: 20000,
+        connectTimeoutMS: 20000,
+      });
+
+      try {
+        await destClient.connect();
+      } catch (retryErr) {
+        throw new Error(
+          `Destination Mongo TLS failed after retry. Verify backup cluster TLS/network settings or use a standard mongodb:// URI. Details: ${formatMongoError(retryErr)}`
+        );
+      }
+    }
 
     const sourceDb = sourceClient.db(sourceDbName);
     const destDb = destClient.db(destDbName);
