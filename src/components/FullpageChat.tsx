@@ -199,6 +199,7 @@ const FullpageChat = () => {
               onSelectSession={(sid) => { handleSelectSession(sid); setMobileSidebarOpen(false); }}
               collapsed={false}
               onToggle={() => setMobileSidebarOpen(false)}
+              userEmail={preloadEmail}
             />
           </div>
           <div className="flex-1 bg-black/60" onClick={() => setMobileSidebarOpen(false)} />
@@ -213,6 +214,7 @@ const FullpageChat = () => {
           onSelectSession={handleSelectSession}
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          userEmail={preloadEmail}
         />
       </div>
 

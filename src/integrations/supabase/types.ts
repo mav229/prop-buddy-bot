@@ -122,6 +122,48 @@ export type Database = {
         }
         Relationships: []
       }
+      discord_connections: {
+        Row: {
+          assigned_role: string
+          created_at: string
+          discord_avatar: string | null
+          discord_user_id: string
+          discord_username: string | null
+          email: string
+          id: string
+          last_role_update: string
+          last_synced_at: string | null
+          needs_sync: boolean
+          updated_at: string
+        }
+        Insert: {
+          assigned_role?: string
+          created_at?: string
+          discord_avatar?: string | null
+          discord_user_id: string
+          discord_username?: string | null
+          email: string
+          id?: string
+          last_role_update?: string
+          last_synced_at?: string | null
+          needs_sync?: boolean
+          updated_at?: string
+        }
+        Update: {
+          assigned_role?: string
+          created_at?: string
+          discord_avatar?: string | null
+          discord_user_id?: string
+          discord_username?: string | null
+          email?: string
+          id?: string
+          last_role_update?: string
+          last_synced_at?: string | null
+          needs_sync?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       discord_users: {
         Row: {
           created_at: string
