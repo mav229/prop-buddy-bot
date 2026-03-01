@@ -97,7 +97,7 @@ export const ChatInterface = () => {
     sessionId,
     appendAssistantMessage,
     setMessages,
-  } = useChat();
+  } = useChat(undefined, "dashboard");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [input, setInput] = useState("");
