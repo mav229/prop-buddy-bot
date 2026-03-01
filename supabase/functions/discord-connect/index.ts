@@ -249,7 +249,7 @@ function getDiscordRedirectUri(): string {
 
   const supabaseUrl = sanitize(Deno.env.get("SUPABASE_URL"));
   if (supabaseUrl) {
-    return `${supabaseUrl.replace(/\/$/, "")}/functions/v1/discord-connect?callback=true`;
+    return `${supabaseUrl.replace(/\/$/, "")}/functions/v1/discord-connect`;
   }
 
   throw new Error(
@@ -482,7 +482,14 @@ Deno.serve(async (req) => {
   }
 
   // ── GET: OAuth Callback ───────────────────────────────────────────────────
-  if (req.method === "GET" && url.searchParams.get("callback") === "true") {
+  const hasOAuthParams =
+    !!url.searchParams.get("code") && !!url.searchParams.get("state");
+
+  // Accept both old callback=true URLs and plain OAuth callback URLs
+  if (
+    req.method === "GET" &&
+    (url.searchParams.get("callback") === "true" || hasOAuthParams)
+  ) {
     const code = url.searchParams.get("code");
     const stateParam = url.searchParams.get("state");
 
