@@ -732,9 +732,14 @@ DATA ACCESS:
     // ═══════════════════════════════════════════════════════════════
     let systemPromptWithKnowledge: string;
 
+    // Track which model to use based on complexity
+    let selectedModel = "google/gemini-2.5-flash"; // default: full power
+
     if (!hasUserContext && !isPreAuthenticated) {
-      // No user email/context → use shorter LITE prompt (saves ~50% tokens)
+      // No user email/context → use shorter LITE prompt + cheaper model
+      selectedModel = "google/gemini-2.5-flash-lite";
       console.log("[PROMPT] Using SYSTEM_PROMPT_LITE (no user context)");
+      console.log(`[MODEL] Using ${selectedModel} (simple query)`);
       systemPromptWithKnowledge = SYSTEM_PROMPT_LITE
         .replace("{knowledge_base}", knowledgeContext)
         .replace("{coupons_context}", couponsContext);
@@ -810,6 +815,7 @@ WIDGET-SPECIFIC RULES:
 - Keep responses moderately detailed -- not as short as Discord, but not as comprehensive as Dashboard unless asked.`;
       }
 
+      console.log(`[MODEL] Using ${selectedModel} (account query)`);
       console.log("Channel source for this request:", channelSource);
 
       systemPromptWithKnowledge = SYSTEM_PROMPT
@@ -858,7 +864,7 @@ WIDGET-SPECIFIC RULES:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: selectedModel,
         messages: [
           { role: "system", content: systemPromptWithKnowledge },
           ...processedMessages,
