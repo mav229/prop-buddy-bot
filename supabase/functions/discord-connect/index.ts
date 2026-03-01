@@ -298,6 +298,7 @@ Deno.serve(async (req) => {
         if (!email) throw new Error("Email required");
 
         const redirectUri = Deno.env.get("DISCORD_REDIRECT_URI")!;
+        console.log("redirectUri:", redirectUri);
 
         // Fix 1: HMAC-signed state with timestamp
         const state = await signState({
