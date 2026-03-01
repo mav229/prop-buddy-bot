@@ -13,6 +13,7 @@ import Widget from "./pages/Widget";
 import EmbedChecker from "./pages/EmbedChecker";
 import NotFound from "./pages/NotFound";
 import TicketDetail from "./pages/TicketDetail";
+import DiscordWidget from "./pages/DiscordWidget";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/fullpage" element={<FullpageEmbed />} />
             <Route path="/widget" element={<Widget />} />
             <Route path="/embed-checker" element={<EmbedChecker />} />
+            <Route path="/discord-widget" element={<DiscordWidget />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
