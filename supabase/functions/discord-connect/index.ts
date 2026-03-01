@@ -9,6 +9,27 @@ const corsHeaders = {
 
 const DISCORD_API = "https://discord.com/api/v10";
 
+function sanitizeEnvValue(value: string | undefined | null): string | null {
+  if (!value) return null;
+  const normalized = value.trim().replace(/^['\"]|['\"]$/g, "");
+  if (!normalized) return null;
+  if (normalized.toLowerCase() === "undefined") return null;
+  if (normalized.toLowerCase() === "null") return null;
+  return normalized;
+}
+
+function getDiscordBotToken(): string {
+  const token = sanitizeEnvValue(Deno.env.get("DISCORD_BOT_TOKEN"));
+  if (!token) throw new Error("Missing DISCORD_BOT_TOKEN");
+  return token.replace(/^Bot\s+/i, "").trim();
+}
+
+function getDiscordGuildId(): string {
+  const guildId = sanitizeEnvValue(Deno.env.get("DISCORD_GUILD_ID"));
+  if (!guildId) throw new Error("Missing DISCORD_GUILD_ID");
+  return guildId;
+}
+
 // ─── HMAC-Signed State (Fix 1) ───────────────────────────────────────────────
 // Uses SUPABASE_SERVICE_ROLE_KEY as HMAC secret — zero extra cost, no new env var.
 
@@ -119,10 +140,8 @@ async function assignDiscordRole(
     return;
   }
 
-  const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
-  const guildId = Deno.env.get("DISCORD_GUILD_ID");
-  if (!botToken || !guildId)
-    throw new Error("Missing DISCORD_BOT_TOKEN or DISCORD_GUILD_ID");
+  const botToken = getDiscordBotToken();
+  const guildId = getDiscordGuildId();
 
   const headers = {
     Authorization: `Bot ${botToken}`,
@@ -153,6 +172,11 @@ async function assignDiscordRole(
   );
   if (!addRes.ok) {
     const t = await addRes.text().catch(() => "");
+    if (addRes.status === 401) {
+      throw new Error(
+        "Discord bot authentication failed (401). Re-save DISCORD_BOT_TOKEN without the 'Bot ' prefix."
+      );
+    }
     throw new Error(`Failed to assign ${newRole}: ${addRes.status} ${t}`);
   }
 }
@@ -547,9 +571,9 @@ Deno.serve(async (req) => {
       const discordUser = await userRes.json();
 
       // Add user to guild
-      const guildId = Deno.env.get("DISCORD_GUILD_ID")!;
-      const botToken = Deno.env.get("DISCORD_BOT_TOKEN")!;
-      await discordFetch(
+      const guildId = getDiscordGuildId();
+      const botToken = getDiscordBotToken();
+      const joinRes = await discordFetch(
         `${DISCORD_API}/guilds/${guildId}/members/${discordUser.id}`,
         {
           method: "PUT",
@@ -560,6 +584,16 @@ Deno.serve(async (req) => {
           body: JSON.stringify({ access_token: accessToken }),
         }
       );
+
+      if (!joinRes.ok) {
+        const t = await joinRes.text().catch(() => "");
+        if (joinRes.status === 401) {
+          throw new Error(
+            "Discord bot authentication failed (401). Re-save DISCORD_BOT_TOKEN without the 'Bot ' prefix."
+          );
+        }
+        throw new Error(`Failed to add member to guild: ${joinRes.status} ${t}`);
+      }
 
       // Fix 5: Assign provisional "student" role immediately, then sync in background
       const supabase = getSupabase();
