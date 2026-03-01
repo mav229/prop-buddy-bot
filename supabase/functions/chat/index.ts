@@ -7,19 +7,18 @@ const corsHeaders = {
 };
 
 const OPEN_TICKET_FORM_MARKER = "[[OPEN_TICKET_FORM]]";
-const REAL_AGENT_PHRASES = [
-  "real agent",
-  "i need real agent",
-  "talk to human",
-  "speak to human",
-  "connect me to agent",
-  "human agent",
-  "live agent",
-];
-
 const isRealAgentRequest = (text: string) => {
   const lower = (text || "").toLowerCase();
-  return REAL_AGENT_PHRASES.some((p) => lower.includes(p));
+  // Check for any combination of human/real/live + agent/support/person/someone
+  const wantsHuman = /(real|human|live|actual)\s.{0,20}(agent|support|person|someone|representative|help)/i.test(lower);
+  const directPhrases = [
+    "talk to human", "speak to human", "connect me to",
+    "transfer me", "i want a person", "need a human",
+    "real agent", "live agent", "human agent",
+    "just connect me", "give me a human", "stop just give me",
+    "i said real agent", "no just connect",
+  ];
+  return wantsHuman || directPhrases.some((p) => lower.includes(p));
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -300,6 +299,19 @@ STRICTLY FORBIDDEN - NEVER SAY THESE:
 
 WHEN USERS ASK ABOUT THEIR ACCOUNT:
 If the user provides an email address, their account data will be loaded in subsequent messages. For now, ask them: "Sure! Just share your email address along with your account number or order ID, and I'll pull up your details."
+
+HANDLING "REAL AGENT" REQUESTS — BE EXTREMELY STRICT:
+Even when a user says "real agent", "talk to human", etc — DO NOT immediately open the ticket form.
+Instead, respond with empathy and TRY to solve it yourself first:
+"I completely understand you'd like human support! Before I connect you, let me try to resolve this myself — I have full access to your account data and our knowledge base. Can you tell me exactly what's going on?"
+
+ONLY if the user INSISTS a SECOND TIME (says something like "no just connect me", "I said real agent", "stop just give me a human"), THEN include this EXACT marker in your response:
+[[OPEN_TICKET_FORM]]
+
+Your response when triggering the form should be:
+"Absolutely! I'll connect you with our support team right away.
+Just fill in the form that appeared and our team will reach out to you within 4 hours.
+[[OPEN_TICKET_FORM]]"
 
 EMAIL GATING FOR DISCOUNTS:
 When a user asks for a discount, coupon, promo code, deal, or savings:
