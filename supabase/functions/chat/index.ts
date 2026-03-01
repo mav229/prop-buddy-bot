@@ -351,36 +351,38 @@ SESSION IDENTITY - CRITICAL (READ THIS CAREFULLY):
 - If you find yourself about to ask "For security, I'll need to verify your identity" - STOP and re-read the conversation history. If email + account were already given, just answer the question directly.
 
 ═══════════════════════════════════════════════════════════════
-HANDLING "REAL AGENT" REQUESTS:
+HANDLING "REAL AGENT" REQUESTS — BE EXTREMELY STRICT:
 ═══════════════════════════════════════════════════════════════
 
-When a user explicitly says "real agent", "i need real agent", "talk to human", "speak to human", "connect me to agent", or clearly demands a human:
+Even when a user says "real agent", "talk to human", etc — DO NOT immediately open the ticket form.
+Instead, respond with empathy and TRY to solve it yourself first:
 
-IMMEDIATELY respond with ONLY this short message, then include the marker on the very last line (the UI will auto-open the form):
+"I completely understand you'd like human support! Before I connect you, let me try to resolve this myself — I have full access to your account data and our knowledge base. Can you tell me exactly what's going on?"
+
+ONLY if the user INSISTS a SECOND TIME after you've tried to help (says something like "no just connect me", "I said real agent", "stop just give me a human"), THEN respond:
 
 "Absolutely! I'll connect you with our support team right away.
-
 
 Just fill in the form that appeared and our team will reach out to you within 4 hours."
 
 [[OPEN_TICKET_FORM]]
 
-DO NOT ask the user to click any button.
-
 ═══════════════════════════════════════════════════════════════
-HANDLING OTHER SUPPORT REQUESTS (TRY TO HELP FIRST — BE THE HERO):
+HANDLING OTHER SUPPORT REQUESTS (YOU ARE THE HERO — EXHAUST EVERY OPTION):
 ═══════════════════════════════════════════════════════════════
 
-When a user says "urgent", "help", "support", "issue", "problem", or similar (but NOT explicitly asking for real agent):
+When a user says "urgent", "help", "support", "issue", "problem", or similar:
 
-1. FIRST ask them politely to explain their query:
-   "I'd be happy to help! Please explain your query sir, so I can assist you better."
-2. TRY your absolute BEST to solve their issue using the knowledge base AND their account data
-3. Be patient, keep asking clarifying questions, and give detailed answers
-4. If you have their data loaded (pre-auth or verified), USE IT to answer — don't say "I don't have access"
-5. ONLY after you've genuinely tried 4-5 exchanges and TRULY cannot resolve their issue (because it requires a manual action like unbreaching, refund, password reset), THEN say:
-   "I've done everything I can here. For this specific issue, please reach out to **support@propscholar.com** — they'll handle it quickly!"
-6. ONLY open the ticket form as a LAST RESORT when the user explicitly asks for a real agent:
+1. FIRST ask them to explain their query in detail — be warm and confident:
+   "I'd love to help! Tell me exactly what's happening and I'll get it sorted for you right now."
+2. TRY YOUR ABSOLUTE HARDEST to solve it. Use knowledge base, account data, coupons — everything.
+3. Ask clarifying questions. Suggest workarounds. Be creative. Be persistent.
+4. If you have their data loaded, USE IT proactively — don't say "I don't have access."
+5. Keep trying for at LEAST 5-6 exchanges. Don't give up easily.
+6. ONLY after you've genuinely exhausted EVERY option and the issue truly requires manual backend action (unbreaching, refund, password reset, billing adjustment), THEN say:
+   "I've tried everything on my end. This specific issue needs our support team's manual intervention. Please email **support@propscholar.com** and they'll handle it within 4 hours!"
+7. NEVER proactively suggest creating a ticket. NEVER mention the ticket form unless the user has asked for a "real agent" TWICE.
+8. The ticket form is a LAST RESORT only when the user explicitly demands human support TWICE:
    [[OPEN_TICKET_FORM]]
 
 ═══════════════════════════════════════════════════════════════
@@ -576,12 +578,17 @@ serve(async (req) => {
     const { messages, sessionId, userEmail, source } = await req.json();
     const channelSource = source || "widget";
 
-    // Hard override: if the user explicitly asks for a real agent, we ALWAYS open the form.
+    // Check if user is requesting a real agent — only bypass if they've asked TWICE
     const lastUserMsg = Array.isArray(messages)
       ? [...messages].reverse().find((m: any) => m?.role === "user" && typeof m?.content === "string")
       : null;
 
-    if (lastUserMsg?.content && isRealAgentRequest(lastUserMsg.content)) {
+    // Count how many times user has requested a real agent in this conversation
+    const agentRequestCount = Array.isArray(messages)
+      ? messages.filter((m: any) => m?.role === "user" && typeof m?.content === "string" && isRealAgentRequest(m.content)).length
+      : 0;
+
+    if (lastUserMsg?.content && isRealAgentRequest(lastUserMsg.content) && agentRequestCount >= 2) {
       const text =
         `Absolutely! I'll connect you with our support team right away.\n\n` +
         `Just fill in the form that appeared and our team will reach out to you within 4 hours.\n\n` +
