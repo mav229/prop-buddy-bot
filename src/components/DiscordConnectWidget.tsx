@@ -21,9 +21,13 @@ const ROLE_STYLES: Record<string, { color: string; label: string }> = {
   student:  { color: "text-blue-400",    label: "Student" },
 };
 
-export const DiscordConnectWidget = () => {
+interface DiscordConnectWidgetProps {
+  emailOverride?: string;
+}
+
+export const DiscordConnectWidget = ({ emailOverride }: DiscordConnectWidgetProps) => {
   const { user } = useAuth();
-  const email = user?.email;
+  const email = emailOverride || user?.email;
 
   const [connection, setConnection] = useState<DiscordConnection | null>(null);
   const [loading, setLoading] = useState(false);
