@@ -2,7 +2,7 @@ import { useRef, useEffect, useCallback, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ArrowUp, Loader2, RefreshCw, AlertTriangle, Menu } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
-import { InlineTicketForm } from "@/components/InlineTicketForm";
+import { DashboardTicketForm } from "@/components/DashboardTicketForm";
 import { ChatSidebar } from "@/components/ChatSidebar";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
@@ -279,8 +279,8 @@ const FullpageChat = () => {
                 <Bubble role="assistant" content="" isStreaming userName={preloadEmail?.split("@")[0]} />
               )}
               {showTicketForm && (
-                <div className="max-w-xs mx-auto">
-                  <InlineTicketForm onClose={() => setShowTicketForm(false)} onSuccess={handleTicketSuccess} sessionId={sessionId || "web"} chatHistory={messages.map((m) => ({ role: m.role, content: m.content }))} />
+                <div className="py-2">
+                  <DashboardTicketForm onClose={() => setShowTicketForm(false)} onSuccess={handleTicketSuccess} sessionId={sessionId || "web"} chatHistory={messages.map((m) => ({ role: m.role, content: m.content }))} />
                 </div>
               )}
               {error && <div className="rounded-lg border border-red-900/40 bg-red-950/30 text-red-400 px-4 py-2.5 text-xs">{error}</div>}

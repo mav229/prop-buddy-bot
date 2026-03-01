@@ -2,7 +2,7 @@ import { useRef, useEffect, useCallback, useState } from "react";
 import { RefreshCw, ArrowLeft, AlertTriangle, Send, Loader2 } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { Link } from "react-router-dom";
-import { InlineTicketForm } from "./InlineTicketForm";
+import { DashboardTicketForm } from "./DashboardTicketForm";
 import { ChatSidebar } from "./ChatSidebar";
 import { VoiceInput } from "./VoiceInput";
 import { ImageUploadButton } from "./ImageUploadButton";
@@ -282,8 +282,8 @@ export const ChatInterface = () => {
               ))}
 
               {showTicketForm && (
-                <div className="max-w-sm mx-auto">
-                  <InlineTicketForm
+                <div className="py-2">
+                  <DashboardTicketForm
                     onClose={() => setShowTicketForm(false)}
                     onSuccess={handleTicketSuccess}
                     sessionId={sessionId || "web"}
