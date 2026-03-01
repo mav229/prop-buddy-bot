@@ -251,6 +251,30 @@ export type Database = {
         }
         Relationships: []
       }
+      session_cache: {
+        Row: {
+          context_json: Json
+          created_at: string | null
+          email: string
+          id: string
+          session_id: string
+        }
+        Insert: {
+          context_json: Json
+          created_at?: string | null
+          email: string
+          id?: string
+          session_id: string
+        }
+        Update: {
+          context_json?: Json
+          created_at?: string | null
+          email?: string
+          id?: string
+          session_id?: string
+        }
+        Relationships: []
+      }
       support_tickets: {
         Row: {
           chat_history: string | null
