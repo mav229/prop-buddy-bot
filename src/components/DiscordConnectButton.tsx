@@ -97,14 +97,27 @@ export const DiscordConnectButton = ({ email }: { email?: string }) => {
   if (connection) {
     return (
       <div className="px-3 py-2">
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[hsl(0,0%,7%)] border border-[hsl(0,0%,12%)]">
-          <DiscordIcon className="w-4 h-4 text-[#5865F2] flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] text-[hsl(0,0%,60%)] truncate">
-              {connection.discord_username}
-            </p>
+        <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-[hsl(0,0%,7%)] border border-emerald-500/15 relative overflow-hidden">
+          {/* Subtle green glow */}
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/[0.03] to-transparent pointer-events-none" />
+          
+          <div className="relative flex-shrink-0">
+            <DiscordIcon className="w-4 h-4 text-[#5865F2]" />
+            {/* Green connected dot */}
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full border border-[hsl(0,0%,7%)]">
+              <span className="absolute inset-0 bg-emerald-400 rounded-full animate-ping opacity-40" />
+            </span>
+          </div>
+          
+          <div className="flex-1 min-w-0 relative">
+            <div className="flex items-center gap-1.5">
+              <p className="text-[11px] text-[hsl(0,0%,70%)] truncate font-medium">
+                {connection.discord_username}
+              </p>
+              <CheckCircle className="w-3 h-3 text-emerald-400 flex-shrink-0" />
+            </div>
             {roleInfo && (
-              <span className={`text-[10px] font-medium ${roleInfo.text}`}>
+              <span className={`text-[10px] font-semibold ${roleInfo.text}`}>
                 {roleInfo.label}
               </span>
             )}
@@ -112,7 +125,7 @@ export const DiscordConnectButton = ({ email }: { email?: string }) => {
           <button
             onClick={handleSync}
             disabled={syncing}
-            className="p-1 rounded text-[hsl(0,0%,40%)] hover:text-[hsl(0,0%,70%)] hover:bg-[hsl(0,0%,12%)] transition-colors"
+            className="p-1 rounded text-[hsl(0,0%,40%)] hover:text-[hsl(0,0%,70%)] hover:bg-[hsl(0,0%,12%)] transition-colors relative"
             title="Sync role"
           >
             {syncing ? (
