@@ -22,6 +22,26 @@ const isRealAgentRequest = (text: string) => {
   return REAL_AGENT_PHRASES.some((p) => lower.includes(p));
 };
 
+// ═══════════════════════════════════════════════════════════════
+// LAYER 2: In-memory cache for KB and Coupons (10-min TTL)
+// ═══════════════════════════════════════════════════════════════
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+let kbCache: { data: any[] | null; fetchedAt: number } = { data: null, fetchedAt: 0 };
+let couponsCache: { data: any[] | null; fetchedAt: number } = { data: null, fetchedAt: 0 };
+
+// ═══════════════════════════════════════════════════════════════
+// LAYER 3: Simple greeting patterns (zero AI credits)
+// ═══════════════════════════════════════════════════════════════
+const GREETING_PATTERNS = /^(hi|hello|hey|hola|sup|yo|greetings|good morning|good afternoon|good evening|gm|whats up|what's up)[\s!?.]*$/i;
+
+const CANNED_GREETING = `Hey there! Welcome to PropScholar.
+
+
+I'm here to help you with anything — whether it's about our trading challenges, your account, payouts, or just getting started.
+
+
+**What can I help you with today?**`;
+
 // Extract emails from conversation messages
 function extractEmailsFromMessages(messages: any[]): string[] {
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
@@ -33,6 +53,52 @@ function extractEmailsFromMessages(messages: any[]): string[] {
     }
   }
   return [...new Set(emails)];
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LAYER 1: Session cache for MongoDB context (30-min TTL)
+// ═══════════════════════════════════════════════════════════════
+async function getCachedMongoContext(
+  supabase: any,
+  sessionId: string,
+  email: string
+): Promise<any | null> {
+  try {
+    const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const { data, error } = await supabase
+      .from("session_cache")
+      .select("context_json")
+      .eq("session_id", sessionId)
+      .eq("email", email)
+      .gt("created_at", thirtyMinAgo)
+      .limit(1)
+      .single();
+
+    if (error || !data) return null;
+    console.log(`[CACHE HIT] MongoDB context for ${email} in session ${sessionId.slice(0, 8)}...`);
+    return data.context_json;
+  } catch {
+    return null;
+  }
+}
+
+async function setCachedMongoContext(
+  supabase: any,
+  sessionId: string,
+  email: string,
+  context: any
+): Promise<void> {
+  try {
+    await supabase
+      .from("session_cache")
+      .upsert(
+        { session_id: sessionId, email, context_json: context },
+        { onConflict: "session_id,email" }
+      );
+    console.log(`[CACHE SET] MongoDB context cached for ${email} in session ${sessionId.slice(0, 8)}...`);
+  } catch (err) {
+    console.error("Error caching MongoDB context:", err);
+  }
 }
 
 // Fetch user context from MongoDB via our edge function
@@ -62,6 +128,67 @@ async function fetchMongoUserContext(email: string): Promise<any | null> {
     console.error("Error fetching MongoDB user context:", err);
     return null;
   }
+}
+
+// Fetch MongoDB context with session caching (Layer 1)
+async function fetchMongoUserContextWithCache(
+  supabase: any,
+  sessionId: string,
+  email: string
+): Promise<any | null> {
+  // Check cache first
+  const cached = await getCachedMongoContext(supabase, sessionId, email);
+  if (cached) return cached;
+
+  // Cache miss — fetch from MongoDB
+  console.log(`[CACHE MISS] Fetching MongoDB context for ${email}...`);
+  const context = await fetchMongoUserContext(email);
+
+  // Cache the result (even null to avoid re-fetching)
+  if (context) {
+    await setCachedMongoContext(supabase, sessionId, email, context);
+  }
+
+  return context;
+}
+
+// Fetch KB with in-memory cache (Layer 2)
+async function fetchKnowledgeBase(supabase: any): Promise<any[]> {
+  if (kbCache.data && Date.now() - kbCache.fetchedAt < CACHE_TTL_MS) {
+    console.log("[CACHE HIT] Knowledge base from memory");
+    return kbCache.data;
+  }
+  console.log("[CACHE MISS] Fetching knowledge base from DB");
+  const { data, error } = await supabase
+    .from("knowledge_base")
+    .select("title, content, category")
+    .order("category");
+  if (error) {
+    console.error("Error fetching knowledge base:", error);
+    return kbCache.data || [];
+  }
+  kbCache = { data: data || [], fetchedAt: Date.now() };
+  return kbCache.data!;
+}
+
+// Fetch coupons with in-memory cache (Layer 2)
+async function fetchCoupons(supabase: any): Promise<any[]> {
+  if (couponsCache.data && Date.now() - couponsCache.fetchedAt < CACHE_TTL_MS) {
+    console.log("[CACHE HIT] Coupons from memory");
+    return couponsCache.data;
+  }
+  console.log("[CACHE MISS] Fetching coupons from DB");
+  const { data, error } = await supabase
+    .from("coupons")
+    .select("code, discount_type, discount_value, description, benefits, min_purchase, valid_until")
+    .eq("is_active", true)
+    .or("valid_until.is.null,valid_until.gt." + new Date().toISOString());
+  if (error) {
+    console.error("Error fetching coupons:", error);
+    return couponsCache.data || [];
+  }
+  couponsCache = { data: data || [], fetchedAt: Date.now() };
+  return couponsCache.data!;
 }
 
 // Format MongoDB user context for the AI prompt
@@ -155,6 +282,47 @@ const createSseTextStream = (text: string, inputTokens = 0) => {
   });
 };
 
+// ═══════════════════════════════════════════════════════════════
+// SYSTEM PROMPT - LITE (for general queries, no user context)
+// Saves ~50% input tokens vs full prompt
+// ═══════════════════════════════════════════════════════════════
+const SYSTEM_PROMPT_LITE = `You ARE PropScholar. You're a real team member, not a bot. Talk to traders like a colleague would - friendly, confident, and helpful.
+
+YOUR VIBE:
+- Speak as "we" and "our" - you ARE the company
+- Be warm, professional, and genuinely helpful
+- Chat naturally - be human!
+- NEVER use emojis in responses. Keep it clean and professional. No emoji at all.
+
+STRICTLY FORBIDDEN - NEVER SAY THESE:
+- NEVER mention "Exness Technologies", "Exness Technologies Ltd", or any broker/platform name.
+- NEVER call any account a "demo account". All PropScholar accounts are EVALUATION accounts or SCHOLARSHIP accounts.
+
+WHEN USERS ASK ABOUT THEIR ACCOUNT:
+If the user provides an email address, their account data will be loaded in subsequent messages. For now, ask them: "Sure! Just share your email address along with your account number or order ID, and I'll pull up your details."
+
+EMAIL GATING FOR DISCOUNTS:
+When a user asks for a discount, coupon, promo code, deal, or savings:
+1. If NO email has been provided yet, ask for it first: "I'd love to share our exclusive discount with you! Just drop your email below and I'll send it right over."
+2. ONLY AFTER they provide a valid email, share the coupon code with full details.
+
+ACTIVE COUPONS & DISCOUNTS:
+{coupons_context}
+
+KNOWLEDGE BASE:
+{knowledge_base}
+
+FORMATTING RULES (MANDATORY):
+- After EVERY paragraph, add TWO newlines
+- Use "• " for ANY list with a blank line before and after
+- Wrap key terms in **double asterisks** for bold
+- Maximum 2 sentences per paragraph
+
+REMEMBER: Every response needs line breaks, bullets, and bold text. No exceptions.`;
+
+// ═══════════════════════════════════════════════════════════════
+// SYSTEM PROMPT - FULL (with all account rules and user context)
+// ═══════════════════════════════════════════════════════════════
 const SYSTEM_PROMPT = `You ARE PropScholar. You're a real team member, not a bot. Talk to traders like a colleague would - friendly, confident, and helpful.
 
 YOUR VIBE:
@@ -406,7 +574,7 @@ serve(async (req) => {
 
   try {
     const { messages, sessionId, userEmail, source } = await req.json();
-    const channelSource = source || "widget"; // default to widget
+    const channelSource = source || "widget";
 
     // Hard override: if the user explicitly asks for a real agent, we ALWAYS open the form.
     const lastUserMsg = Array.isArray(messages)
@@ -424,47 +592,50 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
       });
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    // LAYER 3: Skip AI for simple greetings (zero credits)
+    // Only when it's the first message and no email context
+    // ═══════════════════════════════════════════════════════════════
+    const isFirstMessage = !messages || messages.length <= 1;
+    const lastContent = lastUserMsg?.content || "";
+    if (isFirstMessage && !userEmail && GREETING_PATTERNS.test(lastContent.trim())) {
+      console.log("[LAYER 3] Simple greeting detected — skipping AI entirely");
+      const stream = createSseTextStream(CANNED_GREETING, 0);
+      return new Response(stream, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      });
+    }
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Initialize Supabase client to fetch knowledge base
+    // Initialize Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch knowledge base, coupons, and MongoDB user context in parallel
-    // Priority: userEmail from pre-auth > emails extracted from messages
+    // Extract email context
     const emails = extractEmailsFromMessages(messages || []);
     const latestEmail = userEmail || (emails.length > 0 ? emails[emails.length - 1] : null);
     const isPreAuthenticated = !!userEmail;
 
-    const [kbResult, couponsResult, mongoContext] = await Promise.all([
-      supabase
-        .from("knowledge_base")
-        .select("title, content, category")
-        .order("category"),
-      supabase
-        .from("coupons")
-        .select("code, discount_type, discount_value, description, benefits, min_purchase, valid_until")
-        .eq("is_active", true)
-        .or("valid_until.is.null,valid_until.gt." + new Date().toISOString()),
-      latestEmail ? fetchMongoUserContext(latestEmail) : Promise.resolve(null),
+    // Fetch KB, coupons (with in-memory cache), and MongoDB context (with session cache) in parallel
+    const [knowledgeEntries, coupons, mongoContext] = await Promise.all([
+      fetchKnowledgeBase(supabase),
+      fetchCoupons(supabase),
+      latestEmail && sessionId
+        ? fetchMongoUserContextWithCache(supabase, sessionId, latestEmail)
+        : Promise.resolve(null),
     ]);
-
-    const { data: knowledgeEntries, error: kbError } = kbResult;
-    const { data: coupons, error: couponsError } = couponsResult;
-
-    if (kbError) console.error("Error fetching knowledge base:", kbError);
-    if (couponsError) console.error("Error fetching coupons:", couponsError);
 
     // Format knowledge base for context
     let knowledgeContext = "";
     if (knowledgeEntries && knowledgeEntries.length > 0) {
       knowledgeContext = knowledgeEntries
-        .map((entry) => `[${entry.category.toUpperCase()}] ${entry.title}:\n${entry.content}`)
+        .map((entry: any) => `[${entry.category.toUpperCase()}] ${entry.title}:\n${entry.content}`)
         .join("\n\n---\n\n");
     } else {
       knowledgeContext = "No knowledge base entries available yet. Inform users that the knowledge base is being set up.";
@@ -474,7 +645,7 @@ serve(async (req) => {
     let couponsContext = "";
     if (coupons && coupons.length > 0) {
       couponsContext = coupons
-        .map((c) => {
+        .map((c: any) => {
           const discount = c.discount_type === "percentage" 
             ? `${c.discount_value}% off` 
             : `$${c.discount_value} off`;
@@ -493,6 +664,8 @@ serve(async (req) => {
     // Format user data context
     let userDataContext = "No user email detected in conversation yet. If the user provides their email, their account data will be loaded automatically.";
     let preAuthNote = "";
+    const hasUserContext = !!(latestEmail && mongoContext);
+
     if (isPreAuthenticated) {
       preAuthNote = `\n\n═══════════════════════════════════════════════════════════════
 PRE-AUTHENTICATED USER (FROM PROPSCHOLAR DASHBOARD):
@@ -554,18 +727,33 @@ DATA ACCESS:
       console.log(`No MongoDB data found for: ${latestEmail}`);
     }
 
-    // Build channel-specific rules
-    let channelRules = "";
-    let violationsBehavior = "";
+    // ═══════════════════════════════════════════════════════════════
+    // Choose LITE vs FULL prompt based on context
+    // ═══════════════════════════════════════════════════════════════
+    let systemPromptWithKnowledge: string;
 
-    if (channelSource === "discord") {
-      violationsBehavior = `- Do NOT proactively mention martingale or averaging flags. Only discuss them if the user SPECIFICALLY asks.
+    if (!hasUserContext && !isPreAuthenticated) {
+      // No user email/context → use shorter LITE prompt (saves ~50% tokens)
+      console.log("[PROMPT] Using SYSTEM_PROMPT_LITE (no user context)");
+      systemPromptWithKnowledge = SYSTEM_PROMPT_LITE
+        .replace("{knowledge_base}", knowledgeContext)
+        .replace("{coupons_context}", couponsContext);
+    } else {
+      // User context available → use FULL prompt
+      console.log("[PROMPT] Using SYSTEM_PROMPT (full, with user context)");
+
+      // Build channel-specific rules
+      let channelRules = "";
+      let violationsBehavior = "";
+
+      if (channelSource === "discord") {
+        violationsBehavior = `- Do NOT proactively mention martingale or averaging flags. Only discuss them if the user SPECIFICALLY asks.
 - When they DO ask, tell them HOW MANY TIMES their account was flagged and share trade details.
 - Use correct terminology: say "martingale" NOT "martingale coding". Say "averaging" NOT "averaging coding".
 - If the user says "but my account is still active", respond: "When your account comes under review, the risk team will review these flags sir."
 - Do NOT promise any outcome of the review.`;
 
-      channelRules = `You are responding in a DISCORD SERVER. Keep things casual and helpful.
+        channelRules = `You are responding in a DISCORD SERVER. Keep things casual and helpful.
 
 DISCORD-SPECIFIC RULES:
 - Keep responses shorter and more conversational -- Discord users expect quick, punchy answers.
@@ -576,8 +764,8 @@ DISCORD-SPECIFIC RULES:
 - For account-related queries, still require email + account number verification as normal.
 - General questions about PropScholar, models, rules, etc. -- answer freely and helpfully.`;
 
-    } else if (channelSource === "fullpage" || channelSource === "dashboard") {
-      violationsBehavior = `- PROACTIVELY check and mention martingale and averaging flags when showing account data. This is the dashboard -- users expect full transparency.
+      } else if (channelSource === "fullpage" || channelSource === "dashboard") {
+        violationsBehavior = `- PROACTIVELY check and mention martingale and averaging flags when showing account data. This is the dashboard -- users expect full transparency.
 - When showing account details, if there are violations, ALWAYS include them: "Heads up -- your account has been flagged **X times for martingale** and **Y times for averaging**."
 - Share the actual trade details (symbol, lot sizes, timestamps, direction, entry prices) that caused the flags WITHOUT the user needing to ask.
 - Explain clearly: "Martingale means you increased lot size into a losing position. Averaging means you added equal lot size into a losing position."
@@ -585,7 +773,7 @@ DISCORD-SPECIFIC RULES:
 - If the user asks "is this bad?", respond: "These flags will be reviewed by the risk team when your account comes under review. It doesn't automatically mean a breach, but it's important to be aware of."
 - Be educational: help the user understand WHY those trades were flagged so they can avoid it.`;
 
-      channelRules = `You are the user's PERSONAL ACCOUNT ASSISTANT on their PropScholar Dashboard. This is the VIP experience.
+        channelRules = `You are the user's PERSONAL ACCOUNT ASSISTANT on their PropScholar Dashboard. This is the VIP experience.
 
 DASHBOARD-SPECIFIC RULES:
 - This user is pre-authenticated from their dashboard. You already know who they are. NEVER ask for verification.
@@ -599,9 +787,9 @@ DASHBOARD-SPECIFIC RULES:
 - For issues you can resolve from the data, RESOLVE THEM. Only escalate to support@propscholar.com for actions requiring manual admin intervention.
 - NEVER say "I don't have access" -- you DO have access to everything for this user.`;
 
-    } else {
-      // Widget (default)
-      violationsBehavior = `- Do NOT proactively mention martingale or averaging flags. Only discuss them if the user SPECIFICALLY asks about violations, martingale, averaging, or flags on their account.
+      } else {
+        // Widget (default)
+        violationsBehavior = `- Do NOT proactively mention martingale or averaging flags. Only discuss them if the user SPECIFICALLY asks about violations, martingale, averaging, or flags on their account.
 - When they DO ask, tell them HOW MANY TIMES their account was flagged.
 - IMPORTANT: ALSO share the actual trade details from the loaded data that caused the flags (e.g., symbol, lot sizes, timestamps, direction, entry prices).
 - Use correct terminology: say "martingale" NOT "martingale coding". Say "averaging" NOT "averaging coding".
@@ -609,7 +797,7 @@ DASHBOARD-SPECIFIC RULES:
 - If the user says "but my account is still active", respond: "When your account comes under review, the risk team will review these flags sir."
 - Do NOT promise any outcome of the review. Just state the flags exist and the risk team handles it.`;
 
-      channelRules = `You are on the FLOATING CHAT WIDGET on the PropScholar website. Users here are typically browsing the site.
+        channelRules = `You are on the FLOATING CHAT WIDGET on the PropScholar website. Users here are typically browsing the site.
 
 WIDGET-SPECIFIC RULES:
 - Users here are often potential customers or existing traders visiting the website.
@@ -620,17 +808,18 @@ WIDGET-SPECIFIC RULES:
 - If the user seems interested in purchasing, be proactive: explain the models, share pricing, and mention any active promotions.
 - For support issues, try to resolve them yourself first. Only use the ticket form as a last resort.
 - Keep responses moderately detailed -- not as short as Discord, but not as comprehensive as Dashboard unless asked.`;
+      }
+
+      console.log("Channel source for this request:", channelSource);
+
+      systemPromptWithKnowledge = SYSTEM_PROMPT
+        .replace("{knowledge_base}", knowledgeContext)
+        .replace("{coupons_context}", couponsContext)
+        .replace("{user_data_context}", userDataContext + preAuthNote)
+        .replace("{channel_source}", channelSource.toUpperCase())
+        .replace("{channel_rules}", channelRules)
+        .replace("{violations_behavior}", violationsBehavior);
     }
-
-    console.log("Channel source for this request:", channelSource);
-
-    const systemPromptWithKnowledge = SYSTEM_PROMPT
-      .replace("{knowledge_base}", knowledgeContext)
-      .replace("{coupons_context}", couponsContext)
-      .replace("{user_data_context}", userDataContext + preAuthNote)
-      .replace("{channel_source}", channelSource.toUpperCase())
-      .replace("{channel_rules}", channelRules)
-      .replace("{violations_behavior}", violationsBehavior);
 
     console.log("Sending request to Lovable AI Gateway...");
 
