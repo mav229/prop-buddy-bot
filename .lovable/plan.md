@@ -1,50 +1,96 @@
-## Auto-Personalized Scholaris Widget for PropScholar Dashboard
 
-When Scholaris is embedded in the PropScholar dashboard, the logged-in user's email will be passed automatically so Scholaris instantly becomes their personal assistant -- no verification needed.
 
-### How It Works
+# Plan: Reduce AI Credits with Smart Caching
 
-1. **PropScholar dashboard passes the user's email** to the Scholaris iframe via a URL parameter (e.g., `scholaris.space/fullpage?email=user@example.com`) or via `postMessage` after the iframe loads.
-2. **Scholaris reads the email on load**, pre-fetches all account data from MongoDB, and greets the user personally (e.g., "Hey Om! I can see your accounts. How can I help?").
-3. **No verification step needed** -- since the user is already authenticated on PropScholar, the email is trusted. The chat skips the "provide your email + account number" flow.
+## The Problem
 
-### Technical Changes
+Right now, **every single message** triggers:
+1. A MongoDB query across 24 collections (expensive)
+2. A knowledge base fetch from the database
+3. A coupons fetch from the database
+4. A massive system prompt (~10,000+ chars) sent to the AI every time
 
-**1. Fullpage embed (`src/components/FullpageChat.tsx`) and Embeddable chat (`src/components/EmbeddableChat.tsx`)**
+This means even a "hi" costs the same as a complex account query.
 
-- Read `email` from URL query params (`?email=...`)
-- Also listen for `postMessage` of type `scholaris:user` with `{ email }` from the parent window
-- Store the email in state and pass it to `useChat`
+## The Solution: 3-Layer Caching
 
-**2. Chat hook (`src/hooks/useChat.ts`)**
+### 1. Cache MongoDB User Context Per Session (Biggest Savings)
 
-- Accept an optional `preloadEmail` parameter
-- Include `userEmail` in the request body sent to the chat edge function so MongoDB context loads on the very first message (no need for email to appear in conversation)
+Instead of querying MongoDB on every message, cache the result in a Supabase table keyed by `session_id + email`. Only fetch from MongoDB once per session when an email is first detected.
 
-**3. Chat edge function (`supabase/functions/chat/index.ts`)**
+- Create a `session_cache` table with columns: `session_id`, `email`, `context_json`, `created_at`
+- On each chat request, check the cache first. If found and less than 30 minutes old, skip MongoDB entirely.
+- Only call MongoDB when there's no cache hit.
 
-- Accept an optional `userEmail` field in the request body
-- If `userEmail` is provided, use it for MongoDB lookup (priority over emails extracted from messages)
-- Inject a note into the system prompt: "The user is pre-authenticated from the PropScholar dashboard. Their email is {email}. Skip identity verification -- they are already verified. Greet them by name if available."
+### 2. Cache Knowledge Base and Coupons In-Memory (Edge Function)
 
-**4. Embedding instructions for PropScholar**
-The PropScholar team embeds the iframe like:
+Knowledge base and coupons rarely change. Use a simple in-memory cache with a 10-minute TTL so these aren't fetched from the database on every message.
 
-```text
-<iframe src="https://scholaris.space/fullpage?email=USER_EMAIL_HERE" ...>
+### 3. Skip AI Entirely for Simple Patterns
+
+For messages like "real agent" requests, you already skip AI. Extend this to other patterns:
+- Simple greetings ("hi", "hello") when no email context exists -- respond with a canned greeting via SSE stream (zero AI credits).
+- This is optional but can save a lot on casual messages.
+
+## Technical Steps
+
+### Step 1: Create `session_cache` table
+```sql
+CREATE TABLE public.session_cache (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id TEXT NOT NULL,
+  email TEXT NOT NULL,
+  context_json JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(session_id, email)
+);
+ALTER TABLE public.session_cache ENABLE ROW LEVEL SECURITY;
+-- No RLS policies needed since only edge functions (service role) access this
 ```
 
-Or sends the email via postMessage after load:
+### Step 2: Update `chat/index.ts` -- Add caching logic
 
-```text
-iframe.contentWindow.postMessage({ type: "scholaris:user", email: "user@email.com" }, "*")
+**MongoDB context caching:**
+```
+Before calling fetchMongoUserContext(email):
+  1. Check session_cache for (sessionId, email) where created_at > now() - 30 min
+  2. If found → use cached context_json, skip MongoDB call
+  3. If not found → call MongoDB, then INSERT into session_cache
 ```
 
-### What the User Experiences
+**Knowledge base + coupons in-memory cache:**
+```
+Global variables at top of edge function:
+  let kbCache = { data: null, fetchedAt: 0 }
+  let couponsCache = { data: null, fetchedAt: 0 }
 
-- Opens the support page on PropScholar dashboard
-- Scholaris loads and already knows who they are
-- They can immediately ask "What's my account status?" or "Am I breached?" without providing email/account number
-- Scholaris shows their accounts, orders, payouts -- fully personalized from the first message  
-  
-Also make sure this happens only in 16:9 widegt for now make it good flow and let me know anything to update from my side in website try that its not needed bro everything happen without changing website still if needed do it
+Before fetching:
+  If cache exists and age < 10 minutes → use cached data
+  Otherwise → fetch from DB, update cache
+```
+
+### Step 3: Update `chat/index.ts` -- Reduce prompt size for general queries
+
+When no user email/context is detected, use a shorter system prompt that omits all the account verification rules, violation details, and data formatting sections. This alone can cut input tokens by 50%+ for general questions.
+
+```
+if (no email detected and no mongo context):
+  use SYSTEM_PROMPT_LITE (shorter, general-purpose)
+else:
+  use full SYSTEM_PROMPT with all account rules
+```
+
+## Expected Savings
+
+| Optimization | Credit Reduction |
+|---|---|
+| MongoDB cache (skip repeat queries) | ~40% fewer edge function calls to MongoDB |
+| KB + Coupons in-memory cache | ~20% faster response, fewer DB reads |
+| Shorter prompt for general queries | ~50% fewer input tokens on non-account messages |
+| **Combined** | **Significant reduction in AI credits per session** |
+
+## Files Changed
+
+- **New migration**: Create `session_cache` table
+- **`supabase/functions/chat/index.ts`**: Add all three caching layers + lite prompt
+
