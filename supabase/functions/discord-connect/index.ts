@@ -231,6 +231,32 @@ function getSupabase() {
   );
 }
 
+function getDiscordRedirectUri(): string {
+  const sanitize = (value: string | undefined | null): string | null => {
+    if (!value) return null;
+    const normalized = value.trim();
+    if (!normalized) return null;
+    if (normalized.toLowerCase() === "undefined") return null;
+    if (normalized.toLowerCase() === "null") return null;
+    return normalized;
+  };
+
+  const fromUriSecret = sanitize(Deno.env.get("DISCORD_REDIRECT_URI"));
+  if (fromUriSecret) return fromUriSecret;
+
+  const fromUrlSecret = sanitize(Deno.env.get("DISCORD_REDIRECT_URL"));
+  if (fromUrlSecret) return fromUrlSecret;
+
+  const supabaseUrl = sanitize(Deno.env.get("SUPABASE_URL"));
+  if (supabaseUrl) {
+    return `${supabaseUrl.replace(/\/$/, "")}/functions/v1/discord-connect?callback=true`;
+  }
+
+  throw new Error(
+    "Discord redirect URI is missing (set DISCORD_REDIRECT_URI or DISCORD_REDIRECT_URL)"
+  );
+}
+
 // ─── Background sync (Fix 5: deferred mongo lookup during OAuth) ─────────
 
 async function backgroundRoleSync(
@@ -297,8 +323,7 @@ Deno.serve(async (req) => {
         if (!clientId) throw new Error("DISCORD_CLIENT_ID not configured");
         if (!email) throw new Error("Email required");
 
-        const redirectUri = Deno.env.get("DISCORD_REDIRECT_URI")!;
-        console.log("redirectUri:", redirectUri);
+        const redirectUri = getDiscordRedirectUri();
 
         // Fix 1: HMAC-signed state with timestamp
         const state = await signState({
@@ -481,7 +506,7 @@ Deno.serve(async (req) => {
       const email = (statePayload.email as string).toLowerCase().trim();
       const clientId = Deno.env.get("DISCORD_CLIENT_ID")!;
       const clientSecret = Deno.env.get("DISCORD_CLIENT_SECRET")!;
-      const redirectUri = `${url.origin}/functions/v1/discord-connect?callback=true`;
+      const redirectUri = getDiscordRedirectUri();
 
       // Exchange code for token
       const tokenRes = await fetch(
