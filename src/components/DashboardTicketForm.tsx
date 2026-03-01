@@ -9,12 +9,12 @@ import {
   Loader2,
   X,
   Sparkles,
-  Shield,
 } from "lucide-react";
 import { validateEmail } from "@/lib/emailValidation";
 import { playSound } from "@/hooks/useSounds";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import propscholarIcon from "@/assets/propscholar-icon.png";
 
 interface ChatMessage {
   role: string;
@@ -41,7 +41,7 @@ export const DashboardTicketForm = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const [ticketNumber, setTicketNumber] = useState<string | null>(null);
+  const [ticketNumber, setTicketNumber] = useState<number | null>(null);
 
   const handleSubmit = async () => {
     setError("");
@@ -63,30 +63,28 @@ export const DashboardTicketForm = ({
     setIsSubmitting(true);
 
     try {
-      const { data, error: fnError } = await supabase.functions.invoke(
-        "create-ticket",
-        {
-          body: {
-            name: name.trim(),
-            email: email.trim().toLowerCase(),
-            phone: phone.trim() || "",
-            problem: problem.trim(),
-            session_id: sessionId,
-            chat_history: JSON.stringify(chatHistory || []),
-          },
-        }
-      );
+      // Insert directly into support_tickets — no external API
+      const { data, error: dbError } = await supabase
+        .from("support_tickets")
+        .insert({
+          email: email.trim().toLowerCase(),
+          phone: phone.trim() || "",
+          problem: problem.trim(),
+          session_id: sessionId,
+          chat_history: JSON.stringify(chatHistory || []),
+          status: "open",
+          source: "dashboard",
+        })
+        .select("ticket_number, id")
+        .single();
 
-      if (fnError) {
-        throw new Error(fnError.message || "Failed to create ticket");
-      }
+      if (dbError) throw dbError;
 
       playSound("notification", 0.15);
-      const newTicketNumber =
-        data?.ticket_id?.slice(0, 8).toUpperCase() || "TICKET";
-      setTicketNumber(newTicketNumber);
+      const num = data?.ticket_number || 0;
+      setTicketNumber(num);
       setSubmitted(true);
-      onSuccess?.(newTicketNumber);
+      onSuccess?.(`${num}`);
     } catch (err: any) {
       console.error("Support ticket error:", err);
       setError("Failed to submit ticket. Please try again.");
@@ -98,26 +96,25 @@ export const DashboardTicketForm = ({
   if (submitted) {
     return (
       <div className="max-w-md mx-auto animate-fade-in">
-        <div className="rounded-2xl border border-[hsl(0,0%,14%)] bg-[hsl(0,0%,6%)] overflow-hidden">
-          {/* Success glow */}
+        <div className="rounded-2xl border border-[hsl(0,0%,14%)] bg-[hsl(0,0%,5%)] overflow-hidden">
           <div className="relative px-8 py-10 text-center">
-            <div className="absolute inset-0 bg-gradient-to-b from-[hsl(142,60%,20%,0.08)] to-transparent pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-b from-[hsl(142,60%,20%,0.06)] to-transparent pointer-events-none" />
             <div className="relative">
-              <div className="w-16 h-16 rounded-full bg-[hsl(142,60%,15%)] border border-[hsl(142,60%,25%)] flex items-center justify-center mx-auto mb-5 shadow-[0_0_40px_hsl(142,60%,20%,0.3)]">
-                <CheckCircle className="w-7 h-7 text-[hsl(142,76%,50%)]" />
+              <div className="w-16 h-16 rounded-full bg-[hsl(142,60%,12%)] border border-[hsl(142,60%,22%)] flex items-center justify-center mx-auto mb-5 shadow-[0_0_50px_hsl(142,60%,20%,0.2)]">
+                <CheckCircle className="w-7 h-7 text-[hsl(142,76%,46%)]" />
               </div>
-              <h3 className="text-lg font-semibold text-[hsl(0,0%,92%)] mb-1.5 tracking-tight">
+              <h3 className="text-xl font-bold text-[hsl(0,0%,94%)] mb-1 tracking-tight font-mono">
                 Ticket #{ticketNumber}
               </h3>
               <p className="text-sm text-[hsl(0,0%,45%)] mb-1 font-light">
                 Created successfully
               </p>
-              <p className="text-xs text-[hsl(0,0%,30%)] mb-6">
+              <p className="text-xs text-[hsl(0,0%,28%)] mb-7">
                 Our team will reach out within 4 hours
               </p>
               <button
                 onClick={onClose}
-                className="px-6 py-2.5 rounded-xl text-sm text-[hsl(0,0%,8%)] font-medium bg-white hover:bg-white/90 transition-all active:scale-[0.97]"
+                className="px-7 py-2.5 rounded-xl text-sm text-[hsl(0,0%,5%)] font-semibold bg-white hover:bg-white/90 transition-all active:scale-[0.97]"
               >
                 Continue Chatting
               </button>
@@ -130,21 +127,21 @@ export const DashboardTicketForm = ({
 
   return (
     <div className="max-w-md mx-auto animate-fade-in">
-      <div className="rounded-2xl border border-[hsl(0,0%,14%)] bg-[hsl(0,0%,6%)] overflow-hidden shadow-[0_8px_60px_-12px_hsl(0,0%,0%,0.8)]">
-        {/* Header */}
-        <div className="relative px-6 py-5 border-b border-[hsl(0,0%,11%)]">
-          <div className="absolute inset-0 bg-gradient-to-r from-[hsl(220,60%,15%,0.1)] via-transparent to-[hsl(280,60%,15%,0.05)] pointer-events-none" />
+      <div className="rounded-2xl border border-[hsl(0,0%,13%)] bg-[hsl(0,0%,5%)] overflow-hidden shadow-[0_12px_80px_-16px_hsl(0,0%,0%,0.9)]">
+        {/* Header with Scholaris logo */}
+        <div className="relative px-6 py-5 border-b border-[hsl(0,0%,10%)]">
+          <div className="absolute inset-0 bg-gradient-to-r from-[hsl(0,0%,8%)] via-[hsl(0,0%,6%)] to-[hsl(0,0%,8%)] pointer-events-none" />
           <div className="relative flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[hsl(0,0%,15%)] to-[hsl(0,0%,10%)] border border-[hsl(0,0%,18%)] flex items-center justify-center">
-                <Shield className="w-5 h-5 text-[hsl(0,0%,60%)]" />
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-full overflow-hidden border border-[hsl(0,0%,16%)] bg-black shadow-[0_0_20px_hsl(0,0%,0%,0.5)]">
+                <img src={propscholarIcon} alt="Scholaris" className="w-full h-full object-cover" />
               </div>
               <div>
-                <h3 className="text-[15px] font-semibold text-[hsl(0,0%,92%)] tracking-tight">
-                  Escalate to Support
+                <h3 className="text-[15px] font-semibold text-[hsl(0,0%,93%)] tracking-tight">
+                  Create Support Ticket
                 </h3>
-                <p className="text-[11px] text-[hsl(0,0%,35%)] font-light">
-                  We'll get back to you within 4 hours
+                <p className="text-[11px] text-[hsl(0,0%,32%)] font-light">
+                  Fill in your details and we'll get back to you
                 </p>
               </div>
             </div>
@@ -153,7 +150,7 @@ export const DashboardTicketForm = ({
               disabled={isSubmitting}
               className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[hsl(0,0%,12%)] transition-colors"
             >
-              <X className="w-4 h-4 text-[hsl(0,0%,35%)]" />
+              <X className="w-4 h-4 text-[hsl(0,0%,32%)]" />
             </button>
           </div>
         </div>
@@ -161,11 +158,7 @@ export const DashboardTicketForm = ({
         {/* Form */}
         <div className="p-6 space-y-4">
           {/* Name */}
-          <Field
-            icon={<User className="w-3.5 h-3.5" />}
-            label="Name"
-            optional
-          >
+          <Field icon={<User className="w-3.5 h-3.5" />} label="Name" optional>
             <input
               type="text"
               value={name}
@@ -177,11 +170,7 @@ export const DashboardTicketForm = ({
           </Field>
 
           {/* Email */}
-          <Field
-            icon={<Mail className="w-3.5 h-3.5" />}
-            label="Email"
-            required
-          >
+          <Field icon={<Mail className="w-3.5 h-3.5" />} label="Email" required>
             <input
               type="email"
               value={email}
@@ -193,11 +182,7 @@ export const DashboardTicketForm = ({
           </Field>
 
           {/* Phone */}
-          <Field
-            icon={<Phone className="w-3.5 h-3.5" />}
-            label="Phone"
-            optional
-          >
+          <Field icon={<Phone className="w-3.5 h-3.5" />} label="Phone" optional>
             <input
               type="tel"
               value={phone}
@@ -209,15 +194,11 @@ export const DashboardTicketForm = ({
           </Field>
 
           {/* Issue */}
-          <Field
-            icon={<FileText className="w-3.5 h-3.5" />}
-            label="Issue"
-            required
-          >
+          <Field icon={<FileText className="w-3.5 h-3.5" />} label="Issue" required>
             <textarea
               value={problem}
               onChange={(e) => setProblem(e.target.value)}
-              placeholder="Describe your issue in detail..."
+              placeholder="Describe your issue..."
               rows={3}
               disabled={isSubmitting}
               className="form-input-field resize-none"
@@ -226,8 +207,8 @@ export const DashboardTicketForm = ({
 
           {/* Error */}
           {error && (
-            <div className="rounded-xl border border-[hsl(0,50%,20%)] bg-[hsl(0,50%,8%)] px-4 py-3">
-              <p className="text-xs text-[hsl(0,60%,60%)]">{error}</p>
+            <div className="rounded-xl border border-[hsl(0,50%,18%)] bg-[hsl(0,50%,6%)] px-4 py-3">
+              <p className="text-xs text-[hsl(0,60%,58%)]">{error}</p>
             </div>
           )}
 
@@ -236,11 +217,11 @@ export const DashboardTicketForm = ({
             onClick={handleSubmit}
             disabled={isSubmitting}
             className={cn(
-              "w-full py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all duration-200",
-              "bg-white text-[hsl(0,0%,8%)] shadow-[0_0_20px_hsl(0,0%,100%,0.06)]",
+              "w-full py-3.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-200",
+              "bg-white text-[hsl(0,0%,5%)] shadow-[0_2px_24px_hsl(0,0%,100%,0.06)]",
               isSubmitting
                 ? "opacity-60 cursor-not-allowed"
-                : "hover:bg-white/90 hover:shadow-[0_0_30px_hsl(0,0%,100%,0.1)] active:scale-[0.98]"
+                : "hover:bg-white/90 hover:shadow-[0_4px_32px_hsl(0,0%,100%,0.1)] active:scale-[0.98]"
             )}
           >
             {isSubmitting ? (
@@ -256,11 +237,11 @@ export const DashboardTicketForm = ({
             )}
           </button>
 
-          {/* Footer note */}
+          {/* Footer */}
           <div className="flex items-center justify-center gap-1.5 pt-1">
-            <Sparkles className="w-3 h-3 text-[hsl(0,0%,22%)]" />
-            <p className="text-[10px] text-[hsl(0,0%,22%)] font-light">
-              Chat transcript will be attached automatically
+            <Sparkles className="w-3 h-3 text-[hsl(0,0%,20%)]" />
+            <p className="text-[10px] text-[hsl(0,0%,20%)] font-light">
+              Chat transcript attached automatically
             </p>
           </div>
         </div>
@@ -284,18 +265,14 @@ const Field = ({
   children: React.ReactNode;
 }) => (
   <div>
-    <label className="flex items-center gap-1.5 text-[11px] text-[hsl(0,0%,40%)] uppercase tracking-widest mb-2 font-medium">
+    <label className="flex items-center gap-1.5 text-[11px] text-[hsl(0,0%,38%)] uppercase tracking-widest mb-2 font-medium">
       {icon}
       {label}
       {required && (
-        <span className="text-[hsl(0,0%,55%)] text-[10px] normal-case tracking-normal">
-          *
-        </span>
+        <span className="text-[hsl(0,0%,50%)] text-[10px] normal-case tracking-normal">*</span>
       )}
       {optional && (
-        <span className="text-[hsl(0,0%,25%)] text-[10px] normal-case tracking-normal">
-          optional
-        </span>
+        <span className="text-[hsl(0,0%,22%)] text-[10px] normal-case tracking-normal">optional</span>
       )}
     </label>
     {children}
