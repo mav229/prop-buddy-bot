@@ -12,6 +12,7 @@ import FullpageEmbed from "./pages/FullpageEmbed";
 import Widget from "./pages/Widget";
 import EmbedChecker from "./pages/EmbedChecker";
 import NotFound from "./pages/NotFound";
+import TicketDetail from "./pages/TicketDetail";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/" element={<Landing />} />
             <Route path="/chat" element={<Index />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/ticket/:id" element={<TicketDetail />} />
             <Route path="/embed" element={<Embed />} />
             <Route path="/fullpage" element={<FullpageEmbed />} />
             <Route path="/widget" element={<Widget />} />

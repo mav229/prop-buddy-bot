@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Ticket, RefreshCw, Mail, Phone, MessageSquare, Clock, CheckCircle, AlertCircle, Trash2 } from "lucide-react";
+import {
+  Ticket, RefreshCw, Mail, Phone, MessageSquare, Clock, CheckCircle,
+  AlertCircle, Trash2, ExternalLink, Copy, Filter, Search
+} from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 
 interface SupportTicket {
   id: string;
@@ -23,7 +26,8 @@ interface SupportTicket {
 export const TicketsManager = () => {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [expandedTicket, setExpandedTicket] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "open" | "in_progress" | "resolved">("all");
+  const [search, setSearch] = useState("");
 
   const fetchTickets = async () => {
     setIsLoading(true);
@@ -31,10 +35,9 @@ export const TicketsManager = () => {
       .from("support_tickets")
       .select("*")
       .order("created_at", { ascending: false })
-      .limit(100);
+      .limit(200);
 
     if (error) {
-      console.error("Error fetching tickets:", error);
       toast.error("Failed to load tickets");
     } else {
       setTickets(data || []);
@@ -42,9 +45,7 @@ export const TicketsManager = () => {
     setIsLoading(false);
   };
 
-  useEffect(() => {
-    fetchTickets();
-  }, []);
+  useEffect(() => { fetchTickets(); }, []);
 
   const updateTicketStatus = async (ticketId: string, newStatus: string) => {
     const { error } = await supabase
@@ -53,199 +54,209 @@ export const TicketsManager = () => {
       .eq("id", ticketId);
 
     if (error) {
-      toast.error("Failed to update ticket status");
+      toast.error("Failed to update");
     } else {
-      toast.success(`Ticket marked as ${newStatus}`);
+      toast.success(`Ticket → ${newStatus}`);
       fetchTickets();
     }
   };
 
   const deleteTicket = async (ticketId: string) => {
+    if (!confirm("Delete this ticket permanently?")) return;
     const { error } = await supabase
       .from("support_tickets")
       .delete()
       .eq("id", ticketId);
 
     if (error) {
-      toast.error("Failed to delete ticket");
+      toast.error("Failed to delete");
     } else {
       toast.success("Ticket deleted");
       fetchTickets();
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "open":
-        return <Badge variant="destructive" className="gap-1"><AlertCircle className="w-3 h-3" /> Open</Badge>;
-      case "in_progress":
-        return <Badge variant="secondary" className="gap-1 bg-amber-500/20 text-amber-600"><Clock className="w-3 h-3" /> In Progress</Badge>;
-      case "resolved":
-        return <Badge variant="secondary" className="gap-1 bg-green-500/20 text-green-600"><CheckCircle className="w-3 h-3" /> Resolved</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
+  const copyTicketLink = (ticketId: string) => {
+    const url = `${window.location.origin}/ticket/${ticketId}`;
+    navigator.clipboard.writeText(url);
+    toast.success("Ticket link copied!");
   };
 
   const openTickets = tickets.filter(t => t.status === "open").length;
   const inProgressTickets = tickets.filter(t => t.status === "in_progress").length;
   const resolvedTickets = tickets.filter(t => t.status === "resolved").length;
 
+  const filteredTickets = tickets.filter(t => {
+    if (filter !== "all" && t.status !== filter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return (
+        t.email.toLowerCase().includes(q) ||
+        t.problem.toLowerCase().includes(q) ||
+        t.id.toLowerCase().includes(q) ||
+        (t.phone && t.phone.includes(q))
+      );
+    }
+    return true;
+  });
+
+  const statusConfig: Record<string, { color: string; bg: string; border: string; icon: any }> = {
+    open: { color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20", icon: AlertCircle },
+    in_progress: { color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20", icon: Clock },
+    resolved: { color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", icon: CheckCircle },
+  };
+
   return (
     <div className="space-y-6">
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="bg-red-500/10 border-red-500/20">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
-              <AlertCircle className="w-5 h-5 text-red-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-red-500">{openTickets}</p>
-              <p className="text-xs text-muted-foreground">Open Tickets</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-amber-500/10 border-amber-500/20">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
-              <Clock className="w-5 h-5 text-amber-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-amber-500">{inProgressTickets}</p>
-              <p className="text-xs text-muted-foreground">In Progress</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-green-500/10 border-green-500/20">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-              <CheckCircle className="w-5 h-5 text-green-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-green-500">{resolvedTickets}</p>
-              <p className="text-xs text-muted-foreground">Resolved</p>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Stats row */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: "Open", count: openTickets, key: "open" as const },
+          { label: "In Progress", count: inProgressTickets, key: "in_progress" as const },
+          { label: "Resolved", count: resolvedTickets, key: "resolved" as const },
+        ].map((s) => {
+          const sc = statusConfig[s.key];
+          const Icon = sc.icon;
+          return (
+            <button
+              key={s.key}
+              onClick={() => setFilter(filter === s.key ? "all" : s.key)}
+              className={`relative rounded-xl p-4 border transition-all ${
+                filter === s.key
+                  ? `${sc.bg} ${sc.border} border ring-1 ring-${s.key === "open" ? "red" : s.key === "in_progress" ? "amber" : "emerald"}-500/20`
+                  : "bg-card/30 border-border/50 hover:border-border"
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <div className={`w-9 h-9 rounded-lg ${sc.bg} flex items-center justify-center`}>
+                  <Icon className={`w-4 h-4 ${sc.color}`} />
+                </div>
+                <div className="text-left">
+                  <p className={`text-2xl font-bold ${sc.color}`}>{s.count}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{s.label}</p>
+                </div>
+              </div>
+              {filter === s.key && (
+                <div className={`absolute top-2 right-2 w-2 h-2 rounded-full ${sc.bg.replace("/10", "/60")}`} />
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Ticket className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold">Support Tickets</h2>
-            <p className="text-sm text-muted-foreground">{tickets.length} total tickets</p>
-          </div>
+      {/* Search + actions */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by email, issue, phone..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-card/50 border border-border/50 text-sm focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/30 transition-all placeholder:text-muted-foreground/50"
+          />
         </div>
-        <Button variant="outline" size="sm" onClick={fetchTickets} disabled={isLoading}>
-          <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
+        <Button variant="outline" size="sm" onClick={fetchTickets} disabled={isLoading} className="gap-2 h-10">
+          <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
           Refresh
         </Button>
       </div>
 
-      {/* Tickets List */}
-      <div className="space-y-3">
-        {tickets.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 text-center text-muted-foreground">
-              <Ticket className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>No support tickets yet</p>
-            </CardContent>
-          </Card>
+      {/* Tickets */}
+      <div className="space-y-2">
+        {filteredTickets.length === 0 ? (
+          <div className="rounded-xl border border-border/30 bg-card/20 p-12 text-center">
+            <Ticket className="w-10 h-10 mx-auto mb-3 text-muted-foreground/20" />
+            <p className="text-muted-foreground text-sm">
+              {search ? "No tickets match your search" : filter !== "all" ? `No ${filter.replace("_", " ")} tickets` : "No tickets yet"}
+            </p>
+          </div>
         ) : (
-          tickets.map((ticket) => (
-            <Card key={ticket.id} className="overflow-hidden">
-              <CardHeader className="p-4 pb-2">
-                <div className="flex items-start justify-between gap-3">
+          filteredTickets.map((ticket) => {
+            const sc = statusConfig[ticket.status] || statusConfig.open;
+            const Icon = sc.icon;
+            return (
+              <div
+                key={ticket.id}
+                className="group rounded-xl border border-border/30 bg-card/20 hover:bg-card/40 hover:border-border/50 transition-all overflow-hidden"
+              >
+                <div className="flex items-start gap-4 p-4">
+                  {/* Status indicator */}
+                  <div className={`flex-shrink-0 w-10 h-10 rounded-lg ${sc.bg} border ${sc.border} flex items-center justify-center mt-0.5`}>
+                    <Icon className={`w-4 h-4 ${sc.color}`} />
+                  </div>
+
+                  {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-mono text-muted-foreground">
+                      <span className="text-[10px] font-mono text-muted-foreground/50 tracking-wider">
                         #{ticket.id.slice(0, 8).toUpperCase()}
                       </span>
-                      {getStatusBadge(ticket.status)}
-                      <Badge variant="outline" className="text-xs">
-                        {ticket.source}
-                      </Badge>
+                      <span className="text-[10px] text-muted-foreground/30">•</span>
+                      <span className="text-[10px] text-muted-foreground/40">
+                        {format(new Date(ticket.created_at), "MMM d, h:mm a")}
+                      </span>
                     </div>
-                    <p className="font-medium text-sm line-clamp-2">{ticket.problem}</p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => deleteTicket(ticket.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="p-4 pt-2 space-y-3">
-                <div className="flex flex-wrap gap-4 text-sm">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Mail className="w-3.5 h-3.5" />
-                    <a href={`mailto:${ticket.email}`} className="hover:text-primary">
-                      {ticket.email}
-                    </a>
-                  </div>
-                  {ticket.phone && (
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <Phone className="w-3.5 h-3.5" />
-                      <a href={`tel:${ticket.phone}`} className="hover:text-primary">
-                        {ticket.phone}
-                      </a>
+                    <p className="text-sm font-medium text-foreground/90 line-clamp-1 mb-1.5">
+                      {ticket.problem}
+                    </p>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground/60">
+                      <span className="flex items-center gap-1">
+                        <Mail className="w-3 h-3" /> {ticket.email}
+                      </span>
+                      {ticket.phone && (
+                        <span className="flex items-center gap-1">
+                          <Phone className="w-3 h-3" /> {ticket.phone}
+                        </span>
+                      )}
                     </div>
-                  )}
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Clock className="w-3.5 h-3.5" />
-                    {format(new Date(ticket.created_at), "MMM d, yyyy 'at' h:mm a")}
                   </div>
-                </div>
 
-                {/* Chat History */}
-                {ticket.chat_history && (
-                  <div>
-                    <button
-                      onClick={() => setExpandedTicket(expandedTicket === ticket.id ? null : ticket.id)}
-                      className="flex items-center gap-1.5 text-xs text-primary hover:underline"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5" />
-                      {expandedTicket === ticket.id ? "Hide" : "View"} chat history
-                    </button>
-                    {expandedTicket === ticket.id && (
-                      <div className="mt-2 p-3 rounded-lg bg-muted/50 text-xs max-h-48 overflow-y-auto">
-                        <pre className="whitespace-pre-wrap font-mono">{ticket.chat_history}</pre>
-                      </div>
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                    <Link to={`/ticket/${ticket.id}`}>
+                      <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-primary">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </Button>
+                    </Link>
+                    <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-primary"
+                      onClick={() => copyTicketLink(ticket.id)}>
+                      <Copy className="w-3.5 h-3.5" />
+                    </Button>
+                    {ticket.status === "open" && (
+                      <Button variant="ghost" size="icon" className="w-8 h-8 text-amber-400/60 hover:text-amber-400"
+                        onClick={() => updateTicketStatus(ticket.id, "in_progress")}>
+                        <Clock className="w-3.5 h-3.5" />
+                      </Button>
                     )}
+                    {ticket.status === "in_progress" && (
+                      <Button variant="ghost" size="icon" className="w-8 h-8 text-emerald-400/60 hover:text-emerald-400"
+                        onClick={() => updateTicketStatus(ticket.id, "resolved")}>
+                        <CheckCircle className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                    {ticket.status === "resolved" && (
+                      <Button variant="ghost" size="icon" className="w-8 h-8 text-red-400/60 hover:text-red-400"
+                        onClick={() => updateTicketStatus(ticket.id, "open")}>
+                        <AlertCircle className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="icon"
+                      className="w-8 h-8 text-destructive/40 hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => deleteTicket(ticket.id)}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
                   </div>
-                )}
-
-                {/* Actions */}
-                <div className="flex gap-2 pt-2">
-                  {ticket.status === "open" && (
-                    <Button size="sm" variant="outline" onClick={() => updateTicketStatus(ticket.id, "in_progress")}>
-                      Mark In Progress
-                    </Button>
-                  )}
-                  {ticket.status === "in_progress" && (
-                    <Button size="sm" variant="outline" onClick={() => updateTicketStatus(ticket.id, "resolved")}>
-                      Mark Resolved
-                    </Button>
-                  )}
-                  {ticket.status === "resolved" && (
-                    <Button size="sm" variant="outline" onClick={() => updateTicketStatus(ticket.id, "open")}>
-                      Reopen
-                    </Button>
-                  )}
                 </div>
-              </CardContent>
-            </Card>
-          ))
+              </div>
+            );
+          })
         )}
       </div>
+
+      <p className="text-[10px] text-muted-foreground/30 text-center">
+        Showing {filteredTickets.length} of {tickets.length} tickets
+      </p>
     </div>
   );
 };
