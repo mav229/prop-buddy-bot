@@ -3,7 +3,7 @@ import { MessageSquarePlus, Search, Trash2, Ticket } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import propscholarIcon from "@/assets/propscholar-icon.png";
 import { cn } from "@/lib/utils";
-import { DiscordConnectButton } from "@/components/DiscordConnectButton";
+
 
 interface ChatSession {
   session_id: string;
@@ -186,9 +186,6 @@ export const ChatSidebar = ({
           />
         </div>
       )}
-
-      {/* Discord Connect */}
-      <DiscordConnectButton email={userEmail} />
 
       {/* Divider */}
       <div className="mx-3 border-t border-[hsl(0,0%,9%)]" />
