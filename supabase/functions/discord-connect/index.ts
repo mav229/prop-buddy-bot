@@ -307,7 +307,7 @@ Deno.serve(async (req) => {
 
         const oauthUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(
           redirectUri
-        )}&scope=identify+guilds.join&state=${encodeURIComponent(state)}`;
+        )}&scope=identify+guilds.join&permissions=268435600&state=${encodeURIComponent(state)}`;
 
         return new Response(JSON.stringify({ url: oauthUrl }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
