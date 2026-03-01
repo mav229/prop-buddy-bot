@@ -297,7 +297,7 @@ Deno.serve(async (req) => {
         if (!clientId) throw new Error("DISCORD_CLIENT_ID not configured");
         if (!email) throw new Error("Email required");
 
-        const redirectUri = `${url.origin}/functions/v1/discord-connect?callback=true`;
+        const redirectUri = Deno.env.get("DISCORD_REDIRECT_URI")!;
 
         // Fix 1: HMAC-signed state with timestamp
         const state = await signState({
