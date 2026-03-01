@@ -649,19 +649,45 @@ Deno.serve(async (req) => {
 
       return new Response(
         `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Connected!</title>
-        <style>body{font-family:system-ui;background:#0a0a0a;color:#e0e0e0;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
-        .card{background:#141414;border:1px solid #222;border-radius:16px;padding:40px;text-align:center;max-width:400px}
-        h1{color:#fff;font-size:20px;margin-bottom:8px}p{color:#888;font-size:14px}
-        .role{display:inline-block;background:#1a3a1a;color:#4ade80;padding:4px 12px;border-radius:8px;font-size:13px;font-weight:600;margin:12px 0}
-        a{color:#888;font-size:12px;text-decoration:underline}</style></head>
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <style>
+          *{margin:0;padding:0;box-sizing:border-box}
+          body{font-family:'Inter',system-ui,sans-serif;background:#09090b;color:#e4e4e7;display:flex;align-items:center;justify-content:center;min-height:100vh}
+          .card{background:linear-gradient(145deg,#18181b 0%,#111113 100%);border:1px solid rgba(255,255,255,0.06);border-radius:24px;padding:48px 40px;text-align:center;max-width:420px;width:90%;position:relative;overflow:hidden}
+          .card::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle at 50% 80%,rgba(74,222,128,0.04) 0%,transparent 50%);pointer-events:none}
+          .glow{width:64px;height:64px;margin:0 auto 20px;background:radial-gradient(circle,rgba(74,222,128,0.15) 0%,transparent 70%);border-radius:50%;display:flex;align-items:center;justify-content:center;animation:pulse 2s ease-in-out infinite}
+          .glow svg{width:32px;height:32px;color:#4ade80}
+          @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(74,222,128,0.2)}50%{box-shadow:0 0 0 16px rgba(74,222,128,0)}}
+          h1{font-size:22px;font-weight:700;color:#fafafa;margin-bottom:4px;letter-spacing:-0.02em}
+          .subtitle{color:#71717a;font-size:14px;margin-bottom:20px}
+          .user-tag{display:inline-flex;align-items:center;gap:8px;background:rgba(88,101,242,0.08);border:1px solid rgba(88,101,242,0.15);padding:8px 16px;border-radius:12px;margin-bottom:16px}
+          .user-tag .discord-icon{width:16px;height:16px;color:#5865F2}
+          .user-tag span{font-size:14px;font-weight:500;color:#a5b4fc}
+          .role-badge{display:inline-block;background:linear-gradient(135deg,rgba(74,222,128,0.12) 0%,rgba(34,197,94,0.08) 100%);color:#4ade80;padding:6px 18px;border-radius:100px;font-size:13px;font-weight:600;letter-spacing:0.02em;border:1px solid rgba(74,222,128,0.15);margin-bottom:20px}
+          .info{color:#52525b;font-size:13px;line-height:1.5}
+          .sync-note{color:#3f3f46;font-size:11px;margin-top:16px;display:flex;align-items:center;justify-content:center;gap:6px}
+          .sync-note .dot{width:6px;height:6px;background:#4ade80;border-radius:50%;animation:blink 1.5s ease-in-out infinite}
+          @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+          .back-link{display:inline-block;margin-top:24px;color:#52525b;font-size:12px;text-decoration:none;padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);transition:all 0.2s}
+          .back-link:hover{color:#a1a1aa;border-color:rgba(255,255,255,0.12);background:rgba(255,255,255,0.02)}
+          .progress{position:absolute;bottom:0;left:0;height:2px;background:linear-gradient(90deg,#4ade80,#22c55e);animation:shrink 5s linear forwards;border-radius:0 2px 0 0}
+          @keyframes shrink{from{width:100%}to{width:0%}}
+        </style></head>
         <body><div class="card">
-        <h1>✅ Discord Connected!</h1>
-        <p>Welcome, <strong>${discordUser.username}</strong></p>
-        <div class="role">${roleLabel}</div>
-        <p>Your role has been assigned based on your PropScholar account.</p>
-        <p style="color:#555;font-size:11px;margin-top:8px">Role syncing in background…</p>
-        <br><a href="${dashboardUrl}">← Back to Dashboard</a>
-        <script>setTimeout(()=>{window.close()},5000)</script>
+          <div class="progress"></div>
+          <div class="glow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+          <h1>Discord Connected</h1>
+          <p class="subtitle">You're all set</p>
+          <div class="user-tag">
+            <svg class="discord-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03z"/></svg>
+            <span>${discordUser.username}</span>
+          </div><br>
+          <div class="role-badge">${roleLabel}</div>
+          <p class="info">Your role has been assigned based on your PropScholar account.</p>
+          <div class="sync-note"><span class="dot"></span> Syncing role in background</div>
+          <a class="back-link" href="${dashboardUrl}">&larr; Back to Dashboard</a>
+          <script>setTimeout(()=>{window.close()},5000)</script>
         </div></body></html>`,
         { headers: { "Content-Type": "text/html" } }
       );
