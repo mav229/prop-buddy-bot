@@ -3,6 +3,7 @@ import { MessageSquarePlus, Search, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import propscholarIcon from "@/assets/propscholar-icon.png";
 import { cn } from "@/lib/utils";
+import { DiscordConnectButton } from "@/components/DiscordConnectButton";
 
 interface ChatSession {
   session_id: string;
@@ -16,6 +17,7 @@ interface ChatSidebarProps {
   onSelectSession: (sessionId: string) => void;
   collapsed: boolean;
   onToggle: () => void;
+  userEmail?: string;
 }
 
 export const ChatSidebar = ({
@@ -24,6 +26,7 @@ export const ChatSidebar = ({
   onSelectSession,
   collapsed,
   onToggle,
+  userEmail,
 }: ChatSidebarProps) => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -158,6 +161,9 @@ export const ChatSidebar = ({
           />
         </div>
       )}
+
+      {/* Discord Connect */}
+      <DiscordConnectButton email={userEmail} />
 
       {/* Divider */}
       <div className="mx-3 border-t border-[hsl(0,0%,9%)]" />
