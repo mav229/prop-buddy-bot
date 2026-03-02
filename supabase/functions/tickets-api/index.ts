@@ -37,8 +37,10 @@ serve(async (req: Request) => {
       // Check for Supabase JWT auth
       const authHeader = req.headers.get("authorization");
       if (authHeader) {
-        const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") || authHeader.replace("Bearer ", ""));
-        const { data: { user } } = await anonClient.auth.getUser(authHeader.replace("Bearer ", ""));
+        const token = authHeader.replace("Bearer ", "");
+        const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || supabaseKey;
+        const anonClient = createClient(supabaseUrl, anonKey);
+        const { data: { user } } = await anonClient.auth.getUser(token);
         if (user) {
           const { data: roleRow } = await supabase
             .from("user_roles")

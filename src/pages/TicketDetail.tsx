@@ -89,12 +89,14 @@ const TicketDetail = () => {
     if (!replyText.trim() || !ticket) return;
     setSending(true);
     try {
+      const { data: { session: authSession } } = await supabase.auth.getSession();
+      if (!authSession?.access_token) throw new Error("Not authenticated");
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tickets-api/${ticket.id}`;
       const res = await fetch(url, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${authSession.access_token}`,
         },
         body: JSON.stringify({ admin_reply: replyText.trim(), status: "in_progress" }),
       });
