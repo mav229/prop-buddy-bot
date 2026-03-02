@@ -29,3 +29,9 @@ verify_jwt = false
 
 [functions.discord-connect]
 verify_jwt = false
+
+[functions.escalate]
+verify_jwt = false
+
+[functions.tickets-api]
+verify_jwt = false

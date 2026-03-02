@@ -2,7 +2,7 @@ import { useRef, useEffect, useCallback, useState } from "react";
 import { RefreshCw, ArrowLeft, AlertTriangle, Send, Loader2 } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { Link } from "react-router-dom";
-import { DashboardTicketForm } from "./DashboardTicketForm";
+import { AgentConnectMessage } from "./AgentConnectMessage";
 import { ChatSidebar } from "./ChatSidebar";
 import { VoiceInput } from "./VoiceInput";
 import { ImageUploadButton } from "./ImageUploadButton";
@@ -97,13 +97,14 @@ export const ChatInterface = () => {
     sessionId,
     appendAssistantMessage,
     setMessages,
+    escalateToAgent,
   } = useChat(undefined, "dashboard");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [input, setInput] = useState("");
   const [pendingImage, setPendingImage] = useState<{ base64: string; mimeType: string } | null>(null);
-  const [showTicketForm, setShowTicketForm] = useState(false);
-  const [ticketSubmitted, setTicketSubmitted] = useState(false);
+  const [agentRequested, setAgentRequested] = useState(false);
+  const [agentRequestedAt, setAgentRequestedAt] = useState<Date | null>(null);
   const lastTicketTriggerIdRef = useRef<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -112,26 +113,31 @@ export const ChatInterface = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  /* Reset ticket state */
+  /* Reset agent state */
   useEffect(() => {
     if (messages.length === 0) {
-      setTicketSubmitted(false);
+      setAgentRequested(false);
+      setAgentRequestedAt(null);
       lastTicketTriggerIdRef.current = null;
-      setShowTicketForm(false);
     }
   }, [messages.length]);
 
-  /* Ticket form trigger */
+  /* Agent escalation trigger - replaces ticket form */
   useEffect(() => {
-    if (isLoading || ticketSubmitted || showTicketForm) return;
+    if (isLoading || agentRequested) return;
     const lastTrigger = [...messages]
       .reverse()
       .find((m) => m.role === "assistant" && m.content.includes(OPEN_TICKET_FORM_MARKER));
     if (!lastTrigger) return;
     if (lastTicketTriggerIdRef.current === lastTrigger.id) return;
     lastTicketTriggerIdRef.current = lastTrigger.id;
-    setShowTicketForm(true);
-  }, [messages, ticketSubmitted, showTicketForm, isLoading]);
+    
+    // Silently escalate and show agent connecting message
+    setAgentRequested(true);
+    setAgentRequestedAt(new Date());
+    escalateToAgent();
+    appendAssistantMessage("I've connected you with our support team. A real agent will join this conversation within **4 hours**. Stay right here — they'll reply in this chat.");
+  }, [messages, agentRequested, isLoading, escalateToAgent, appendAssistantMessage]);
 
   /* Auto-resize textarea */
   useEffect(() => {
@@ -153,16 +159,6 @@ export const ChatInterface = () => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
-    }
-  };
-
-  const handleTicketSuccess = (ticketNumber?: string) => {
-    setShowTicketForm(false);
-    setTicketSubmitted(true);
-    if (ticketNumber) {
-      appendAssistantMessage(
-        `Your ticket #${ticketNumber} has been created. Our support team will reach out to you within 4 hours.`
-      );
     }
   };
 
@@ -281,14 +277,12 @@ export const ChatInterface = () => {
                 />
               ))}
 
-              {showTicketForm && (
-                <div className="py-2">
-                  <DashboardTicketForm
-                    onClose={() => setShowTicketForm(false)}
-                    onSuccess={handleTicketSuccess}
-                    sessionId={sessionId || "web"}
-                    chatHistory={messages.map((m) => ({ role: m.role, content: m.content }))}
-                  />
+              {agentRequested && agentRequestedAt && (
+                <div className="flex gap-3 max-w-3xl mx-auto">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden mt-1 bg-[hsl(0,0%,10%)] border border-[hsl(0,0%,18%)]">
+                    <img src={propscholarIcon} alt="S" className="w-full h-full object-cover rounded-full" />
+                  </div>
+                  <AgentConnectMessage requestedAt={agentRequestedAt} />
                 </div>
               )}
 

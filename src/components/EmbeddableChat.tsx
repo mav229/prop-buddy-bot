@@ -6,7 +6,7 @@ import { ChatInput } from "./ChatInput";
 import { ChatSkeleton, CardSkeleton } from "./ChatSkeleton";
 import { TypingIndicator } from "./TypingIndicator";
 import { EmailCollectionModal } from "./EmailCollectionModal";
-import { InlineTicketForm } from "./InlineTicketForm";
+import { AgentConnectMessage } from "./AgentConnectMessage";
 import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
 import { playSound, preloadAllSounds } from "@/hooks/useSounds";
 import scholarisLogo from "@/assets/scholaris-logo.png";
@@ -61,7 +61,7 @@ const EMAIL_POPUP_MESSAGE_THRESHOLD = 2;
 
 export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   // All hooks must be called first, before any conditional logic
-  const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, userMessageCount, sessionId, emailCollectedInChat, appendAssistantMessage } = useChat();
+  const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, userMessageCount, sessionId, emailCollectedInChat, appendAssistantMessage, escalateToAgent } = useChat();
   const { config } = useWidgetConfig();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(!isWidget);
@@ -73,38 +73,34 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const [inIframe, setInIframe] = useState(isInIframe);
   const [showEmailPopup, setShowEmailPopup] = useState(false);
   const [emailCollected, setEmailCollected] = useState(false);
-  const [showTicketForm, setShowTicketForm] = useState(false);
-  const [ticketSubmitted, setTicketSubmitted] = useState(false);
+  const [agentRequested, setAgentRequested] = useState(false);
+  const [agentRequestedAt, setAgentRequestedAt] = useState<Date | null>(null);
   const lastTicketTriggerIdRef = useRef<string | null>(null);
 
   const OPEN_TICKET_FORM_MARKER = "[[OPEN_TICKET_FORM]]";
 
-  // Handle successful ticket creation - bot confirms it
-  const handleTicketSuccess = useCallback((ticketNumber?: string) => {
-    setShowTicketForm(false);
-    setTicketSubmitted(true);
-    if (ticketNumber) {
-      appendAssistantMessage(`✅ **Your ticket #${ticketNumber} has been created!**
+  // Handle agent escalation
+  const handleEscalate = useCallback(() => {
+    if (agentRequested) return;
+    setAgentRequested(true);
+    setAgentRequestedAt(new Date());
+    escalateToAgent();
+    appendAssistantMessage("I've connected you with our support team. A real agent will join this conversation within **4 hours**. Stay right here — they'll reply in this chat.");
+  }, [agentRequested, escalateToAgent, appendAssistantMessage]);
 
-
-Our support team will reach out to you within **4 hours**.
-`);
-    }
-  }, [appendAssistantMessage]);
-
-  // Reset ticket state when chat resets
+  // Reset agent state when chat resets
   useEffect(() => {
     if (messages.length === 0) {
-      setTicketSubmitted(false);
+      setAgentRequested(false);
+      setAgentRequestedAt(null);
       lastTicketTriggerIdRef.current = null;
-      setShowTicketForm(false);
     }
   }, [messages.length]);
 
-  // Open ticket form ONLY when bot emits marker
+  // Agent escalation trigger - replaces ticket form
   useEffect(() => {
     if (isLoading) return;
-    if (ticketSubmitted || showTicketForm) return;
+    if (agentRequested) return;
     const lastTrigger = [...messages]
       .reverse()
       .find((m) => m.role === "assistant" && m.content.includes(OPEN_TICKET_FORM_MARKER));
@@ -113,9 +109,8 @@ Our support team will reach out to you within **4 hours**.
     if (lastTicketTriggerIdRef.current === lastTrigger.id) return;
     lastTicketTriggerIdRef.current = lastTrigger.id;
 
-    setActiveTab("messages");
-    setShowTicketForm(true);
-  }, [messages, ticketSubmitted, showTicketForm, isLoading]);
+    handleEscalate();
+  }, [messages, agentRequested, isLoading, handleEscalate]);
 
   // Check if in iframe on mount and load email collection state
   useEffect(() => {
@@ -416,19 +411,7 @@ Our support team will reach out to you within **4 hours**.
         </div>
       )}
       
-      {/* Inline Ticket Form - shown when bot offers support button */}
-      {showTicketForm && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }}>
-          <div className="w-full max-w-sm">
-            <InlineTicketForm
-              onClose={() => setShowTicketForm(false)}
-              onSuccess={handleTicketSuccess}
-              sessionId={sessionId}
-              chatHistory={messages.map((m) => ({ role: m.role, content: m.content }))}
-            />
-          </div>
-        </div>
-      )}
+      {/* Agent connect message removed - no more ticket form overlay */}
       {/* HEADER - Uses config colors */}
       <header
         className="flex-shrink-0 relative"
@@ -597,12 +580,10 @@ Our support team will reach out to you within **4 hours**.
                   {messages.map((m, index) => {
                     // Count assistant replies up to this message index
                     const assistantReplyCount = messages.slice(0, index + 1).filter(msg => msg.role === "assistant").length;
-                    // Show agent button on assistant messages after 4 assistant replies, only if ticket not submitted
                     const shouldShowAgentButton = 
                       m.role === "assistant" && 
                       assistantReplyCount >= AGENT_BUTTON_MESSAGE_THRESHOLD && 
-                      !ticketSubmitted &&
-                      !showTicketForm;
+                      !agentRequested;
                     
                     return (
                       <ChatMessage
@@ -612,7 +593,7 @@ Our support team will reach out to you within **4 hours**.
                         isStreaming={isLoading && m.id === messages[messages.length - 1]?.id && m.role === "assistant"}
                         isWidget={true}
                         showAgentButton={shouldShowAgentButton}
-                        onConnectAgent={() => setShowTicketForm(true)}
+                        onConnectAgent={handleEscalate}
                         timestamp={m.timestamp}
                       />
                     );

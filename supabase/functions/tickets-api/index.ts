@@ -90,15 +90,41 @@ serve(async (req: Request) => {
         return json({ error: "No valid fields to update" }, 400);
       }
 
+      // Find the ticket first to get session_id
+      const { data: ticketRow } = await supabase
+        .from("support_tickets")
+        .select("*")
+        .or(`id.eq.${ticketId},ticket_number.eq.${isNaN(Number(ticketId)) ? -1 : ticketId}`)
+        .limit(1)
+        .maybeSingle();
+
+      if (!ticketRow) return json({ error: "Ticket not found" }, 404);
+
       const { data, error } = await supabase
         .from("support_tickets")
         .update(updates)
-        .or(`id.eq.${ticketId},ticket_number.eq.${isNaN(Number(ticketId)) ? -1 : ticketId}`)
+        .eq("id", ticketRow.id)
         .select()
         .maybeSingle();
 
       if (error) return json({ error: error.message }, 500);
-      if (!data) return json({ error: "Ticket not found" }, 404);
+
+      // If admin_reply is set and ticket has a session_id, insert reply into chat_history
+      // so the user sees it in their chat in realtime
+      if (body.admin_reply && ticketRow.session_id) {
+        const { error: chatError } = await supabase.from("chat_history").insert({
+          session_id: ticketRow.session_id,
+          role: "assistant",
+          content: `**💬 Agent Reply:**\n\n${body.admin_reply}`,
+          source: "agent",
+        });
+        if (chatError) {
+          console.error("Failed to insert agent reply into chat:", chatError);
+        } else {
+          console.log(`Agent reply inserted into chat for session ${ticketRow.session_id}`);
+        }
+      }
+
       return json({ ticket: data, message: "Ticket updated" });
     }
 
