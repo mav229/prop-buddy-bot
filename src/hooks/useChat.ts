@@ -247,6 +247,58 @@ export const useChat = (preloadEmail?: string, source: string = "widget") => {
     setMessages((prev) => [...prev, msg]);
   }, []);
 
+  // Realtime subscription for agent replies
+  useEffect(() => {
+    const channel = supabase
+      .channel(`chat-agent-${sessionIdRef.current}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "chat_history",
+          filter: `session_id=eq.${sessionIdRef.current}`,
+        },
+        (payload: any) => {
+          const row = payload.new;
+          // Only pick up agent replies (source = "agent"), not our own inserts
+          if (row && row.source === "agent") {
+            playSound("receive", 0.1);
+            setMessages((prev) => {
+              // Avoid duplicates
+              if (prev.some((m) => m.id === row.id)) return prev;
+              return [
+                ...prev,
+                {
+                  id: row.id,
+                  role: "assistant" as const,
+                  content: row.content,
+                  timestamp: new Date(row.created_at),
+                },
+              ];
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []); // sessionIdRef is stable
+
+  // Escalate to live agent (no form, silent)
+  const escalateToAgent = useCallback(async () => {
+    try {
+      const { error: fnError } = await supabase.functions.invoke("escalate", {
+        body: { session_id: sessionIdRef.current },
+      });
+      if (fnError) console.error("Escalation error:", fnError);
+    } catch (err) {
+      console.error("Escalation error:", err);
+    }
+  }, []);
+
   const clearChat = useCallback(() => {
     setMessages([]);
     setSessionCost(0);
@@ -255,7 +307,6 @@ export const useChat = (preloadEmail?: string, source: string = "widget") => {
     setEmailCollectedInChat(false);
     const newId = crypto.randomUUID();
     sessionIdRef.current = newId;
-    // Save new session to localStorage
     const saved = JSON.parse(localStorage.getItem("scholaris_sessions") || "[]");
     if (!saved.includes(newId)) {
       saved.unshift(newId);
@@ -276,5 +327,6 @@ export const useChat = (preloadEmail?: string, source: string = "widget") => {
     sessionId: sessionIdRef.current,
     emailCollectedInChat,
     appendAssistantMessage,
+    escalateToAgent,
   };
 };
