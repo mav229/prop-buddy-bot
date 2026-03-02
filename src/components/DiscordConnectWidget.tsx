@@ -33,6 +33,7 @@ export const DiscordConnectWidget = ({ emailOverride }: DiscordConnectWidgetProp
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [checked, setChecked] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (email) checkStatus();
@@ -44,45 +45,69 @@ export const DiscordConnectWidget = ({ emailOverride }: DiscordConnectWidgetProp
       const { data, error } = await supabase.functions.invoke("discord-connect", {
         body: { action: "status", email },
       });
-      if (!error && data?.connected) setConnection(data.connection);
-    } catch (_) {}
-    finally { setChecked(true); }
+
+      if (error) throw error;
+      setConnection(data?.connected ? data.connection : null);
+      setError("");
+    } catch (err) {
+      console.error("Discord status check error:", err);
+      setConnection(null);
+      setError("Could not verify connection right now. Please try again.");
+    } finally {
+      setChecked(true);
+    }
   };
 
   const handleConnect = async () => {
     if (!email) return;
+    setError("");
     setLoading(true);
+
     try {
       const { data, error } = await supabase.functions.invoke("discord-connect", {
         body: { action: "get_oauth_url", email },
       });
+
       if (error) throw error;
-      if (data?.url) {
-        const w = window.open(data.url, "discord-connect", "width=500,height=700");
-        const interval = setInterval(() => {
-          if (w?.closed) {
-            clearInterval(interval);
-            setLoading(false);
-            checkStatus();
-          }
-        }, 1000);
+      if (!data?.url) throw new Error("OAuth URL was not returned");
+
+      const popup = window.open(data.url, "discord-connect", "width=500,height=700");
+      if (!popup) {
+        setError("Popup was blocked. Please allow popups and try again.");
+        setLoading(false);
+        return;
       }
-    } catch (e) {
-      console.error("Discord connect error:", e);
+
+      const interval = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(interval);
+          setLoading(false);
+          checkStatus();
+        }
+      }, 1000);
+    } catch (err) {
+      console.error("Discord connect error:", err);
+      setError("Failed to connect to Discord. Please try again.");
       setLoading(false);
     }
   };
 
   const handleSync = async () => {
     if (!email) return;
+    setError("");
     setSyncing(true);
     try {
       const { data, error } = await supabase.functions.invoke("discord-connect", {
         body: { action: "sync", email },
       });
-      if (!error && data?.success) checkStatus();
-    } catch (_) {}
-    finally { setSyncing(false); }
+      if (error) throw error;
+      if (data?.success) checkStatus();
+    } catch (err) {
+      console.error("Discord sync error:", err);
+      setError("Sync failed. Please try again.");
+    } finally {
+      setSyncing(false);
+    }
   };
 
   if (!checked || !email) return null;
@@ -92,77 +117,83 @@ export const DiscordConnectWidget = ({ emailOverride }: DiscordConnectWidgetProp
   // ── Connected state ──
   if (connection) {
     return (
-      <div className="group relative w-full max-w-xs">
-        <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-[#5865F2]/40 via-emerald-500/30 to-[#5865F2]/40 opacity-60 blur-sm group-hover:opacity-80 transition-opacity" />
-        <div className="relative flex items-center gap-3 rounded-2xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] px-4 py-3 shadow-xl">
-          {/* Discord avatar area */}
-          <div className="relative flex-shrink-0">
-            <div className="w-10 h-10 rounded-full bg-[#5865F2]/20 flex items-center justify-center">
-              <DiscordIcon className="w-5 h-5 text-[#5865F2]" />
-            </div>
-            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full border-2 border-[hsl(var(--card))]">
-              <span className="absolute inset-0 bg-emerald-400 rounded-full animate-ping opacity-40" />
-            </span>
-          </div>
-
-          {/* Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm font-semibold text-[hsl(var(--foreground))] truncate">
-                {connection.discord_username}
+      <div className="w-full max-w-xs">
+        <div className="group relative">
+          <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-[#5865F2]/40 via-emerald-500/30 to-[#5865F2]/40 opacity-60 blur-sm group-hover:opacity-80 transition-opacity" />
+          <div className="relative flex items-center gap-3 rounded-2xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] px-4 py-3 shadow-xl">
+            {/* Discord avatar area */}
+            <div className="relative flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-[#5865F2]/20 flex items-center justify-center">
+                <DiscordIcon className="w-5 h-5 text-[#5865F2]" />
+              </div>
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full border-2 border-[hsl(var(--card))]">
+                <span className="absolute inset-0 bg-emerald-400 rounded-full animate-ping opacity-40" />
               </span>
-              <CheckCircle className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
             </div>
-            {role && (
-              <span className={`text-xs font-medium ${role.color}`}>
-                {role.label}
-              </span>
-            )}
-          </div>
 
-          {/* Sync */}
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="p-2 rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))] transition-colors"
-            title="Re-sync role"
-          >
-            {syncing ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <RefreshCw className="w-4 h-4" />
-            )}
-          </button>
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-semibold text-[hsl(var(--foreground))] truncate">
+                  {connection.discord_username}
+                </span>
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+              </div>
+              {role && (
+                <span className={`text-xs font-medium ${role.color}`}>
+                  {role.label}
+                </span>
+              )}
+            </div>
+
+            {/* Sync */}
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="p-2 rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))] transition-colors"
+              title="Re-sync role"
+            >
+              {syncing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
+            </button>
+          </div>
         </div>
+        {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
       </div>
     );
   }
 
   // ── Disconnected state ──
   return (
-    <div className="group relative w-full max-w-xs">
-      <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-[#5865F2]/50 to-[#5865F2]/30 opacity-0 group-hover:opacity-70 blur-sm transition-opacity duration-300" />
-      <button
-        onClick={handleConnect}
-        disabled={loading}
-        className="relative w-full flex items-center gap-3 rounded-2xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] hover:border-[#5865F2]/40 px-4 py-3 shadow-lg hover:shadow-xl transition-all duration-300"
-      >
-        <div className="w-10 h-10 rounded-full bg-[#5865F2]/15 flex items-center justify-center group-hover:bg-[#5865F2]/25 transition-colors">
-          {loading ? (
-            <Loader2 className="w-5 h-5 text-[#5865F2] animate-spin" />
-          ) : (
-            <DiscordIcon className="w-5 h-5 text-[#5865F2]" />
-          )}
-        </div>
-        <div className="text-left">
-          <span className="text-sm font-semibold text-[hsl(var(--foreground))]">
-            {loading ? "Connecting..." : "Connect Discord"}
-          </span>
-          <p className="text-xs text-[hsl(var(--muted-foreground))]">
-            Link your account for roles
-          </p>
-        </div>
-      </button>
+    <div className="w-full max-w-xs">
+      <div className="group relative">
+        <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-[#5865F2]/50 to-[#5865F2]/30 opacity-0 group-hover:opacity-70 blur-sm transition-opacity duration-300" />
+        <button
+          onClick={handleConnect}
+          disabled={loading}
+          className="relative w-full flex items-center gap-3 rounded-2xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] hover:border-[#5865F2]/40 px-4 py-3 shadow-lg hover:shadow-xl transition-all duration-300"
+        >
+          <div className="w-10 h-10 rounded-full bg-[#5865F2]/15 flex items-center justify-center group-hover:bg-[#5865F2]/25 transition-colors">
+            {loading ? (
+              <Loader2 className="w-5 h-5 text-[#5865F2] animate-spin" />
+            ) : (
+              <DiscordIcon className="w-5 h-5 text-[#5865F2]" />
+            )}
+          </div>
+          <div className="text-left">
+            <span className="text-sm font-semibold text-[hsl(var(--foreground))]">
+              {loading ? "Connecting..." : "Connect Discord"}
+            </span>
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">
+              Link your account for roles
+            </p>
+          </div>
+        </button>
+      </div>
+      {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
     </div>
   );
 };
