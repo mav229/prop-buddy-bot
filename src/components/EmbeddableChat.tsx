@@ -6,7 +6,7 @@ import { ChatInput } from "./ChatInput";
 import { ChatSkeleton, CardSkeleton } from "./ChatSkeleton";
 import { TypingIndicator } from "./TypingIndicator";
 import { EmailCollectionModal } from "./EmailCollectionModal";
-import { AgentConnectMessage } from "./AgentConnectMessage";
+import { InlineTicketForm } from "./InlineTicketForm";
 import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
 import { playSound, preloadAllSounds } from "@/hooks/useSounds";
 import scholarisLogo from "@/assets/scholaris-logo.png";
@@ -61,7 +61,7 @@ const EMAIL_POPUP_MESSAGE_THRESHOLD = 2;
 
 export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   // All hooks must be called first, before any conditional logic
-  const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, userMessageCount, sessionId, emailCollectedInChat, appendAssistantMessage, escalateToAgent } = useChat();
+  const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, userMessageCount, sessionId, emailCollectedInChat, appendAssistantMessage } = useChat();
   const { config } = useWidgetConfig();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(!isWidget);
@@ -73,34 +73,39 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   const [inIframe, setInIframe] = useState(isInIframe);
   const [showEmailPopup, setShowEmailPopup] = useState(false);
   const [emailCollected, setEmailCollected] = useState(false);
-  const [agentRequested, setAgentRequested] = useState(false);
-  const [agentRequestedAt, setAgentRequestedAt] = useState<Date | null>(null);
+  const [showTicketForm, setShowTicketForm] = useState(false);
+  const [ticketSubmitted, setTicketSubmitted] = useState(false);
   const lastTicketTriggerIdRef = useRef<string | null>(null);
 
   const OPEN_TICKET_FORM_MARKER = "[[OPEN_TICKET_FORM]]";
 
-  // Handle agent escalation
-  const handleEscalate = useCallback(() => {
-    if (agentRequested) return;
-    setAgentRequested(true);
-    setAgentRequestedAt(new Date());
-    escalateToAgent();
-    appendAssistantMessage("I've connected you with our support team. A real agent will join this conversation within **4 hours**. Stay right here — they'll reply in this chat.");
-  }, [agentRequested, escalateToAgent, appendAssistantMessage]);
+  // Handle ticket form trigger
+  const handleOpenTicketForm = useCallback(() => {
+    if (showTicketForm || ticketSubmitted) return;
+    setShowTicketForm(true);
+  }, [showTicketForm, ticketSubmitted]);
 
-  // Reset agent state when chat resets
+  const handleTicketSuccess = useCallback((ticketNumber?: string) => {
+    setShowTicketForm(false);
+    setTicketSubmitted(true);
+    if (ticketNumber) {
+      appendAssistantMessage(`Your ticket **#${ticketNumber}** has been created! Our support team will reach out to you within **4 hours**.`);
+    }
+  }, [appendAssistantMessage]);
+
+  // Reset ticket state when chat resets
   useEffect(() => {
     if (messages.length === 0) {
-      setAgentRequested(false);
-      setAgentRequestedAt(null);
+      setShowTicketForm(false);
+      setTicketSubmitted(false);
       lastTicketTriggerIdRef.current = null;
     }
   }, [messages.length]);
 
-  // Agent escalation trigger - replaces ticket form
+  // Ticket form trigger from bot marker
   useEffect(() => {
     if (isLoading) return;
-    if (agentRequested) return;
+    if (showTicketForm || ticketSubmitted) return;
     const lastTrigger = [...messages]
       .reverse()
       .find((m) => m.role === "assistant" && m.content.includes(OPEN_TICKET_FORM_MARKER));
@@ -109,8 +114,8 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     if (lastTicketTriggerIdRef.current === lastTrigger.id) return;
     lastTicketTriggerIdRef.current = lastTrigger.id;
 
-    handleEscalate();
-  }, [messages, agentRequested, isLoading, handleEscalate]);
+    handleOpenTicketForm();
+  }, [messages, showTicketForm, ticketSubmitted, isLoading, handleOpenTicketForm]);
 
   // Check if in iframe on mount and load email collection state
   useEffect(() => {
@@ -578,12 +583,11 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
               ) : (
               <>
                   {messages.map((m, index) => {
-                    // Count assistant replies up to this message index
                     const assistantReplyCount = messages.slice(0, index + 1).filter(msg => msg.role === "assistant").length;
                     const shouldShowAgentButton = 
                       m.role === "assistant" && 
                       assistantReplyCount >= AGENT_BUTTON_MESSAGE_THRESHOLD && 
-                      !agentRequested;
+                      !showTicketForm && !ticketSubmitted;
                     
                     return (
                       <ChatMessage
@@ -593,7 +597,7 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                         isStreaming={isLoading && m.id === messages[messages.length - 1]?.id && m.role === "assistant"}
                         isWidget={true}
                         showAgentButton={shouldShowAgentButton}
-                        onConnectAgent={handleEscalate}
+                        onConnectAgent={handleOpenTicketForm}
                         timestamp={m.timestamp}
                       />
                     );
@@ -614,6 +618,16 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                           <span className="w-[7px] h-[7px] rounded-full typing-dot" style={{ backgroundColor: config.aiMessageTextColor, opacity: 0.5, animationDelay: "400ms" }} />
                         </div>
                       </div>
+                    </div>
+                  )}
+                  {showTicketForm && (
+                    <div className="py-2">
+                      <InlineTicketForm
+                        onClose={() => setShowTicketForm(false)}
+                        onSuccess={handleTicketSuccess}
+                        sessionId={sessionId}
+                        chatHistory={messages.map((m) => ({ role: m.role, content: m.content }))}
+                      />
                     </div>
                   )}
                 </>

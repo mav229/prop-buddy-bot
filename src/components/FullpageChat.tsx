@@ -126,6 +126,7 @@ const FullpageChat = () => {
   
   const [agentRequested, setAgentRequested] = useState(false);
   const [agentRequestedAt, setAgentRequestedAt] = useState<Date | null>(null);
+  const [ticketNumber, setTicketNumber] = useState<string | null>(null);
   const lastTicketTriggerIdRef = useRef<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -133,10 +134,10 @@ const FullpageChat = () => {
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   useEffect(() => {
-    if (messages.length === 0) { setAgentRequested(false); setAgentRequestedAt(null); lastTicketTriggerIdRef.current = null; }
+    if (messages.length === 0) { setAgentRequested(false); setAgentRequestedAt(null); setTicketNumber(null); lastTicketTriggerIdRef.current = null; }
   }, [messages.length]);
 
-  // Agent escalation trigger - replaces ticket form
+  // Agent escalation trigger - in-chat only for dashboard
   useEffect(() => {
     if (isLoading || agentRequested) return;
     const t = [...messages].reverse().find((m) => m.role === "assistant" && m.content.includes(OPEN_TICKET_FORM_MARKER));
@@ -144,7 +145,10 @@ const FullpageChat = () => {
     lastTicketTriggerIdRef.current = t.id;
     setAgentRequested(true);
     setAgentRequestedAt(new Date());
-    escalateToAgent();
+    // Fire escalation and capture ticket number
+    escalateToAgent().then((num) => {
+      if (num) setTicketNumber(num);
+    });
     appendAssistantMessage("I've connected you with our support team. A real agent will join this conversation within **4 hours**. Stay right here — they'll reply in this chat.");
   }, [messages, agentRequested, isLoading, escalateToAgent, appendAssistantMessage]);
 
@@ -242,10 +246,17 @@ const FullpageChat = () => {
                   <h1 className="text-[14px] font-semibold tracking-tight text-white/90">Scholaris AI</h1>
                   <span className="text-[10px] text-white/20 font-light">by PropScholar</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 online-dot" />
-                  <span className="text-[10px] text-white/30 font-light">Online</span>
-                </div>
+                {ticketNumber ? (
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    <span className="text-[10px] text-amber-400 font-medium">Support Ticket {ticketNumber}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 online-dot" />
+                    <span className="text-[10px] text-white/30 font-light">Online</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
