@@ -277,12 +277,14 @@ export type Database = {
       }
       support_tickets: {
         Row: {
+          admin_reply: string | null
           chat_history: string | null
           created_at: string
           email: string
           id: string
           phone: string
           problem: string
+          replied_at: string | null
           session_id: string | null
           source: string
           status: string
@@ -290,12 +292,14 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          admin_reply?: string | null
           chat_history?: string | null
           created_at?: string
           email: string
           id?: string
           phone: string
           problem: string
+          replied_at?: string | null
           session_id?: string | null
           source?: string
           status?: string
@@ -303,12 +307,14 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          admin_reply?: string | null
           chat_history?: string | null
           created_at?: string
           email?: string
           id?: string
           phone?: string
           problem?: string
+          replied_at?: string | null
           session_id?: string | null
           source?: string
           status?: string
