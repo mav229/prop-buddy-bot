@@ -41,7 +41,7 @@ export const DashboardTicketForm = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const [ticketNumber, setTicketNumber] = useState<number | null>(null);
+  const [ticketNumber, setTicketNumber] = useState<string | null>(null);
 
   const handleSubmit = async () => {
     setError("");
@@ -63,28 +63,25 @@ export const DashboardTicketForm = ({
     setIsSubmitting(true);
 
     try {
-      // Insert directly into support_tickets — no external API
-      const { data, error: dbError } = await supabase
-        .from("support_tickets")
-        .insert({
+      const { data, error: fnError } = await supabase.functions.invoke("create-ticket", {
+        body: {
+          name: name.trim() || undefined,
           email: email.trim().toLowerCase(),
           phone: phone.trim() || "",
           problem: problem.trim(),
           session_id: sessionId,
           chat_history: JSON.stringify(chatHistory || []),
-          status: "open",
-          source: "dashboard",
-        })
-        .select("ticket_number, id")
-        .single();
+        },
+      });
 
-      if (dbError) throw dbError;
+      if (fnError) throw fnError;
 
       playSound("notification", 0.15);
-      const num = data?.ticket_number || 0;
-      setTicketNumber(num);
+      const returnedTicketId = typeof data?.ticket_id === "string" ? data.ticket_id : "";
+      const normalizedTicketNumber = returnedTicketId.replace(/^#/, "") || "TICKET";
+      setTicketNumber(normalizedTicketNumber);
       setSubmitted(true);
-      onSuccess?.(`${num}`);
+      onSuccess?.(normalizedTicketNumber);
     } catch (err: any) {
       console.error("Support ticket error:", err);
       setError("Failed to submit ticket. Please try again.");
