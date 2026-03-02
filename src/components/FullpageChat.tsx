@@ -2,7 +2,7 @@ import { useRef, useEffect, useCallback, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ArrowUp, Loader2, RefreshCw, AlertTriangle, Menu } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
-import { DashboardTicketForm } from "@/components/DashboardTicketForm";
+import { AgentConnectMessage } from "@/components/AgentConnectMessage";
 import { ChatSidebar } from "@/components/ChatSidebar";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
@@ -119,13 +119,13 @@ const FullpageChat = () => {
     return () => window.removeEventListener("message", handler);
   }, []);
 
-  const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, sessionId, appendAssistantMessage, setMessages } = useChat(preloadEmail, "fullpage");
+  const { messages, isLoading, error, sendMessage, clearChat, isRateLimited, sessionId, appendAssistantMessage, setMessages, escalateToAgent } = useChat(preloadEmail, "fullpage");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [input, setInput] = useState("");
   
-  const [showTicketForm, setShowTicketForm] = useState(false);
-  const [ticketSubmitted, setTicketSubmitted] = useState(false);
+  const [agentRequested, setAgentRequested] = useState(false);
+  const [agentRequestedAt, setAgentRequestedAt] = useState<Date | null>(null);
   const lastTicketTriggerIdRef = useRef<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -133,16 +133,20 @@ const FullpageChat = () => {
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   useEffect(() => {
-    if (messages.length === 0) { setTicketSubmitted(false); lastTicketTriggerIdRef.current = null; setShowTicketForm(false); }
+    if (messages.length === 0) { setAgentRequested(false); setAgentRequestedAt(null); lastTicketTriggerIdRef.current = null; }
   }, [messages.length]);
 
+  // Agent escalation trigger - replaces ticket form
   useEffect(() => {
-    if (isLoading || ticketSubmitted || showTicketForm) return;
+    if (isLoading || agentRequested) return;
     const t = [...messages].reverse().find((m) => m.role === "assistant" && m.content.includes(OPEN_TICKET_FORM_MARKER));
     if (!t || lastTicketTriggerIdRef.current === t.id) return;
     lastTicketTriggerIdRef.current = t.id;
-    setShowTicketForm(true);
-  }, [messages, ticketSubmitted, showTicketForm, isLoading]);
+    setAgentRequested(true);
+    setAgentRequestedAt(new Date());
+    escalateToAgent();
+    appendAssistantMessage("I've connected you with our support team. A real agent will join this conversation within **4 hours**. Stay right here — they'll reply in this chat.");
+  }, [messages, agentRequested, isLoading, escalateToAgent, appendAssistantMessage]);
 
   useEffect(() => {
     if (inputRef.current) {
@@ -160,12 +164,6 @@ const FullpageChat = () => {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
-  };
-
-  const handleTicketSuccess = (ticketNumber?: string) => {
-    setShowTicketForm(false);
-    setTicketSubmitted(true);
-    if (ticketNumber) appendAssistantMessage(`Your ticket #${ticketNumber} has been created. Our support team will reach out within 4 hours.`);
   };
 
   const handleSelectSession = async (sid: string) => {
@@ -278,9 +276,9 @@ const FullpageChat = () => {
               {isLoading && messages[messages.length - 1]?.role === "user" && (
                 <Bubble role="assistant" content="" isStreaming userName={preloadEmail?.split("@")[0]} />
               )}
-              {showTicketForm && (
+              {agentRequested && agentRequestedAt && (
                 <div className="py-2">
-                  <DashboardTicketForm onClose={() => setShowTicketForm(false)} onSuccess={handleTicketSuccess} sessionId={sessionId || "web"} chatHistory={messages.map((m) => ({ role: m.role, content: m.content }))} />
+                  <AgentConnectMessage requestedAt={agentRequestedAt} />
                 </div>
               )}
               {error && <div className="rounded-lg border border-red-900/40 bg-red-950/30 text-red-400 px-4 py-2.5 text-xs">{error}</div>}
