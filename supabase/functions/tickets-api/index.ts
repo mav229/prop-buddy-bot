@@ -20,18 +20,40 @@ serve(async (req: Request) => {
   }
 
   try {
-    // Auth: require either Supabase admin JWT or a simple API key header
-    const apiKey = req.headers.get("x-api-key");
-    const expectedKey = Deno.env.get("TICKETS_API_KEY");
-
-    // If TICKETS_API_KEY is set, validate it
-    if (expectedKey && apiKey !== expectedKey) {
-      return json({ error: "Unauthorized – invalid or missing x-api-key header" }, 401);
-    }
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Auth: require either x-api-key OR authenticated admin user
+    const apiKey = req.headers.get("x-api-key");
+    const expectedKey = Deno.env.get("TICKETS_API_KEY");
+    let authorized = false;
+
+    if (expectedKey && apiKey === expectedKey) {
+      authorized = true;
+    }
+
+    if (!authorized) {
+      // Check for Supabase JWT auth
+      const authHeader = req.headers.get("authorization");
+      if (authHeader) {
+        const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") || authHeader.replace("Bearer ", ""));
+        const { data: { user } } = await anonClient.auth.getUser(authHeader.replace("Bearer ", ""));
+        if (user) {
+          const { data: roleRow } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", user.id)
+            .eq("role", "admin")
+            .maybeSingle();
+          if (roleRow) authorized = true;
+        }
+      }
+    }
+
+    if (!authorized && expectedKey) {
+      return json({ error: "Unauthorized" }, 401);
+    }
 
     const url = new URL(req.url);
     const pathParts = url.pathname.split("/").filter(Boolean);

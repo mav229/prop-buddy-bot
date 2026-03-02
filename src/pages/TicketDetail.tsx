@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { AuthForm } from "@/components/AuthForm";
 import {
   ArrowLeft, Mail, Phone, Clock, CheckCircle, AlertCircle,
-  MessageSquare, Loader2, Copy, ExternalLink, Shield
+  MessageSquare, Loader2, Copy, ExternalLink, Shield, Send
 } from "lucide-react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +23,9 @@ interface Ticket {
   chat_history: string | null;
   created_at: string;
   updated_at: string;
+  admin_reply: string | null;
+  replied_at: string | null;
+  ticket_number: number | null;
 }
 
 const TicketDetail = () => {
@@ -31,7 +34,8 @@ const TicketDetail = () => {
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [loading, setLoading] = useState(true);
   const [chatMessages, setChatMessages] = useState<{ role: string; content: string }[]>([]);
-
+  const [replyText, setReplyText] = useState("");
+  const [sending, setSending] = useState(false);
   useEffect(() => {
     if (!id || !isAdmin) return;
     fetchTicket();
@@ -79,6 +83,31 @@ const TicketDetail = () => {
   const copyLink = () => {
     navigator.clipboard.writeText(window.location.href);
     toast.success("Link copied!");
+  };
+
+  const sendReply = async () => {
+    if (!replyText.trim() || !ticket) return;
+    setSending(true);
+    try {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tickets-api/${ticket.id}`;
+      const res = await fetch(url, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ admin_reply: replyText.trim(), status: "in_progress" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to send reply");
+      toast.success("Reply sent! User will see it in their chat.");
+      setReplyText("");
+      setTicket({ ...ticket, admin_reply: replyText.trim(), status: "in_progress", replied_at: new Date().toISOString() });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send reply");
+    } finally {
+      setSending(false);
+    }
   };
 
   if (authLoading) {
@@ -281,6 +310,55 @@ const TicketDetail = () => {
           )}
         </div>
 
+        {/* Admin Reply Section */}
+        <div className="mt-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-2xl overflow-hidden">
+          <div className="px-8 py-5 border-b border-white/[0.06]">
+            <h3 className="text-[10px] uppercase tracking-widest text-white/30 flex items-center gap-2">
+              <Send className="w-3 h-3" /> Reply to User
+            </h3>
+            {ticket.session_id && (
+              <p className="text-[10px] text-emerald-400/60 mt-1">
+                ✓ This reply will appear in the user's live chat instantly
+              </p>
+            )}
+          </div>
+
+          {ticket.admin_reply && (
+            <div className="px-8 py-4 border-b border-white/[0.06] bg-emerald-500/5">
+              <p className="text-[10px] uppercase tracking-widest text-emerald-400/50 mb-2">Previous Reply</p>
+              <p className="text-sm text-white/70 whitespace-pre-wrap">{ticket.admin_reply}</p>
+              {ticket.replied_at && (
+                <p className="text-[10px] text-white/20 mt-2">
+                  Sent {format(new Date(ticket.replied_at), "MMM d, yyyy 'at' h:mm a")}
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="px-8 py-5">
+            <textarea
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              placeholder="Type your reply here... The user will see this in their chat."
+              rows={4}
+              className="w-full rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white/80 placeholder:text-white/20 p-4 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/30 transition-all resize-none"
+            />
+            <div className="flex items-center justify-between mt-3">
+              <p className="text-[10px] text-white/20">
+                {ticket.session_id ? "Reply will be delivered via realtime chat" : "No active session — reply saved to ticket only"}
+              </p>
+              <Button
+                onClick={sendReply}
+                disabled={!replyText.trim() || sending}
+                size="sm"
+                className="gap-2 bg-primary hover:bg-primary/90"
+              >
+                {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                Send Reply
+              </Button>
+            </div>
+          </div>
+        </div>
         {/* Session info */}
         {ticket.session_id && (
           <div className="mt-4 text-center">
