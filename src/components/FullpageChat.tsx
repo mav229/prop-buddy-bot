@@ -171,6 +171,12 @@ const FullpageChat = () => {
   };
 
   const handleSelectSession = async (sid: string) => {
+    // Reset ticket state for new session
+    setAgentRequested(false);
+    setAgentRequestedAt(null);
+    setTicketNumber(null);
+    lastTicketTriggerIdRef.current = null;
+
     const { data: response } = await supabase.functions.invoke("read-chat-history", {
       body: { session_id: sid },
     });
@@ -184,6 +190,19 @@ const FullpageChat = () => {
         timestamp: new Date(row.created_at),
       }));
       setMessages(loaded);
+    }
+
+    // Check if this session has a ticket
+    const { data: ticketData } = await supabase
+      .from("support_tickets")
+      .select("ticket_number, status")
+      .eq("session_id", sid)
+      .maybeSingle();
+
+    if (ticketData?.ticket_number) {
+      setTicketNumber(`#${ticketData.ticket_number}`);
+      setAgentRequested(true);
+      setAgentRequestedAt(new Date());
     }
   };
 

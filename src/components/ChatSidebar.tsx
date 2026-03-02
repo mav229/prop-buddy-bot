@@ -1,22 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MessageSquarePlus, Search, Trash2, Ticket } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import propscholarIcon from "@/assets/propscholar-icon.png";
 import { cn } from "@/lib/utils";
 
-
 interface ChatSession {
   session_id: string;
   title: string;
   created_at: string;
-}
-
-interface TicketEntry {
-  id: string;
-  ticket_number: number;
-  status: string;
-  created_at: string;
-  problem: string;
+  ticketNumber?: number | null;
+  ticketStatus?: string | null;
+  hasNewMessage?: boolean;
 }
 
 interface ChatSidebarProps {
@@ -37,13 +31,48 @@ export const ChatSidebar = ({
   userEmail,
 }: ChatSidebarProps) => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [tickets, setTickets] = useState<TicketEntry[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
+  const [newMsgSessionIds, setNewMsgSessionIds] = useState<Set<string>>(new Set());
+  const currentSessionRef = useRef(currentSessionId);
+  currentSessionRef.current = currentSessionId;
 
   useEffect(() => {
     fetchSessions();
-    fetchTickets();
+  }, [currentSessionId]);
+
+  // Realtime: listen for new messages across all user sessions
+  useEffect(() => {
+    const mySessionIds = JSON.parse(localStorage.getItem("scholaris_sessions") || "[]") as string[];
+    if (mySessionIds.length === 0) return;
+
+    const channel = supabase
+      .channel("sidebar-new-msgs")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chat_history" },
+        (payload: any) => {
+          const row = payload.new;
+          if (!row || !mySessionIds.includes(row.session_id)) return;
+          // Only flag if it's an agent reply and not the currently viewed session
+          if (row.source === "agent" && row.session_id !== currentSessionRef.current) {
+            setNewMsgSessionIds((prev) => new Set(prev).add(row.session_id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  // Clear new message dot when session is selected
+  useEffect(() => {
+    setNewMsgSessionIds((prev) => {
+      if (!prev.has(currentSessionId)) return prev;
+      const next = new Set(prev);
+      next.delete(currentSessionId);
+      return next;
+    });
   }, [currentSessionId]);
 
   const fetchSessions = async () => {
@@ -53,52 +82,45 @@ export const ChatSidebar = ({
       return;
     }
 
-    const { data: response } = await supabase.functions.invoke("read-chat-history", {
-      body: { session_ids: mySessionIds },
-    });
+    // Fetch chat history and tickets in parallel
+    const [chatRes, ticketRes] = await Promise.all([
+      supabase.functions.invoke("read-chat-history", {
+        body: { session_ids: mySessionIds },
+      }),
+      supabase
+        .from("support_tickets")
+        .select("ticket_number, status, session_id")
+        .in("session_id", mySessionIds),
+    ]);
 
-    const data = response?.data;
+    const data = chatRes.data?.data;
+
+    // Build ticket map: session_id -> { ticket_number, status }
+    const ticketMap = new Map<string, { ticket_number: number; status: string }>();
+    if (ticketRes.data) {
+      for (const t of ticketRes.data) {
+        if (t.session_id) ticketMap.set(t.session_id, { ticket_number: t.ticket_number!, status: t.status });
+      }
+    }
+
     if (!data) return;
 
     const userMessages = data.filter((row: any) => row.role === "user");
     const sessionMap = new Map<string, ChatSession>();
     for (const row of userMessages) {
       if (!sessionMap.has(row.session_id)) {
+        const ticket = ticketMap.get(row.session_id);
         sessionMap.set(row.session_id, {
           session_id: row.session_id,
           title: row.content.slice(0, 50) + (row.content.length > 50 ? "..." : ""),
           created_at: row.created_at,
+          ticketNumber: ticket?.ticket_number || null,
+          ticketStatus: ticket?.status || null,
         });
       }
     }
 
     setSessions(Array.from(sessionMap.values()));
-  };
-
-  const fetchTickets = async () => {
-    // Fetch tickets for this user's sessions
-    const mySessionIds = JSON.parse(localStorage.getItem("scholaris_sessions") || "[]") as string[];
-    if (mySessionIds.length === 0) return;
-
-    // We query tickets that match any of the user's session IDs
-    const { data, error } = await supabase
-      .from("support_tickets")
-      .select("id, ticket_number, status, created_at, problem, session_id")
-      .in("session_id", mySessionIds)
-      .order("created_at", { ascending: false })
-      .limit(20);
-
-    if (!error && data) {
-      setTickets(
-        data.map((t: any) => ({
-          id: t.id,
-          ticket_number: t.ticket_number,
-          status: t.status,
-          created_at: t.created_at,
-          problem: t.problem,
-        }))
-      );
-    }
   };
 
   const deleteSession = async (sessionId: string) => {
@@ -140,11 +162,6 @@ export const ChatSidebar = ({
         <button onClick={() => { onToggle(); setShowSearch(true); }} className="w-9 h-9 rounded-lg flex items-center justify-center text-[hsl(0,0%,45%)] hover:text-[hsl(0,0%,80%)] hover:bg-[hsl(0,0%,10%)] transition-colors" title="Search chats">
           <Search className="w-4.5 h-4.5" />
         </button>
-        {tickets.length > 0 && (
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center text-[hsl(0,0%,45%)]" title={`${tickets.length} tickets`}>
-            <Ticket className="w-4.5 h-4.5" />
-          </div>
-        )}
       </div>
     );
   }
@@ -190,42 +207,6 @@ export const ChatSidebar = ({
       {/* Divider */}
       <div className="mx-3 border-t border-[hsl(0,0%,9%)]" />
 
-      {/* Tickets section */}
-      {tickets.length > 0 && (
-        <div className="px-3 py-3">
-          <p className="text-[11px] text-[hsl(0,0%,35%)] font-medium uppercase tracking-wider px-3 mb-2">
-            Your Tickets
-          </p>
-          <div className="space-y-0.5">
-            {tickets.map((ticket) => (
-              <div
-                key={ticket.id}
-                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg hover:bg-[hsl(0,0%,7%)] transition-colors cursor-default"
-              >
-                <div className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", statusColor(ticket.status))} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[12px] font-semibold text-[hsl(0,0%,70%)] font-mono">
-                    Ticket #{ticket.ticket_number}
-                  </p>
-                  <p className="text-[10px] text-[hsl(0,0%,32%)] truncate font-light">
-                    {ticket.problem.slice(0, 40)}{ticket.problem.length > 40 ? "..." : ""}
-                  </p>
-                </div>
-                <span className={cn(
-                  "text-[9px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded",
-                  ticket.status === "open" && "text-[hsl(38,90%,55%)] bg-[hsl(38,90%,55%,0.1)]",
-                  ticket.status === "in_progress" && "text-[hsl(210,90%,60%)] bg-[hsl(210,90%,55%,0.1)]",
-                  ticket.status === "resolved" && "text-[hsl(142,76%,50%)] bg-[hsl(142,76%,46%,0.1)]",
-                )}>
-                  {ticket.status === "in_progress" ? "WIP" : ticket.status}
-                </span>
-              </div>
-            ))}
-          </div>
-          <div className="mx-3 mt-3 border-t border-[hsl(0,0%,9%)]" />
-        </div>
-      )}
-
       {/* Chat history */}
       <div className="flex-1 overflow-y-auto px-3 py-3 scrollbar-hide">
         <p className="text-[11px] text-[hsl(0,0%,35%)] font-medium uppercase tracking-wider px-3 mb-2">
@@ -237,36 +218,59 @@ export const ChatSidebar = ({
           </p>
         ) : (
           <div className="space-y-0.5">
-            {filtered.map((session) => (
-              <div
-                key={session.session_id}
-                className={cn(
-                  "group flex items-center rounded-lg transition-colors",
-                  session.session_id === currentSessionId
-                    ? "bg-[hsl(0,0%,10%)]"
-                    : "hover:bg-[hsl(0,0%,7%)]"
-                )}
-              >
-                <button
-                  onClick={() => onSelectSession(session.session_id)}
+            {filtered.map((session) => {
+              const hasNew = newMsgSessionIds.has(session.session_id);
+              return (
+                <div
+                  key={session.session_id}
                   className={cn(
-                    "flex-1 text-left px-3 py-2.5 text-[13px] font-light truncate",
+                    "group flex items-center rounded-lg transition-all relative",
                     session.session_id === currentSessionId
-                      ? "text-[hsl(0,0%,85%)]"
-                      : "text-[hsl(0,0%,50%)] hover:text-[hsl(0,0%,75%)]"
+                      ? "bg-[hsl(0,0%,10%)]"
+                      : "hover:bg-[hsl(0,0%,7%)]",
+                    hasNew && "ring-1 ring-white/20 shadow-[0_0_8px_rgba(255,255,255,0.08)]"
                   )}
                 >
-                  {session.title}
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); deleteSession(session.session_id); }}
-                  className="opacity-0 group-hover:opacity-100 p-1.5 mr-1.5 rounded text-[hsl(0,0%,40%)] hover:text-red-400 hover:bg-[hsl(0,0%,14%)] transition-all"
-                  title="Delete chat"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
+                  <button
+                    onClick={() => onSelectSession(session.session_id)}
+                    className={cn(
+                      "flex-1 text-left px-3 py-2.5 min-w-0",
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      {/* New message dot */}
+                      {hasNew && (
+                        <div className="w-2 h-2 rounded-full bg-white flex-shrink-0 shadow-[0_0_6px_rgba(255,255,255,0.5)]" />
+                      )}
+                      <span className={cn(
+                        "text-[13px] font-light truncate block",
+                        session.session_id === currentSessionId
+                          ? "text-[hsl(0,0%,85%)]"
+                          : hasNew ? "text-white font-normal" : "text-[hsl(0,0%,50%)]"
+                      )}>
+                        {session.title}
+                      </span>
+                    </div>
+                    {/* Ticket badge inline */}
+                    {session.ticketNumber && (
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <div className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", statusColor(session.ticketStatus || "open"))} />
+                        <span className="text-[10px] font-mono text-[hsl(0,0%,45%)]">
+                          Ticket #{session.ticketNumber}
+                        </span>
+                      </div>
+                    )}
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deleteSession(session.session_id); }}
+                    className="opacity-0 group-hover:opacity-100 p-1.5 mr-1.5 rounded text-[hsl(0,0%,40%)] hover:text-red-400 hover:bg-[hsl(0,0%,14%)] transition-all"
+                    title="Delete chat"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
