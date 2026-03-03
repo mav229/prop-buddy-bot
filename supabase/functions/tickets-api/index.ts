@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
 };
 
@@ -34,26 +34,28 @@ serve(async (req: Request) => {
     }
 
     if (!authorized) {
-      // Check for Supabase JWT auth
       const authHeader = req.headers.get("authorization");
       if (authHeader) {
-        const token = authHeader.replace("Bearer ", "");
-        const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || supabaseKey;
-        const anonClient = createClient(supabaseUrl, anonKey);
-        const { data: { user } } = await anonClient.auth.getUser(token);
-        if (user) {
-          const { data: roleRow } = await supabase
-            .from("user_roles")
-            .select("role")
-            .eq("user_id", user.id)
-            .eq("role", "admin")
-            .maybeSingle();
-          if (roleRow) authorized = true;
+        const token = authHeader.toLowerCase().startsWith("bearer ")
+          ? authHeader.slice(7).trim()
+          : authHeader.trim();
+
+        if (token) {
+          const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+          if (!userError && user) {
+            const { data: roleRow } = await supabase
+              .from("user_roles")
+              .select("role")
+              .eq("user_id", user.id)
+              .eq("role", "admin")
+              .maybeSingle();
+            if (roleRow) authorized = true;
+          }
         }
       }
     }
 
-    if (!authorized && expectedKey) {
+    if (!authorized) {
       return json({ error: "Unauthorized" }, 401);
     }
 

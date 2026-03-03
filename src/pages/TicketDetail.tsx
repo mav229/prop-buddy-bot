@@ -91,17 +91,27 @@ const TicketDetail = () => {
     try {
       const { data: { session: authSession } } = await supabase.auth.getSession();
       if (!authSession?.access_token) throw new Error("Not authenticated");
+
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tickets-api/${ticket.id}`;
       const res = await fetch(url, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${authSession.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({ admin_reply: replyText.trim(), status: "in_progress" }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to send reply");
+
+      const raw = await res.text();
+      let data: any = {};
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch {
+        data = {};
+      }
+
+      if (!res.ok) throw new Error(data.error || data.message || `Failed to send reply (${res.status})`);
       toast.success("Reply sent! User will see it in their chat.");
       setReplyText("");
       setTicket({ ...ticket, admin_reply: replyText.trim(), status: "in_progress", replied_at: new Date().toISOString() });
