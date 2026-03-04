@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { session_ids, session_id } = await req.json();
+    const { session_ids, session_id, include_tickets } = await req.json();
 
     // Validate input - must provide session_id or session_ids
     const ids: string[] = session_ids || (session_id ? [session_id] : []);
@@ -66,7 +66,31 @@ Deno.serve(async (req) => {
       );
     }
 
-    return new Response(JSON.stringify({ data }), {
+    let tickets: any[] = [];
+    if (include_tickets) {
+      const { data: ticketData, error: ticketError } = await supabase
+        .from("support_tickets")
+        .select("id, session_id, ticket_number, status, created_at")
+        .in("session_id", ids)
+        .order("created_at", { ascending: false });
+
+      if (ticketError) {
+        console.error("Ticket lookup error:", ticketError);
+        return new Response(
+          JSON.stringify({ error: "Failed to fetch ticket info" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const seenSessionIds = new Set<string>();
+      tickets = (ticketData || []).filter((t: any) => {
+        if (!t?.session_id || seenSessionIds.has(t.session_id)) return false;
+        seenSessionIds.add(t.session_id);
+        return true;
+      });
+    }
+
+    return new Response(JSON.stringify({ data, tickets }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

@@ -143,6 +143,9 @@ const FullpageChat = () => {
   const [ticketClosed, setTicketClosed] = useState(false);
 
   const firstAgentReplyIndex = messages.findIndex((msg) => msg.source === "agent");
+  const escalationTriggerIndex = messages.findIndex(
+    (msg) => msg.role === "assistant" && msg.content.includes(OPEN_TICKET_FORM_MARKER)
+  );
   const agentHasJoined = firstAgentReplyIndex !== -1;
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
@@ -216,7 +219,7 @@ const FullpageChat = () => {
     lastTicketTriggerIdRef.current = null;
 
     const { data: response } = await supabase.functions.invoke("read-chat-history", {
-      body: { session_id: sid },
+      body: { session_id: sid, include_tickets: true },
     });
 
     const data = response?.data;
@@ -231,18 +234,14 @@ const FullpageChat = () => {
       setMessages(loaded);
     }
 
-    // Check if this session has a ticket
-    const { data: ticketData } = await supabase
-      .from("support_tickets")
-      .select("id, ticket_number, status")
-      .eq("session_id", sid)
-      .maybeSingle();
-
-    if (ticketData?.ticket_number) {
-      setTicketNumber(`#${ticketData.ticket_number}`);
-      setTicketId(ticketData.id);
+    // Read ticket metadata from backend response (works for non-admin users too)
+    const sessionTicket = (response?.tickets || []).find((t: any) => t.session_id === sid);
+    if (sessionTicket?.ticket_number) {
+      setTicketNumber(`#${sessionTicket.ticket_number}`);
+      setTicketId(sessionTicket.id || null);
       setAgentRequested(true);
       setAgentRequestedAt(new Date());
+      setTicketClosed(false);
     }
   };
 
@@ -367,13 +366,19 @@ const FullpageChat = () => {
                     isStreaming={isLoading && i === messages.length - 1 && msg.role === "assistant"}
                     userName={preloadEmail?.split("@")[0]}
                   />
+                  {/* Keep waiting card pinned near escalation message, not at bottom */}
+                  {agentRequested && agentRequestedAt && !agentHasJoined && escalationTriggerIndex === i && (
+                    <div className="py-2">
+                      <AgentConnectMessage requestedAt={agentRequestedAt} />
+                    </div>
+                  )}
                 </Fragment>
               ))}
               {isLoading && messages[messages.length - 1]?.role === "user" && (
                 <Bubble role="assistant" content="" isStreaming source="ai" userName={preloadEmail?.split("@")[0]} />
               )}
-              {/* Show waiting card only if agent hasn't joined yet */}
-              {agentRequested && agentRequestedAt && !agentHasJoined && (
+              {/* Fallback for old sessions without escalation marker */}
+              {agentRequested && agentRequestedAt && !agentHasJoined && escalationTriggerIndex === -1 && (
                 <div className="py-2">
                   <AgentConnectMessage requestedAt={agentRequestedAt} />
                 </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { MessageSquarePlus, Search, Trash2, Ticket } from "lucide-react";
+import { MessageSquarePlus, Search, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import propscholarIcon from "@/assets/propscholar-icon.png";
 import { cn } from "@/lib/utils";
@@ -82,28 +82,31 @@ export const ChatSidebar = ({
       return;
     }
 
-    // Fetch chat history and tickets in parallel
-    const [chatRes, ticketRes] = await Promise.all([
-      supabase.functions.invoke("read-chat-history", {
-        body: { session_ids: mySessionIds },
-      }),
-      supabase
-        .from("support_tickets")
-        .select("ticket_number, status, session_id")
-        .in("session_id", mySessionIds),
-    ]);
+    const { data: responseData, error: chatError } = await supabase.functions.invoke("read-chat-history", {
+      body: { session_ids: mySessionIds, include_tickets: true },
+    });
 
-    const data = chatRes.data?.data;
+    if (chatError) {
+      console.error("Failed to load chat sessions:", chatError);
+      setSessions([]);
+      return;
+    }
+
+    const data = responseData?.data;
+    const ticketRows = responseData?.tickets || [];
 
     // Build ticket map: session_id -> { ticket_number, status }
     const ticketMap = new Map<string, { ticket_number: number; status: string }>();
-    if (ticketRes.data) {
-      for (const t of ticketRes.data) {
-        if (t.session_id) ticketMap.set(t.session_id, { ticket_number: t.ticket_number!, status: t.status });
+    for (const t of ticketRows) {
+      if (t?.session_id && t?.ticket_number) {
+        ticketMap.set(t.session_id, { ticket_number: t.ticket_number, status: t.status || "open" });
       }
     }
 
-    if (!data) return;
+    if (!data) {
+      setSessions([]);
+      return;
+    }
 
     const userMessages = data.filter((row: any) => row.role === "user");
     const sessionMap = new Map<string, ChatSession>();
