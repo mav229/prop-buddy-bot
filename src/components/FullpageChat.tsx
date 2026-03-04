@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { ArrowUp, Loader2, RefreshCw, AlertTriangle, Menu } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { AgentConnectMessage } from "@/components/AgentConnectMessage";
+import { AgentJoinedMessage } from "@/components/AgentJoinedMessage";
 import { ChatSidebar } from "@/components/ChatSidebar";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
@@ -135,6 +136,7 @@ const FullpageChat = () => {
   const [agentRequested, setAgentRequested] = useState(false);
   const [agentRequestedAt, setAgentRequestedAt] = useState<Date | null>(null);
   const [ticketNumber, setTicketNumber] = useState<string | null>(null);
+  const [ticketId, setTicketId] = useState<string | null>(null);
   const lastTicketTriggerIdRef = useRef<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -142,7 +144,7 @@ const FullpageChat = () => {
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   useEffect(() => {
-    if (messages.length === 0) { setAgentRequested(false); setAgentRequestedAt(null); setTicketNumber(null); lastTicketTriggerIdRef.current = null; }
+    if (messages.length === 0) { setAgentRequested(false); setAgentRequestedAt(null); setTicketNumber(null); setTicketId(null); lastTicketTriggerIdRef.current = null; }
   }, [messages.length]);
 
   // Agent escalation trigger - in-chat only for dashboard
@@ -154,11 +156,13 @@ const FullpageChat = () => {
     setAgentRequested(true);
     setAgentRequestedAt(new Date());
     // Fire escalation and capture ticket number
-    escalateToAgent().then((num) => {
-      if (num) setTicketNumber(num);
+    escalateToAgent().then((result) => {
+      if (result) {
+        setTicketNumber(result.ticketNumber);
+        setTicketId(result.ticketId);
+      }
     });
-    appendAssistantMessage("I've connected you with our support team. A real agent will join this conversation within **4 hours**. Stay right here — they'll reply in this chat.");
-  }, [messages, agentRequested, isLoading, escalateToAgent, appendAssistantMessage]);
+  }, [messages, agentRequested, isLoading, escalateToAgent]);
 
   useEffect(() => {
     if (inputRef.current) {
@@ -183,6 +187,7 @@ const FullpageChat = () => {
     setAgentRequested(false);
     setAgentRequestedAt(null);
     setTicketNumber(null);
+    setTicketId(null);
     lastTicketTriggerIdRef.current = null;
 
     const { data: response } = await supabase.functions.invoke("read-chat-history", {
@@ -204,12 +209,13 @@ const FullpageChat = () => {
     // Check if this session has a ticket
     const { data: ticketData } = await supabase
       .from("support_tickets")
-      .select("ticket_number, status")
+      .select("id, ticket_number, status")
       .eq("session_id", sid)
       .maybeSingle();
 
     if (ticketData?.ticket_number) {
       setTicketNumber(`#${ticketData.ticket_number}`);
+      setTicketId(ticketData.id);
       setAgentRequested(true);
       setAgentRequestedAt(new Date());
     }
@@ -217,6 +223,17 @@ const FullpageChat = () => {
 
   const suggestions = ["What are the drawdown rules?", "How do payouts work?", "Tell me about evaluations", "What is Scholar Score?"];
   const firstAgentReplyIndex = messages.findIndex((msg) => msg.source === "agent");
+  const agentHasJoined = firstAgentReplyIndex !== -1;
+
+  const handleCloseTicket = async () => {
+    if (!ticketNumber) return;
+    const num = ticketNumber.replace("#", "");
+    await supabase.from("support_tickets").update({ status: "resolved" }).eq("ticket_number", parseInt(num));
+    setTicketNumber(null);
+    setTicketId(null);
+    setAgentRequested(false);
+    setAgentRequestedAt(null);
+  };
 
   return (
     <div className="w-full h-full flex bg-[hsl(0,0%,4%)] overflow-hidden sm:aspect-video">
@@ -312,10 +329,12 @@ const FullpageChat = () => {
             <div className="space-y-4">
               {messages.map((msg, i) => (
                 <Fragment key={msg.id}>
-                  {agentRequested && agentRequestedAt && firstAgentReplyIndex === i && (
-                    <div className="py-2">
-                      <AgentConnectMessage requestedAt={agentRequestedAt} />
-                    </div>
+                  {/* Show "Agent Joined" divider right before first agent reply */}
+                  {agentRequested && firstAgentReplyIndex === i && (
+                    <>
+                      <AgentConnectMessage requestedAt={agentRequestedAt!} />
+                      <AgentJoinedMessage />
+                    </>
                   )}
                   <Bubble
                     role={msg.role}
@@ -329,9 +348,21 @@ const FullpageChat = () => {
               {isLoading && messages[messages.length - 1]?.role === "user" && (
                 <Bubble role="assistant" content="" isStreaming source="ai" userName={preloadEmail?.split("@")[0]} />
               )}
-              {agentRequested && agentRequestedAt && firstAgentReplyIndex === -1 && (
+              {/* Show waiting card only if agent hasn't joined yet */}
+              {agentRequested && agentRequestedAt && !agentHasJoined && (
                 <div className="py-2">
                   <AgentConnectMessage requestedAt={agentRequestedAt} />
+                </div>
+              )}
+              {/* Close ticket button */}
+              {ticketNumber && (
+                <div className="flex justify-center py-2">
+                  <button
+                    onClick={handleCloseTicket}
+                    className="text-[11px] px-4 py-1.5 rounded-full border border-[hsl(0,0%,18%)] bg-[hsl(0,0%,8%)] text-white/50 hover:text-white/80 hover:border-[hsl(0,0%,25%)] transition-all"
+                  >
+                    Close Ticket {ticketNumber}
+                  </button>
                 </div>
               )}
               {error && <div className="rounded-lg border border-red-900/40 bg-red-950/30 text-red-400 px-4 py-2.5 text-xs">{error}</div>}

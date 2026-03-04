@@ -293,7 +293,7 @@ export const useChat = (preloadEmail?: string, source: string = "widget") => {
   }, []); // sessionIdRef is stable
 
   // Escalate to live agent (no form, silent)
-  const escalateToAgent = useCallback(async (): Promise<string | null> => {
+  const escalateToAgent = useCallback(async (): Promise<{ ticketNumber: string; ticketId: string } | null> => {
     try {
       const { data, error: fnError } = await supabase.functions.invoke("escalate", {
         body: { session_id: sessionIdRef.current },
@@ -302,7 +302,9 @@ export const useChat = (preloadEmail?: string, source: string = "widget") => {
         console.error("Escalation error:", fnError);
         return null;
       }
-      return data?.ticket_number ? `#${data.ticket_number}` : (data?.ticket_id?.slice(0, 8).toUpperCase() || null);
+      const num = data?.ticket_number ? `#${data.ticket_number}` : (data?.ticket_id?.slice(0, 8).toUpperCase() || null);
+      if (!num) return null;
+      return { ticketNumber: num, ticketId: data?.ticket_id || "" };
     } catch (err) {
       console.error("Escalation error:", err);
       return null;

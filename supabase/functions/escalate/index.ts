@@ -26,17 +26,7 @@ serve(async (req: Request) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Grab chat history from DB for this session
-    const { data: chatRows } = await supabase
-      .from("chat_history")
-      .select("role, content, created_at")
-      .eq("session_id", session_id)
-      .order("created_at", { ascending: true })
-      .limit(100);
-
-    const chatHistory = chatRows || [];
-
-    // Try to find email from session_cache or widget_leads if not provided
+    // Check if this email already has an open/in_progress ticket
     let resolvedEmail = email || "";
     if (!resolvedEmail) {
       const { data: cacheRow } = await supabase
@@ -57,11 +47,45 @@ serve(async (req: Request) => {
       if (leadRow?.email) resolvedEmail = leadRow.email;
     }
 
+    const finalEmail = resolvedEmail || "no-email@escalation";
+
+    // Check for existing open ticket for this email or session
+    const { data: existingTicket } = await supabase
+      .from("support_tickets")
+      .select("id, ticket_number, status")
+      .or(`email.eq.${finalEmail},session_id.eq.${session_id}`)
+      .in("status", ["open", "in_progress"])
+      .limit(1)
+      .maybeSingle();
+
+    if (existingTicket) {
+      console.log(`Existing ticket found: #${existingTicket.ticket_number} for ${finalEmail}`);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          ticket_number: existingTicket.ticket_number,
+          ticket_id: existingTicket.id,
+          existing: true,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Grab chat history from DB for this session
+    const { data: chatRows } = await supabase
+      .from("chat_history")
+      .select("role, content, created_at")
+      .eq("session_id", session_id)
+      .order("created_at", { ascending: true })
+      .limit(100);
+
+    const chatHistory = chatRows || [];
+
     // Create support ticket as an escalation
     const { data, error: dbError } = await supabase
       .from("support_tickets")
       .insert({
-        email: resolvedEmail || "no-email@escalation",
+        email: finalEmail,
         phone: "",
         problem: "User requested live agent support",
         session_id,

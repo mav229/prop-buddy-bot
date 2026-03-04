@@ -261,13 +261,16 @@ export const ChatSidebar = ({
                       </div>
                     )}
                   </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); deleteSession(session.session_id); }}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 mr-1.5 rounded text-[hsl(0,0%,40%)] hover:text-red-400 hover:bg-[hsl(0,0%,14%)] transition-all"
-                    title="Delete chat"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {/* Hide delete for ticket sessions - only show for non-ticket chats */}
+                  {!session.ticketNumber && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); deleteSession(session.session_id); }}
+                      className="opacity-0 group-hover:opacity-100 p-1.5 mr-1.5 rounded text-[hsl(0,0%,40%)] hover:text-red-400 hover:bg-[hsl(0,0%,14%)] transition-all"
+                      title="Delete chat"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               );
             })}
