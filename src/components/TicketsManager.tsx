@@ -1,10 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Ticket, RefreshCw, Mail, Phone, MessageSquare, Clock, CheckCircle,
-  AlertCircle, Trash2, ExternalLink, Copy, Filter, Search
+  Ticket, RefreshCw, Mail, Phone, Clock, CheckCircle,
+  AlertCircle, Trash2, ExternalLink, Copy, Search
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -12,6 +11,7 @@ import { Link } from "react-router-dom";
 
 interface SupportTicket {
   id: string;
+  ticket_number: number | null;
   email: string;
   phone: string;
   problem: string;
@@ -29,7 +29,7 @@ export const TicketsManager = () => {
   const [filter, setFilter] = useState<"all" | "open" | "in_progress" | "resolved">("all");
   const [search, setSearch] = useState("");
 
-  const fetchTickets = async () => {
+  const fetchTickets = useCallback(async () => {
     setIsLoading(true);
     const { data, error } = await supabase
       .from("support_tickets")
@@ -43,9 +43,26 @@ export const TicketsManager = () => {
       setTickets(data || []);
     }
     setIsLoading(false);
-  };
+  }, []);
 
-  useEffect(() => { fetchTickets(); }, []);
+  useEffect(() => { fetchTickets(); }, [fetchTickets]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-support-tickets-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "support_tickets" },
+        () => {
+          fetchTickets();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchTickets]);
 
   const updateTicketStatus = async (ticketId: string, newStatus: string) => {
     const { error } = await supabase
@@ -190,7 +207,7 @@ export const TicketsManager = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-[10px] font-mono text-muted-foreground/50 tracking-wider">
-                        #{ticket.id.slice(0, 8).toUpperCase()}
+                        {ticket.ticket_number ? `Ticket #${ticket.ticket_number}` : `#${ticket.id.slice(0, 8).toUpperCase()}`}
                       </span>
                       <span className="text-[10px] text-muted-foreground/30">•</span>
                       <span className="text-[10px] text-muted-foreground/40">
