@@ -10,6 +10,7 @@ import {
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DEFAULT_AGENT_AVATAR_URL, DEFAULT_AGENT_NAME } from "@/lib/agentMessage";
 import { toast } from "sonner";
 
 interface Ticket {
@@ -35,7 +36,9 @@ const TicketDetail = () => {
   const [loading, setLoading] = useState(true);
   const [chatMessages, setChatMessages] = useState<{ role: string; content: string }[]>([]);
   const [replyText, setReplyText] = useState("");
+  const [agentName, setAgentName] = useState(DEFAULT_AGENT_NAME);
   const [sending, setSending] = useState(false);
+
   useEffect(() => {
     if (!id || !isAdmin) return;
     fetchTicket();
@@ -92,6 +95,7 @@ const TicketDetail = () => {
       const { data: { session: authSession } } = await supabase.auth.getSession();
       if (!authSession?.access_token) throw new Error("Not authenticated");
 
+      const displayAgentName = agentName.trim() || DEFAULT_AGENT_NAME;
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tickets-api/${ticket.id}`;
       const res = await fetch(url, {
         method: "PATCH",
@@ -100,7 +104,12 @@ const TicketDetail = () => {
           Authorization: `Bearer ${authSession.access_token}`,
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
-        body: JSON.stringify({ admin_reply: replyText.trim(), status: "in_progress" }),
+        body: JSON.stringify({
+          admin_reply: replyText.trim(),
+          status: "in_progress",
+          agent_name: displayAgentName,
+          agent_avatar_url: DEFAULT_AGENT_AVATAR_URL,
+        }),
       });
 
       const raw = await res.text();
@@ -347,7 +356,27 @@ const TicketDetail = () => {
             </div>
           )}
 
-          <div className="px-8 py-5">
+          <div className="px-8 py-5 space-y-3.5">
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-white/30 mb-2">
+                Agent Display Name
+              </label>
+              <input
+                value={agentName}
+                onChange={(e) => setAgentName(e.target.value)}
+                placeholder={DEFAULT_AGENT_NAME}
+                className="w-full rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white/80 placeholder:text-white/20 px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/30 transition-all"
+              />
+              <div className="flex items-center gap-2 mt-2">
+                <img
+                  src={DEFAULT_AGENT_AVATAR_URL}
+                  alt="Agent avatar"
+                  className="w-5 h-5 rounded-full border border-white/15"
+                />
+                <p className="text-[10px] text-white/25">Agent DP is preset for live replies.</p>
+              </div>
+            </div>
+
             <textarea
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}

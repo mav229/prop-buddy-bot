@@ -8,6 +8,7 @@ export interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  source?: string;
 }
 
 // Pricing for google/gemini-2.5-flash (per 1M tokens)
@@ -50,6 +51,7 @@ export const useChat = (preloadEmail?: string, source: string = "widget") => {
       role: "user",
       content: displayContent,
       timestamp: new Date(),
+      source: "user",
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -137,6 +139,7 @@ export const useChat = (preloadEmail?: string, source: string = "widget") => {
           role: "assistant",
           content: "",
           timestamp: new Date(),
+          source: "ai",
         },
       ]);
 
@@ -243,6 +246,7 @@ export const useChat = (preloadEmail?: string, source: string = "widget") => {
       role: "assistant",
       content,
       timestamp: new Date(),
+      source: "ai",
     };
     setMessages((prev) => [...prev, msg]);
   }, []);
@@ -274,6 +278,7 @@ export const useChat = (preloadEmail?: string, source: string = "widget") => {
                   role: "assistant" as const,
                   content: row.content,
                   timestamp: new Date(row.created_at),
+                  source: row.source,
                 },
               ];
             });

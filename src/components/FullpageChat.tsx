@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from "react";
+import { Fragment, useRef, useEffect, useCallback, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ArrowUp, Loader2, RefreshCw, AlertTriangle, Menu } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import propscholarIcon from "@/assets/propscholar-icon.png";
 import { supabase } from "@/integrations/supabase/client";
+import { parseAgentReply } from "@/lib/agentMessage";
 
 const OPEN_TICKET_FORM_MARKER = "[[OPEN_TICKET_FORM]]";
 
@@ -27,9 +28,11 @@ const TypingDots = () => (
   </div>
 );
 
-const Bubble = ({ role, content, isStreaming, userName }: { role: "user" | "assistant"; content: string; isStreaming?: boolean; userName?: string }) => {
+const Bubble = ({ role, content, isStreaming, userName, source }: { role: "user" | "assistant"; content: string; isStreaming?: boolean; userName?: string; source?: string }) => {
   const isUser = role === "user";
-  const display = stripMarkers(content);
+  const agentReply = parseAgentReply(content, source);
+  const isAgentReply = !isUser && agentReply.isAgentReply;
+  const display = stripMarkers(agentReply.content);
   const initial = userName ? userName.charAt(0).toUpperCase() : "U";
 
   return (
@@ -43,6 +46,8 @@ const Bubble = ({ role, content, isStreaming, userName }: { role: "user" | "assi
       )}>
         {isUser ? (
           <span className="text-[10px] font-bold text-black leading-none">{initial}</span>
+        ) : isAgentReply ? (
+          <img src={agentReply.agentAvatarUrl} alt={agentReply.agentName} className="w-full h-full object-cover rounded-full" />
         ) : (
           <img src={propscholarIcon} alt="S" className="w-full h-full object-cover rounded-full" />
         )}
@@ -77,6 +82,9 @@ const Bubble = ({ role, content, isStreaming, userName }: { role: "user" | "assi
               "[&_a]:text-white/90 [&_a]:underline [&_a]:underline-offset-2 [&_a]:decoration-white/30",
             )}
           >
+            {isAgentReply && (
+              <p className="text-[11px] font-medium text-white/70 mb-1.5">{agentReply.agentName}</p>
+            )}
             <ReactMarkdown
               components={{
                 p: ({ children }) => <p>{children}</p>,
@@ -188,6 +196,7 @@ const FullpageChat = () => {
         role: row.role as "user" | "assistant",
         content: row.content,
         timestamp: new Date(row.created_at),
+        source: row.source,
       }));
       setMessages(loaded);
     }
@@ -207,6 +216,7 @@ const FullpageChat = () => {
   };
 
   const suggestions = ["What are the drawdown rules?", "How do payouts work?", "Tell me about evaluations", "What is Scholar Score?"];
+  const firstAgentReplyIndex = messages.findIndex((msg) => msg.source === "agent");
 
   return (
     <div className="w-full h-full flex bg-[hsl(0,0%,4%)] overflow-hidden sm:aspect-video">
@@ -301,12 +311,25 @@ const FullpageChat = () => {
           ) : (
             <div className="space-y-4">
               {messages.map((msg, i) => (
-                <Bubble key={msg.id} role={msg.role} content={msg.content} isStreaming={isLoading && i === messages.length - 1 && msg.role === "assistant"} userName={preloadEmail?.split("@")[0]} />
+                <Fragment key={msg.id}>
+                  {agentRequested && agentRequestedAt && firstAgentReplyIndex === i && (
+                    <div className="py-2">
+                      <AgentConnectMessage requestedAt={agentRequestedAt} />
+                    </div>
+                  )}
+                  <Bubble
+                    role={msg.role}
+                    content={msg.content}
+                    source={msg.source}
+                    isStreaming={isLoading && i === messages.length - 1 && msg.role === "assistant"}
+                    userName={preloadEmail?.split("@")[0]}
+                  />
+                </Fragment>
               ))}
               {isLoading && messages[messages.length - 1]?.role === "user" && (
-                <Bubble role="assistant" content="" isStreaming userName={preloadEmail?.split("@")[0]} />
+                <Bubble role="assistant" content="" isStreaming source="ai" userName={preloadEmail?.split("@")[0]} />
               )}
-              {agentRequested && agentRequestedAt && (
+              {agentRequested && agentRequestedAt && firstAgentReplyIndex === -1 && (
                 <div className="py-2">
                   <AgentConnectMessage requestedAt={agentRequestedAt} />
                 </div>
