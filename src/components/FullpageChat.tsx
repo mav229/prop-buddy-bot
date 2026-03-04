@@ -140,11 +140,15 @@ const FullpageChat = () => {
   const lastTicketTriggerIdRef = useRef<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [ticketClosed, setTicketClosed] = useState(false);
+
+  const firstAgentReplyIndex = messages.findIndex((msg) => msg.source === "agent");
+  const agentHasJoined = firstAgentReplyIndex !== -1;
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   useEffect(() => {
-    if (messages.length === 0) { setAgentRequested(false); setAgentRequestedAt(null); setTicketNumber(null); setTicketId(null); lastTicketTriggerIdRef.current = null; }
+    if (messages.length === 0) { setAgentRequested(false); setAgentRequestedAt(null); setTicketNumber(null); setTicketId(null); setTicketClosed(false); lastTicketTriggerIdRef.current = null; }
   }, [messages.length]);
 
   // Agent escalation trigger - in-chat only for dashboard
@@ -173,10 +177,31 @@ const FullpageChat = () => {
 
   const handleSend = useCallback(() => {
     if (!input.trim() || isLoading || isRateLimited) return;
+    // If agent has joined, only insert as user message in chat_history (no AI reply)
+    if (agentHasJoined || agentRequested) {
+      const userMsg = {
+        id: crypto.randomUUID(),
+        role: "user" as const,
+        content: input.trim(),
+        timestamp: new Date(),
+        source: "user",
+      };
+      setMessages((prev) => [...prev, userMsg]);
+      // Persist to chat_history so agent can see it
+      supabase.from("chat_history").insert({
+        session_id: sessionId,
+        role: "user",
+        content: input.trim(),
+        source: "fullpage",
+      });
+      setInput("");
+      setTimeout(() => inputRef.current?.focus(), 0);
+      return;
+    }
     sendMessage(input.trim());
     setInput("");
     setTimeout(() => inputRef.current?.focus(), 0);
-  }, [input, isLoading, isRateLimited, sendMessage]);
+  }, [input, isLoading, isRateLimited, sendMessage, agentHasJoined, agentRequested, sessionId]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
@@ -222,13 +247,12 @@ const FullpageChat = () => {
   };
 
   const suggestions = ["What are the drawdown rules?", "How do payouts work?", "Tell me about evaluations", "What is Scholar Score?"];
-  const firstAgentReplyIndex = messages.findIndex((msg) => msg.source === "agent");
-  const agentHasJoined = firstAgentReplyIndex !== -1;
 
   const handleCloseTicket = async () => {
     if (!ticketNumber) return;
     const num = ticketNumber.replace("#", "");
     await supabase.from("support_tickets").update({ status: "resolved" }).eq("ticket_number", parseInt(num));
+    setTicketClosed(true);
     setTicketNumber(null);
     setTicketId(null);
     setAgentRequested(false);
@@ -363,6 +387,17 @@ const FullpageChat = () => {
                   >
                     Close Ticket {ticketNumber}
                   </button>
+                </div>
+              )}
+              {/* Warm closing message after ticket close */}
+              {ticketClosed && (
+                <div className="flex justify-center py-3">
+                  <div className="rounded-xl border border-[hsl(142,30%,20%)] bg-[hsl(142,30%,8%)] px-5 py-3.5 text-center max-w-sm">
+                    <p className="text-[13px] text-[hsl(142,76%,56%)] font-medium mb-1">Issue Resolved ✓</p>
+                    <p className="text-[11px] text-[hsl(0,0%,55%)] font-light leading-relaxed">
+                      We hope your issue has been resolved. Thank you for contacting PropScholar. Have a great day ahead! 🙌
+                    </p>
+                  </div>
                 </div>
               )}
               {error && <div className="rounded-lg border border-red-900/40 bg-red-950/30 text-red-400 px-4 py-2.5 text-xs">{error}</div>}
