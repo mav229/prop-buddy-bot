@@ -137,6 +137,7 @@ const FullpageChat = () => {
   const [agentRequestedAt, setAgentRequestedAt] = useState<Date | null>(null);
   const [ticketNumber, setTicketNumber] = useState<string | null>(null);
   const [ticketId, setTicketId] = useState<string | null>(null);
+  const [ticketStatus, setTicketStatus] = useState<string>("open");
   const lastTicketTriggerIdRef = useRef<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -151,8 +152,34 @@ const FullpageChat = () => {
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   useEffect(() => {
-    if (messages.length === 0) { setAgentRequested(false); setAgentRequestedAt(null); setTicketNumber(null); setTicketId(null); setTicketClosed(false); lastTicketTriggerIdRef.current = null; }
+    if (messages.length === 0) { setAgentRequested(false); setAgentRequestedAt(null); setTicketNumber(null); setTicketId(null); setTicketStatus("open"); setTicketClosed(false); lastTicketTriggerIdRef.current = null; }
   }, [messages.length]);
+
+  // Realtime ticket status polling
+  useEffect(() => {
+    if (!ticketNumber) return;
+    const num = parseInt(ticketNumber.replace("#", ""));
+    if (isNaN(num)) return;
+
+    const channel = supabase
+      .channel(`ticket-status-${num}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "support_tickets" },
+        (payload: any) => {
+          const row = payload.new;
+          if (row?.ticket_number === num) {
+            setTicketStatus(row.status);
+            if (row.status === "resolved") {
+              setTicketClosed(true);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [ticketNumber]);
 
   // Agent escalation trigger - in-chat only for dashboard
   useEffect(() => {
@@ -210,12 +237,12 @@ const FullpageChat = () => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
-  const handleSelectSession = async (sid: string) => {
-    // Reset ticket state for new session
+    const handleSelectSession = async (sid: string) => {
     setAgentRequested(false);
     setAgentRequestedAt(null);
     setTicketNumber(null);
     setTicketId(null);
+    setTicketStatus("open");
     lastTicketTriggerIdRef.current = null;
 
     const { data: response } = await supabase.functions.invoke("read-chat-history", {
@@ -234,14 +261,14 @@ const FullpageChat = () => {
       setMessages(loaded);
     }
 
-    // Read ticket metadata from backend response (works for non-admin users too)
     const sessionTicket = (response?.tickets || []).find((t: any) => t.session_id === sid);
     if (sessionTicket?.ticket_number) {
       setTicketNumber(`#${sessionTicket.ticket_number}`);
       setTicketId(sessionTicket.id || null);
+      setTicketStatus(sessionTicket.status || "open");
       setAgentRequested(true);
       setAgentRequestedAt(new Date());
-      setTicketClosed(false);
+      setTicketClosed(sessionTicket.status === "resolved");
     }
   };
 
@@ -249,11 +276,11 @@ const FullpageChat = () => {
 
   const handleCloseTicket = async () => {
     if (!ticketNumber) return;
-    const num = ticketNumber.replace("#", "");
-    await supabase.from("support_tickets").update({ status: "resolved" }).eq("ticket_number", parseInt(num));
+    await supabase.functions.invoke("escalate", {
+      body: { session_id: sessionId, action: "close" },
+    });
+    setTicketStatus("resolved");
     setTicketClosed(true);
-    setTicketNumber(null);
-    setTicketId(null);
     setAgentRequested(false);
     setAgentRequestedAt(null);
   };
@@ -315,20 +342,51 @@ const FullpageChat = () => {
                   <h1 className="text-[14px] font-semibold tracking-tight text-white/90">Scholaris AI</h1>
                   <span className="text-[10px] text-white/20 font-light">by PropScholar</span>
                 </div>
-                {ticketNumber ? (
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                    <span className="text-[10px] text-amber-400 font-medium">Support Ticket {ticketNumber}</span>
-                  </div>
-                ) : (
+                {!ticketNumber ? (
                   <div className="flex items-center gap-1.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 online-dot" />
                     <span className="text-[10px] text-white/30 font-light">Online</span>
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
           </div>
+
+          {/* Ticket status bar */}
+          {ticketNumber && (
+            <div className={cn(
+              "mt-2 px-4 py-2.5 rounded-xl border flex items-center justify-between",
+              ticketStatus === "resolved"
+                ? "bg-[hsl(210,60%,12%)] border-[hsl(210,70%,30%)]"
+                : ticketStatus === "in_progress"
+                  ? "bg-[hsl(45,60%,10%)] border-[hsl(45,70%,25%)]"
+                  : "bg-[hsl(0,0%,8%)] border-[hsl(0,0%,18%)]"
+            )}>
+              <div className="flex items-center gap-3">
+                <span className="text-[13px] font-bold text-white tracking-tight">
+                  Ticket {ticketNumber}
+                </span>
+                <span className={cn(
+                  "text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full",
+                  ticketStatus === "resolved"
+                    ? "text-[hsl(210,90%,65%)] bg-[hsl(210,60%,20%)]"
+                    : ticketStatus === "in_progress"
+                      ? "text-[hsl(45,100%,60%)] bg-[hsl(45,60%,18%)]"
+                      : "text-white/70 bg-white/10"
+                )}>
+                  {ticketStatus === "open" ? "Opened" : ticketStatus === "in_progress" ? "Solving" : "Resolved"}
+                </span>
+              </div>
+              {ticketStatus !== "resolved" && (
+                <button
+                  onClick={handleCloseTicket}
+                  className="text-[10px] px-3 py-1 rounded-full border border-white/10 text-white/40 hover:text-white/70 hover:border-white/25 transition-all"
+                >
+                  Close
+                </button>
+              )}
+            </div>
+          )}
         </header>
 
         {/* Messages */}
@@ -383,18 +441,7 @@ const FullpageChat = () => {
                   <AgentConnectMessage requestedAt={agentRequestedAt} />
                 </div>
               )}
-              {/* Close ticket button */}
-              {ticketNumber && (
-                <div className="flex justify-center py-2">
-                  <button
-                    onClick={handleCloseTicket}
-                    className="text-[11px] px-4 py-1.5 rounded-full border border-[hsl(0,0%,18%)] bg-[hsl(0,0%,8%)] text-white/50 hover:text-white/80 hover:border-[hsl(0,0%,25%)] transition-all"
-                  >
-                    Close Ticket {ticketNumber}
-                  </button>
-                </div>
-              )}
-              {/* Warm closing message after ticket close */}
+              {/* Warm closing message after ticket resolved */}
               {ticketClosed && (
                 <div className="flex justify-center py-3">
                   <div className="rounded-xl border border-[hsl(142,30%,20%)] bg-[hsl(142,30%,8%)] px-5 py-3.5 text-center max-w-sm">

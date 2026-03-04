@@ -146,10 +146,19 @@ export const ChatSidebar = ({
 
   const statusColor = (status: string) => {
     switch (status) {
-      case "open": return "bg-[hsl(38,90%,50%)]";
-      case "in_progress": return "bg-[hsl(210,90%,55%)]";
-      case "resolved": return "bg-[hsl(142,76%,46%)]";
+      case "open": return "bg-white/60";
+      case "in_progress": return "bg-[hsl(45,100%,55%)]";
+      case "resolved": return "bg-[hsl(210,90%,60%)]";
       default: return "bg-[hsl(0,0%,40%)]";
+    }
+  };
+
+  const statusLabel = (status: string) => {
+    switch (status) {
+      case "open": return "Opened";
+      case "in_progress": return "Solving";
+      case "resolved": return "Resolved";
+      default: return status;
     }
   };
 
@@ -246,20 +255,26 @@ export const ChatSidebar = ({
                         <div className="w-2 h-2 rounded-full bg-white flex-shrink-0 shadow-[0_0_6px_rgba(255,255,255,0.5)]" />
                       )}
                       <span className={cn(
-                        "text-[13px] font-light truncate block",
+                        "text-[13px] truncate block",
+                        session.ticketNumber ? "font-semibold text-white" :
                         session.session_id === currentSessionId
-                          ? "text-[hsl(0,0%,85%)]"
-                          : hasNew ? "text-white font-normal" : "text-[hsl(0,0%,50%)]"
+                          ? "text-[hsl(0,0%,85%)] font-light"
+                          : hasNew ? "text-white font-normal" : "text-[hsl(0,0%,50%)] font-light"
                       )}>
                         {session.ticketNumber ? `Ticket #${session.ticketNumber}` : session.title}
                       </span>
                     </div>
-                    {/* Ticket badge inline */}
+                    {/* Ticket status badge */}
                     {session.ticketNumber && (
                       <div className="flex items-center gap-1.5 mt-1">
                         <div className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", statusColor(session.ticketStatus || "open"))} />
-                        <span className="text-[10px] font-mono text-[hsl(0,0%,45%)]">
-                          Ticket #{session.ticketNumber}
+                        <span className={cn(
+                          "text-[10px] font-semibold uppercase tracking-wider",
+                          session.ticketStatus === "resolved" ? "text-[hsl(210,80%,65%)]"
+                            : session.ticketStatus === "in_progress" ? "text-[hsl(45,100%,60%)]"
+                            : "text-white/50"
+                        )}>
+                          {statusLabel(session.ticketStatus || "open")}
                         </span>
                       </div>
                     )}

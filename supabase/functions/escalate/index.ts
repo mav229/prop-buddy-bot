@@ -13,7 +13,8 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { session_id, email } = await req.json();
+    const body = await req.json();
+    const { session_id, email, action } = body;
 
     if (!session_id) {
       return new Response(
@@ -25,6 +26,31 @@ serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Handle close-ticket action
+    if (action === "close") {
+      const { data: ticket } = await supabase
+        .from("support_tickets")
+        .select("id, ticket_number, status")
+        .eq("session_id", session_id)
+        .in("status", ["open", "in_progress"])
+        .limit(1)
+        .maybeSingle();
+
+      if (!ticket) {
+        return new Response(
+          JSON.stringify({ error: "No open ticket found for this session" }),
+          { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      await supabase.from("support_tickets").update({ status: "resolved" }).eq("id", ticket.id);
+
+      return new Response(
+        JSON.stringify({ success: true, ticket_number: ticket.ticket_number }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
 
     // Check if this email already has an open/in_progress ticket
     let resolvedEmail = email || "";
