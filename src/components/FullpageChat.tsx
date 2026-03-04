@@ -1,4 +1,4 @@
-import { Fragment, useRef, useEffect, useCallback, useState } from "react";
+import { Fragment, useRef, useEffect, useCallback, useState, memo, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ArrowUp, Loader2, RefreshCw, AlertTriangle, Menu } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
@@ -29,7 +29,7 @@ const TypingDots = () => (
   </div>
 );
 
-const Bubble = ({ role, content, isStreaming, userName, source }: { role: "user" | "assistant"; content: string; isStreaming?: boolean; userName?: string; source?: string }) => {
+const Bubble = memo(({ role, content, isStreaming, userName, source }: { role: "user" | "assistant"; content: string; isStreaming?: boolean; userName?: string; source?: string }) => {
   const isUser = role === "user";
   const agentReply = parseAgentReply(content, source);
   const isAgentReply = !isUser && agentReply.isAgentReply;
@@ -110,7 +110,8 @@ const Bubble = ({ role, content, isStreaming, userName, source }: { role: "user"
       </div>
     </div>
   );
-};
+});
+Bubble.displayName = "Bubble";
 
 const FullpageChat = () => {
   const [searchParams] = useSearchParams();
@@ -327,8 +328,44 @@ const FullpageChat = () => {
           />
         </div>
 
-        {/* Header - sticky */}
-        <header className="flex-shrink-0 sticky top-0 z-10 px-3 sm:px-5 pt-3 sm:pt-4 pb-2 sm:pb-3 bg-[hsl(0,0%,4%)] border-b border-[hsl(0,0%,10%)]">
+        {/* Ticket status bar - TOP, above everything */}
+        {ticketNumber && (
+          <div className={cn(
+            "flex-shrink-0 sticky top-0 z-20 px-4 sm:px-6 py-3 flex items-center justify-between border-b",
+            ticketStatus === "resolved"
+              ? "bg-[hsl(210,50%,10%)] border-[hsl(210,60%,25%)]"
+              : ticketStatus === "in_progress"
+                ? "bg-[hsl(45,50%,8%)] border-[hsl(45,60%,20%)]"
+                : "bg-[hsl(0,0%,7%)] border-[hsl(0,0%,15%)]"
+          )}>
+            <div className="flex items-center gap-3">
+              <span className="text-[15px] font-bold text-white tracking-tight">
+                Ticket {ticketNumber}
+              </span>
+              <span className={cn(
+                "text-[11px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full",
+                ticketStatus === "resolved"
+                  ? "text-[hsl(210,90%,70%)] bg-[hsl(210,60%,20%)]"
+                  : ticketStatus === "in_progress"
+                    ? "text-[hsl(45,100%,60%)] bg-[hsl(45,60%,18%)]"
+                    : "text-white/80 bg-white/10"
+              )}>
+                {ticketStatus === "open" ? "Opened" : ticketStatus === "in_progress" ? "Solving" : "Resolved"}
+              </span>
+            </div>
+            {ticketStatus !== "resolved" && (
+              <button
+                onClick={handleCloseTicket}
+                className="text-[11px] px-3 py-1 rounded-full border border-white/15 text-white/50 hover:text-white/80 hover:border-white/30 transition-all"
+              >
+                Close
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Header */}
+        <header className="flex-shrink-0 px-3 sm:px-5 pt-3 sm:pt-4 pb-2 sm:pb-3 bg-[hsl(0,0%,4%)] border-b border-[hsl(0,0%,10%)]">
           <div className="flex items-center">
             <button onClick={() => setMobileSidebarOpen(true)} className="sm:hidden mr-2 p-1.5 rounded-lg text-white/40 hover:text-white/70 hover:bg-[hsl(0,0%,10%)] transition-colors">
               <Menu className="w-5 h-5" />
@@ -351,42 +388,6 @@ const FullpageChat = () => {
               </div>
             </div>
           </div>
-
-          {/* Ticket status bar */}
-          {ticketNumber && (
-            <div className={cn(
-              "mt-2 px-4 py-2.5 rounded-xl border flex items-center justify-between",
-              ticketStatus === "resolved"
-                ? "bg-[hsl(210,60%,12%)] border-[hsl(210,70%,30%)]"
-                : ticketStatus === "in_progress"
-                  ? "bg-[hsl(45,60%,10%)] border-[hsl(45,70%,25%)]"
-                  : "bg-[hsl(0,0%,8%)] border-[hsl(0,0%,18%)]"
-            )}>
-              <div className="flex items-center gap-3">
-                <span className="text-[13px] font-bold text-white tracking-tight">
-                  Ticket {ticketNumber}
-                </span>
-                <span className={cn(
-                  "text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full",
-                  ticketStatus === "resolved"
-                    ? "text-[hsl(210,90%,65%)] bg-[hsl(210,60%,20%)]"
-                    : ticketStatus === "in_progress"
-                      ? "text-[hsl(45,100%,60%)] bg-[hsl(45,60%,18%)]"
-                      : "text-white/70 bg-white/10"
-                )}>
-                  {ticketStatus === "open" ? "Opened" : ticketStatus === "in_progress" ? "Solving" : "Resolved"}
-                </span>
-              </div>
-              {ticketStatus !== "resolved" && (
-                <button
-                  onClick={handleCloseTicket}
-                  className="text-[10px] px-3 py-1 rounded-full border border-white/10 text-white/40 hover:text-white/70 hover:border-white/25 transition-all"
-                >
-                  Close
-                </button>
-              )}
-            </div>
-          )}
         </header>
 
         {/* Messages */}
