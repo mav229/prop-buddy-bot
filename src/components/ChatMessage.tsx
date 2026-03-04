@@ -49,6 +49,9 @@ export const ChatMessage = ({ role, content, isStreaming, isWidget = false, show
       .replace(/!!OPEN_TICKET_FORM!!/g, "")
       .replace(/\[\[SUPPORT_TICKET_BUTTON\]\]/g, "")
       .replace(/!!SUPPORT_TICKET_BUTTON!!/g, "")
+      .replace(/\[\[AGENT_NAME:[^\]]+\]\]/g, "")
+      .replace(/\[\[AGENT_AVATAR:[^\]]+\]\]/g, "")
+      .replace(/\*\*💬\s*Agent Reply:\*\*\s*/gi, "")
       .trim();
 
   const displayContent = stripInternalMarkers(content);

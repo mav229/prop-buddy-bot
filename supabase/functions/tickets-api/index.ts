@@ -7,6 +7,15 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
 };
 
+const DEFAULT_AGENT_NAME = "Harris - PropScholar";
+const DEFAULT_AGENT_AVATAR_URL = "https://res.cloudinary.com/dzozyqlqr/image/upload/v1766327970/Gemini_Generated_Image_hvp9g0hvp9g0hvp9_1_q6pmq8.png";
+
+const sanitizeAgentMeta = (value: unknown, fallback: string, maxLength: number) => {
+  if (typeof value !== "string") return fallback;
+  const cleaned = value.replace(/[\r\n\[\]]/g, "").trim();
+  return cleaned.length > 0 ? cleaned.slice(0, maxLength) : fallback;
+};
+
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -105,10 +114,13 @@ serve(async (req: Request) => {
 
       const body = await req.json();
       const updates: Record<string, unknown> = {};
+      const adminReply = typeof body.admin_reply === "string" ? body.admin_reply.trim() : "";
+      const agentName = sanitizeAgentMeta(body.agent_name, DEFAULT_AGENT_NAME, 80);
+      const agentAvatarUrl = sanitizeAgentMeta(body.agent_avatar_url, DEFAULT_AGENT_AVATAR_URL, 400);
 
       if (body.status) updates.status = body.status;
       if (body.admin_reply !== undefined) {
-        updates.admin_reply = body.admin_reply;
+        updates.admin_reply = adminReply;
         updates.replied_at = new Date().toISOString();
       }
 
@@ -137,11 +149,11 @@ serve(async (req: Request) => {
 
       // If admin_reply is set and ticket has a session_id, insert reply into chat_history
       // so the user sees it in their chat in realtime
-      if (body.admin_reply && ticketRow.session_id) {
+      if (adminReply && ticketRow.session_id) {
         const { error: chatError } = await supabase.from("chat_history").insert({
           session_id: ticketRow.session_id,
           role: "assistant",
-          content: `**💬 Agent Reply:**\n\n${body.admin_reply}`,
+          content: `[[AGENT_NAME:${agentName}]]\n[[AGENT_AVATAR:${agentAvatarUrl}]]\n${adminReply}`,
           source: "agent",
         });
         if (chatError) {
