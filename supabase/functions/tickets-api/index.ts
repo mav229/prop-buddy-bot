@@ -122,6 +122,10 @@ serve(async (req: Request) => {
       if (body.admin_reply !== undefined) {
         updates.admin_reply = adminReply;
         updates.replied_at = new Date().toISOString();
+        // Auto-escalate status to in_progress when admin first replies to an open ticket
+        if (!body.status) {
+          // We'll check current status after fetching the ticket below
+        }
       }
 
       if (Object.keys(updates).length === 0) {
@@ -137,6 +141,11 @@ serve(async (req: Request) => {
         .maybeSingle();
 
       if (!ticketRow) return json({ error: "Ticket not found" }, 404);
+
+      // Auto-set to in_progress when admin replies to an open ticket
+      if (adminReply && ticketRow.status === "open" && !updates.status) {
+        updates.status = "in_progress";
+      }
 
       const { data, error } = await supabase
         .from("support_tickets")
