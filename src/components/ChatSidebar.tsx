@@ -248,7 +248,7 @@ export const ChatSidebar = ({
                           ? "text-[hsl(0,0%,85%)]"
                           : hasNew ? "text-white font-normal" : "text-[hsl(0,0%,50%)]"
                       )}>
-                        {session.title}
+                        {session.ticketNumber ? `Ticket #${session.ticketNumber}` : session.title}
                       </span>
                     </div>
                     {/* Ticket badge inline */}
