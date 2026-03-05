@@ -33,6 +33,43 @@ let couponsCache: { data: any[] | null; fetchedAt: number } = { data: null, fetc
 // ═══════════════════════════════════════════════════════════════
 const GREETING_PATTERNS = /^(hi|hello|hey|hola|sup|yo|greetings|good morning|good afternoon|good evening|gm|whats up|what's up)[\s!?.]*$/i;
 
+// ═══════════════════════════════════════════════════════════════
+// LAYER 4: Intent detection — only call MongoDB for account queries
+// ═══════════════════════════════════════════════════════════════
+const ACCOUNT_INTENT_PATTERNS = [
+  // Account / status queries
+  /\b(my\s+account|account\s*(status|details|info|balance|number|data)|show\s+me|check\s+my|what'?s\s+my)\b/i,
+  // Payout queries
+  /\b(payout|withdrawal|withdraw|pay\s*out|paid)\b/i,
+  // Order / purchase queries
+  /\b(my\s+order|order\s*(status|id|number|detail)|purchase|bought|payment)\b/i,
+  // Violations / flags
+  /\b(violation|breach|flag|martingale|averaging|banned|restricted)\b/i,
+  // Credentials / login
+  /\b(credential|login\s+detail|mt5|metatrader|password|investor)\b/i,
+  // Referral
+  /\b(referral|commission|refer)\b/i,
+  // Explicit data requests
+  /\b(everything|all\s+my|full\s+detail|show\s+all|give\s+me\s+all)\b/i,
+  // Account numbers (6+ digit patterns)
+  /\b\d{6,}\b/,
+];
+
+function needsMongoContext(messages: any[]): boolean {
+  // Check last 3 user messages for account-related intent
+  const userMsgs = (messages || [])
+    .filter((m: any) => m?.role === "user" && typeof m?.content === "string")
+    .slice(-3);
+  
+  for (const msg of userMsgs) {
+    const content = msg.content;
+    if (ACCOUNT_INTENT_PATTERNS.some((p) => p.test(content))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 const CANNED_GREETING = `Hey there! Welcome to PropScholar.
 
 
@@ -638,12 +675,25 @@ serve(async (req) => {
     const latestEmail = userEmail || (emails.length > 0 ? emails[emails.length - 1] : null);
     const isPreAuthenticated = !!userEmail;
 
+    // ═══════════════════════════════════════════════════════════════
+    // LAYER 4: Only fetch MongoDB if the user is asking account questions
+    // This saves massive credits by skipping MongoDB for general questions
+    // even when an email is available (e.g., pre-authenticated dashboard users)
+    // ═══════════════════════════════════════════════════════════════
+    const shouldFetchMongo = latestEmail && sessionId && (isPreAuthenticated 
+      ? needsMongoContext(messages) 
+      : needsMongoContext(messages));
+    
+    if (latestEmail && !shouldFetchMongo) {
+      console.log(`[LAYER 4] Email detected (${latestEmail}) but no account intent — SKIPPING MongoDB`);
+    }
+
     // Fetch KB, coupons (with in-memory cache), and MongoDB context (with session cache) in parallel
     const [knowledgeEntries, coupons, mongoContext] = await Promise.all([
       fetchKnowledgeBase(supabase),
       fetchCoupons(supabase),
-      latestEmail && sessionId
-        ? fetchMongoUserContextWithCache(supabase, sessionId, latestEmail)
+      shouldFetchMongo
+        ? fetchMongoUserContextWithCache(supabase, sessionId, latestEmail!)
         : Promise.resolve(null),
     ]);
 
@@ -738,9 +788,12 @@ DATA ACCESS:
     if (latestEmail && mongoContext) {
       userDataContext = `Data found for email: ${latestEmail}\n\n${formatUserContext(mongoContext)}`;
       console.log(`MongoDB user context loaded for: ${latestEmail}`);
-    } else if (latestEmail && !mongoContext) {
+    } else if (latestEmail && !mongoContext && shouldFetchMongo) {
       userDataContext = `Email detected: ${latestEmail}\nNo account found in our database for this email.`;
       console.log(`No MongoDB data found for: ${latestEmail}`);
+    } else if (latestEmail && !shouldFetchMongo) {
+      userDataContext = `Email detected: ${latestEmail}\nAccount data not loaded yet — user hasn't asked account-specific questions. If they do, data will be fetched automatically.`;
+      console.log(`Skipped MongoDB for ${latestEmail} — no account intent detected`);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -751,7 +804,7 @@ DATA ACCESS:
     // Track which model to use based on complexity
     let selectedModel = "google/gemini-2.5-flash"; // default: full power
 
-    if (!hasUserContext && !isPreAuthenticated) {
+    if (!hasUserContext && (!isPreAuthenticated || !shouldFetchMongo)) {
       // No user email/context → use shorter LITE prompt + cheaper model
       selectedModel = "google/gemini-2.5-flash-lite";
       console.log("[PROMPT] Using SYSTEM_PROMPT_LITE (no user context)");
