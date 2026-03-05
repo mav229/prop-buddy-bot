@@ -33,6 +33,43 @@ let couponsCache: { data: any[] | null; fetchedAt: number } = { data: null, fetc
 // ═══════════════════════════════════════════════════════════════
 const GREETING_PATTERNS = /^(hi|hello|hey|hola|sup|yo|greetings|good morning|good afternoon|good evening|gm|whats up|what's up)[\s!?.]*$/i;
 
+// ═══════════════════════════════════════════════════════════════
+// LAYER 4: Intent detection — only call MongoDB for account queries
+// ═══════════════════════════════════════════════════════════════
+const ACCOUNT_INTENT_PATTERNS = [
+  // Account / status queries
+  /\b(my\s+account|account\s*(status|details|info|balance|number|data)|show\s+me|check\s+my|what'?s\s+my)\b/i,
+  // Payout queries
+  /\b(payout|withdrawal|withdraw|pay\s*out|paid)\b/i,
+  // Order / purchase queries
+  /\b(my\s+order|order\s*(status|id|number|detail)|purchase|bought|payment)\b/i,
+  // Violations / flags
+  /\b(violation|breach|flag|martingale|averaging|banned|restricted)\b/i,
+  // Credentials / login
+  /\b(credential|login\s+detail|mt5|metatrader|password|investor)\b/i,
+  // Referral
+  /\b(referral|commission|refer)\b/i,
+  // Explicit data requests
+  /\b(everything|all\s+my|full\s+detail|show\s+all|give\s+me\s+all)\b/i,
+  // Account numbers (6+ digit patterns)
+  /\b\d{6,}\b/,
+];
+
+function needsMongoContext(messages: any[]): boolean {
+  // Check last 3 user messages for account-related intent
+  const userMsgs = (messages || [])
+    .filter((m: any) => m?.role === "user" && typeof m?.content === "string")
+    .slice(-3);
+  
+  for (const msg of userMsgs) {
+    const content = msg.content;
+    if (ACCOUNT_INTENT_PATTERNS.some((p) => p.test(content))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 const CANNED_GREETING = `Hey there! Welcome to PropScholar.
 
 
