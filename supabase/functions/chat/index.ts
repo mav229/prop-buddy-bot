@@ -931,34 +931,36 @@ WIDGET-SPECIFIC RULES:
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
 
-          // --- Cost alert: track session cost and email when >= $0.10 ---
+          // --- Global cost alert: track TOTAL cost across all sessions, email every $0.10 ---
           try {
             const INPUT_COST_PER_M = 0.15;
             const OUTPUT_COST_PER_M = 0.60;
             const msgCost = (estimatedInputTokens / 1_000_000) * INPUT_COST_PER_M + (outputTokens / 1_000_000) * OUTPUT_COST_PER_M;
 
-            // Accumulate in session_cache using a special "cost_tracker" email key
-            const costKey = `__cost__`;
+            // Use a global tracker (session_id="__global__", email="__cost__")
             const { data: existing } = await supabase
               .from("session_cache")
               .select("context_json")
-              .eq("session_id", sessionId)
-              .eq("email", costKey)
+              .eq("session_id", "__global__")
+              .eq("email", "__cost__")
               .maybeSingle();
 
             const prevCost = (existing?.context_json as any)?.total ?? 0;
+            const lastAlertedAt = (existing?.context_json as any)?.last_alerted_at ?? 0;
             const newCost = prevCost + msgCost;
-            const alreadyAlerted = (existing?.context_json as any)?.alerted ?? false;
+            // Calculate which $0.10 milestone we've crossed
+            const prevMilestone = Math.floor(prevCost / 0.10);
+            const newMilestone = Math.floor(newCost / 0.10);
 
             await supabase
               .from("session_cache")
               .upsert(
-                { session_id: sessionId, email: costKey, context_json: { total: newCost, alerted: alreadyAlerted || newCost >= 0.10 } },
+                { session_id: "__global__", email: "__cost__", context_json: { total: newCost, last_alerted_at: newMilestone > prevMilestone ? newCost : lastAlertedAt } },
                 { onConflict: "session_id,email" }
               );
 
-            if (newCost >= 0.10 && !alreadyAlerted) {
-              console.log(`[COST ALERT] Session ${sessionId.slice(0, 8)} hit $${newCost.toFixed(4)} — sending email alert`);
+            if (newMilestone > prevMilestone) {
+              console.log(`[COST ALERT] Global cost hit $${newCost.toFixed(4)} (milestone ${newMilestone}) — sending email`);
               const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
               if (RESEND_API_KEY) {
                 await fetch("https://api.resend.com/emails", {
@@ -970,12 +972,13 @@ WIDGET-SPECIFIC RULES:
                   body: JSON.stringify({
                     from: "onboarding@resend.dev",
                     to: "s.saurav2006@gmail.com",
-                    subject: `⚠️ AI Credit Alert: Session hit $${newCost.toFixed(2)}`,
+                    subject: `⚠️ AI Credit Alert: Total usage hit $${(newMilestone * 0.10).toFixed(2)}`,
                     html: `<h2>AI Credit Usage Alert</h2>
-                      <p><strong>Session ID:</strong> ${sessionId}</p>
-                      <p><strong>Total Cost:</strong> $${newCost.toFixed(4)}</p>
+                      <p><strong>Total Spent:</strong> $${newCost.toFixed(4)}</p>
+                      <p><strong>Milestone:</strong> $${(newMilestone * 0.10).toFixed(2)}</p>
+                      <p><strong>Latest Session:</strong> ${sessionId.slice(0, 8)}...</p>
                       <p><strong>Source:</strong> ${channelSource}</p>
-                      <p><strong>This Message:</strong> ~${estimatedInputTokens} input tokens, ~${outputTokens} output tokens ($${msgCost.toFixed(4)})</p>
+                      <p><strong>This Message:</strong> ~${estimatedInputTokens} input, ~${outputTokens} output ($${msgCost.toFixed(4)})</p>
                       <p><em>Alert triggered at ${new Date().toISOString()}</em></p>`,
                   }),
                 });
