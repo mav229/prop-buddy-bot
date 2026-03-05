@@ -675,12 +675,25 @@ serve(async (req) => {
     const latestEmail = userEmail || (emails.length > 0 ? emails[emails.length - 1] : null);
     const isPreAuthenticated = !!userEmail;
 
+    // ═══════════════════════════════════════════════════════════════
+    // LAYER 4: Only fetch MongoDB if the user is asking account questions
+    // This saves massive credits by skipping MongoDB for general questions
+    // even when an email is available (e.g., pre-authenticated dashboard users)
+    // ═══════════════════════════════════════════════════════════════
+    const shouldFetchMongo = latestEmail && sessionId && (isPreAuthenticated 
+      ? needsMongoContext(messages) 
+      : needsMongoContext(messages));
+    
+    if (latestEmail && !shouldFetchMongo) {
+      console.log(`[LAYER 4] Email detected (${latestEmail}) but no account intent — SKIPPING MongoDB`);
+    }
+
     // Fetch KB, coupons (with in-memory cache), and MongoDB context (with session cache) in parallel
     const [knowledgeEntries, coupons, mongoContext] = await Promise.all([
       fetchKnowledgeBase(supabase),
       fetchCoupons(supabase),
-      latestEmail && sessionId
-        ? fetchMongoUserContextWithCache(supabase, sessionId, latestEmail)
+      shouldFetchMongo
+        ? fetchMongoUserContextWithCache(supabase, sessionId, latestEmail!)
         : Promise.resolve(null),
     ]);
 
