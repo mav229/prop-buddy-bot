@@ -801,7 +801,7 @@ DATA ACCESS:
     // Track which model to use based on complexity
     let selectedModel = "google/gemini-2.5-flash"; // default: full power
 
-    if (!hasUserContext && !isPreAuthenticated) {
+    if (!hasUserContext && (!isPreAuthenticated || !shouldFetchMongo)) {
       // No user email/context → use shorter LITE prompt + cheaper model
       selectedModel = "google/gemini-2.5-flash-lite";
       console.log("[PROMPT] Using SYSTEM_PROMPT_LITE (no user context)");
