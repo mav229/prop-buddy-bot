@@ -788,9 +788,12 @@ DATA ACCESS:
     if (latestEmail && mongoContext) {
       userDataContext = `Data found for email: ${latestEmail}\n\n${formatUserContext(mongoContext)}`;
       console.log(`MongoDB user context loaded for: ${latestEmail}`);
-    } else if (latestEmail && !mongoContext) {
+    } else if (latestEmail && !mongoContext && shouldFetchMongo) {
       userDataContext = `Email detected: ${latestEmail}\nNo account found in our database for this email.`;
       console.log(`No MongoDB data found for: ${latestEmail}`);
+    } else if (latestEmail && !shouldFetchMongo) {
+      userDataContext = `Email detected: ${latestEmail}\nAccount data not loaded yet — user hasn't asked account-specific questions. If they do, data will be fetched automatically.`;
+      console.log(`Skipped MongoDB for ${latestEmail} — no account intent detected`);
     }
 
     // ═══════════════════════════════════════════════════════════════
