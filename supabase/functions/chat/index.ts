@@ -949,7 +949,7 @@ WIDGET-SPECIFIC RULES:
             const lastAlertedAt = (existing?.context_json as any)?.last_alerted_at ?? 0;
             const newCost = prevCost + msgCost;
             // Calculate which $0.10 milestone we've crossed
-            const COST_MILESTONE = 0.003; // TEMP: lowered for testing, revert to 0.10
+            const COST_MILESTONE = 0.10;
             const prevMilestone = Math.floor(prevCost / COST_MILESTONE);
             const newMilestone = Math.floor(newCost / COST_MILESTONE);
 
