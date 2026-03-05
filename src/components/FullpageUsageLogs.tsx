@@ -235,7 +235,7 @@ export const FullpageUsageLogs = () => {
           <TabsList className="bg-card/50 border border-border/50">
             <TabsTrigger value="fullpage" className="gap-1.5 data-[state=active]:bg-foreground data-[state=active]:text-background">
               <Monitor className="w-3.5 h-3.5" />
-              Dashboard ({fullpageLogs.length})
+              Dash — Premium ({fullpageLogs.length})
             </TabsTrigger>
             <TabsTrigger value="widget" className="gap-1.5 data-[state=active]:bg-foreground data-[state=active]:text-background">
               <Globe className="w-3.5 h-3.5" />
