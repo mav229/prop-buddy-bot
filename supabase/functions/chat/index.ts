@@ -817,7 +817,10 @@ DATA ACCESS:
 - You CAN show: account numbers, balances, equity, profit targets, drawdown levels, order amounts, payout amounts, credential statuses, violation details
 ═══════════════════════════════════════════════════════════════`;
     }
-    if (latestEmail && mongoContext) {
+    if (accountCheckBlocked) {
+      userDataContext = `ACCOUNT CHECK LIMIT REACHED: The user (${latestEmail}) has already used their one account check for today. Their daily token is over. Do NOT attempt to fetch or show any account data. Instead, tell them: "You've already used your account check for today. Each user gets **1 account check per day** (resets at midnight UTC). Please come back tomorrow to check your account again." Be friendly but firm — do not bypass this limit.`;
+      console.log(`Account check blocked for ${latestEmail} — daily limit reached`);
+    } else if (latestEmail && mongoContext) {
       userDataContext = `Data found for email: ${latestEmail}\n\n${formatUserContext(mongoContext)}`;
       console.log(`MongoDB user context loaded for: ${latestEmail}`);
     } else if (latestEmail && !mongoContext && shouldFetchMongo) {
