@@ -277,9 +277,19 @@ export const CreditUsageCalendar = () => {
                   </div>
                   <div>
                     <p className="text-sm font-medium truncate max-w-[200px]">{user.email}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {user.messages} messages • {user.source}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-[11px] text-muted-foreground">
+                        {user.messages} msgs
+                      </p>
+                      <span className={cn(
+                        "text-[9px] font-semibold px-1.5 py-0.5 rounded-full uppercase",
+                        user.source === "fullpage" ? "bg-blue-500/15 text-blue-400" :
+                        user.source === "discord" ? "bg-purple-500/15 text-purple-400" :
+                        "bg-emerald-500/15 text-emerald-400"
+                      )}>
+                        {user.source === "fullpage" ? "Dashboard" : user.source}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <div className="text-right">
