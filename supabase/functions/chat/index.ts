@@ -680,12 +680,44 @@ serve(async (req) => {
     // This saves massive credits by skipping MongoDB for general questions
     // even when an email is available (e.g., pre-authenticated dashboard users)
     // ═══════════════════════════════════════════════════════════════
-    const shouldFetchMongo = latestEmail && sessionId && (isPreAuthenticated 
+    let shouldFetchMongo = latestEmail && sessionId && (isPreAuthenticated 
       ? needsMongoContext(messages) 
       : needsMongoContext(messages));
     
     if (latestEmail && !shouldFetchMongo) {
       console.log(`[LAYER 4] Email detected (${latestEmail}) but no account intent — SKIPPING MongoDB`);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // LAYER 5: Account check rate limit — 1 per user per UTC day
+    // ═══════════════════════════════════════════════════════════════
+    let accountCheckBlocked = false;
+    if (shouldFetchMongo && latestEmail) {
+      const todayUTC = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+      const checkKey = `__acct_check__${todayUTC}`;
+      
+      const { data: existingCheck } = await supabase
+        .from("session_cache")
+        .select("context_json")
+        .eq("session_id", checkKey)
+        .eq("email", latestEmail.toLowerCase())
+        .maybeSingle();
+
+      if (existingCheck) {
+        // Already used their daily check
+        console.log(`[LAYER 5] Account check BLOCKED for ${latestEmail} — already used today (${todayUTC})`);
+        accountCheckBlocked = true;
+        shouldFetchMongo = false;
+      } else {
+        // First check today — record it
+        console.log(`[LAYER 5] Recording first account check for ${latestEmail} on ${todayUTC}`);
+        await supabase
+          .from("session_cache")
+          .upsert(
+            { session_id: checkKey, email: latestEmail.toLowerCase(), context_json: { checked_at: new Date().toISOString(), date: todayUTC } },
+            { onConflict: "session_id,email" }
+          );
+      }
     }
 
     // Fetch KB, coupons (with in-memory cache), and MongoDB context (with session cache) in parallel
