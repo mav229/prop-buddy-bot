@@ -1073,9 +1073,41 @@ WIDGET-SPECIFIC RULES:
                 });
               }
             }
-          } catch (costErr) {
-            console.error("[COST ALERT] Error:", costErr);
-          }
+
+            // --- Per-user daily cost tracking ---
+            try {
+              const todayUTC = new Date().toISOString().slice(0, 10);
+              const userKey = `__cost_daily__${todayUTC}`;
+              const userEmail = latestEmail || sessionId || "anonymous";
+              
+              const { data: userCostRow } = await supabase
+                .from("session_cache")
+                .select("context_json")
+                .eq("session_id", userKey)
+                .eq("email", userEmail.toLowerCase())
+                .maybeSingle();
+
+              const prevUserCost = (userCostRow?.context_json as any)?.total ?? 0;
+              const prevMsgCount = (userCostRow?.context_json as any)?.messages ?? 0;
+
+              await supabase
+                .from("session_cache")
+                .upsert(
+                  { 
+                    session_id: userKey, 
+                    email: userEmail.toLowerCase(), 
+                    context_json: { 
+                      total: prevUserCost + msgCost, 
+                      messages: prevMsgCount + 1,
+                      source: channelSource,
+                      date: todayUTC,
+                    } 
+                  },
+                  { onConflict: "session_id,email" }
+                );
+            } catch (userCostErr) {
+              console.error("[USER COST] Error:", userCostErr);
+            }
 
           return;
         }
