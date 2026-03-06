@@ -1108,6 +1108,9 @@ WIDGET-SPECIFIC RULES:
             } catch (userCostErr) {
               console.error("[USER COST] Error:", userCostErr);
             }
+          } catch (costErr) {
+            console.error("[COST ALERT] Error:", costErr);
+          }
 
           return;
         }
