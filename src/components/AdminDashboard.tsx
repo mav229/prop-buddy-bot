@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { 
   Bot, LogOut, MessageSquare, Database, ArrowLeft, Brain, Users, 
-  LayoutDashboard, Settings, Code, Palette, Ticket, Menu, Mail, Headphones, Monitor
+  LayoutDashboard, Settings, Code, Palette, Ticket, Menu, Mail, Headphones, Monitor, Coins
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,6 +19,7 @@ import { CouponsManager } from "./CouponsManager";
 import { LeadsManager } from "./LeadsManager";
 import { TicketsManager } from "./TicketsManager";
 import { FullpageUsageLogs } from "./FullpageUsageLogs";
+import { CreditUsageCalendar } from "./CreditUsageCalendar";
 import { Link } from "react-router-dom";
 
 const navItems = [
@@ -33,6 +34,7 @@ const navItems = [
   { value: "customizer", label: "Customize", icon: Palette },
   { value: "embed", label: "Embed", icon: Code },
   { value: "fullpage", label: "16:9", icon: Monitor },
+  { value: "credits", label: "Credits", icon: Coins },
   { value: "discord", label: "Settings", icon: Settings },
 ];
 
@@ -253,6 +255,10 @@ export const AdminDashboard = () => {
 
               <FullpageUsageLogs />
             </div>
+          </TabsContent>
+
+          <TabsContent value="credits">
+            <CreditUsageCalendar />
           </TabsContent>
 
           <TabsContent value="discord">
