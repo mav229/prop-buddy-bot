@@ -680,12 +680,44 @@ serve(async (req) => {
     // This saves massive credits by skipping MongoDB for general questions
     // even when an email is available (e.g., pre-authenticated dashboard users)
     // ═══════════════════════════════════════════════════════════════
-    const shouldFetchMongo = latestEmail && sessionId && (isPreAuthenticated 
+    let shouldFetchMongo = latestEmail && sessionId && (isPreAuthenticated 
       ? needsMongoContext(messages) 
       : needsMongoContext(messages));
     
     if (latestEmail && !shouldFetchMongo) {
       console.log(`[LAYER 4] Email detected (${latestEmail}) but no account intent — SKIPPING MongoDB`);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // LAYER 5: Account check rate limit — 1 per user per UTC day
+    // ═══════════════════════════════════════════════════════════════
+    let accountCheckBlocked = false;
+    if (shouldFetchMongo && latestEmail) {
+      const todayUTC = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+      const checkKey = `__acct_check__${todayUTC}`;
+      
+      const { data: existingCheck } = await supabase
+        .from("session_cache")
+        .select("context_json")
+        .eq("session_id", checkKey)
+        .eq("email", latestEmail.toLowerCase())
+        .maybeSingle();
+
+      if (existingCheck) {
+        // Already used their daily check
+        console.log(`[LAYER 5] Account check BLOCKED for ${latestEmail} — already used today (${todayUTC})`);
+        accountCheckBlocked = true;
+        shouldFetchMongo = false;
+      } else {
+        // First check today — record it
+        console.log(`[LAYER 5] Recording first account check for ${latestEmail} on ${todayUTC}`);
+        await supabase
+          .from("session_cache")
+          .upsert(
+            { session_id: checkKey, email: latestEmail.toLowerCase(), context_json: { checked_at: new Date().toISOString(), date: todayUTC } },
+            { onConflict: "session_id,email" }
+          );
+      }
     }
 
     // Fetch KB, coupons (with in-memory cache), and MongoDB context (with session cache) in parallel
@@ -785,7 +817,10 @@ DATA ACCESS:
 - You CAN show: account numbers, balances, equity, profit targets, drawdown levels, order amounts, payout amounts, credential statuses, violation details
 ═══════════════════════════════════════════════════════════════`;
     }
-    if (latestEmail && mongoContext) {
+    if (accountCheckBlocked) {
+      userDataContext = `ACCOUNT CHECK LIMIT REACHED: The user (${latestEmail}) has already used their one account check for today. Their daily token is over. Do NOT attempt to fetch or show any account data. Instead, tell them: "You've already used your account check for today. Each user gets **1 account check per day** (resets at midnight UTC). Please come back tomorrow to check your account again." Be friendly but firm — do not bypass this limit.`;
+      console.log(`Account check blocked for ${latestEmail} — daily limit reached`);
+    } else if (latestEmail && mongoContext) {
       userDataContext = `Data found for email: ${latestEmail}\n\n${formatUserContext(mongoContext)}`;
       console.log(`MongoDB user context loaded for: ${latestEmail}`);
     } else if (latestEmail && !mongoContext && shouldFetchMongo) {
