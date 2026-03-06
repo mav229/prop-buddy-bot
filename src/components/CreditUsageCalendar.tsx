@@ -42,19 +42,14 @@ export const CreditUsageCalendar = () => {
   const fetchMonthData = async () => {
     setLoading(true);
     try {
-      // Build date range for the month
-      const startDate = `${year}-${String(month + 1).padStart(2, "0")}-01`;
-      const endMonth = month + 2 > 12 ? 1 : month + 2;
-      const endYear = month + 2 > 12 ? year + 1 : year;
-      const endDate = `${endYear}-${String(endMonth).padStart(2, "0")}-01`;
+      const monthPrefix = `${year}-${String(month + 1).padStart(2, "0")}-`;
 
-      // Fetch all daily cost entries for this month
+      // Fetch all daily cost entries for this month using the session key date,
+      // not created_at (more reliable with upserts/timezone differences)
       const { data, error } = await supabase
         .from("session_cache")
         .select("session_id, email, context_json")
-        .like("session_id", `__cost_daily__%`)
-        .gte("created_at", startDate)
-        .lt("created_at", endDate);
+        .like("session_id", `__cost_daily__${monthPrefix}%`);
 
       if (error) throw error;
 
