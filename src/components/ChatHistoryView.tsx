@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
-import { MessageSquare, Loader2, RefreshCw, Users, Globe, Search } from "lucide-react";
+import { MessageSquare, Loader2, RefreshCw, Users, Globe, Search, ThumbsUp, ThumbsDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { toast as sonnerToast } from "sonner";
 
 const DiscordIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
