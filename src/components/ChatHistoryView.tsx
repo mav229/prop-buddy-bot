@@ -315,8 +315,6 @@ export const ChatHistoryView = () => {
                   })}
                 </div>
               )}
-                </div>
-              )}
             </div>
           ))}
         </div>
