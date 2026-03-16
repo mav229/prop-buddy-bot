@@ -213,6 +213,10 @@ export const AdminDashboard = () => {
             <CouponsManager />
           </TabsContent>
 
+          <TabsContent value="auto-replies">
+            <AutoRepliesManager />
+          </TabsContent>
+
           <TabsContent value="customizer">
             <WidgetCustomizer />
           </TabsContent>
