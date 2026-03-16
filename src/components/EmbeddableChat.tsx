@@ -1,31 +1,20 @@
-import { useRef, useEffect, useLayoutEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useLayoutEffect, useState, useCallback, lazy, Suspense } from "react";
 import { X, MessageCircle, Send, Search, Home, HelpCircle, ExternalLink, ChevronRight, ShoppingBag, Clock, AlertTriangle, RefreshCw } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { ChatSkeleton, CardSkeleton } from "./ChatSkeleton";
 import { TypingIndicator } from "./TypingIndicator";
-import { EmailCollectionModal } from "./EmailCollectionModal";
-import { InlineTicketForm } from "./InlineTicketForm";
 import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
-import { playSound, preloadAllSounds } from "@/hooks/useSounds";
-import scholarisLogo from "@/assets/scholaris-logo.png";
-import scholarisLauncherNew from "@/assets/scholaris-launcher-new.png";
-import scholarisLauncherNohalo from "@/assets/scholaris-launcher-nohalo.png";
-import scholarisLauncherClean from "@/assets/scholaris-launcher-clean.png";
-import scholarisLauncherTransparent from "@/assets/scholaris-launcher-transparent.png";
-import scholarisLauncherOriginal from "@/assets/scholaris-launcher.png";
+import { playSound } from "@/hooks/useSounds";
 import propscholarLogo from "@/assets/propscholar-logo.jpg";
 import { cn } from "@/lib/utils";
 
-// Map launcher style to asset
-const launcherAssets: Record<string, string> = {
-  nohalo: scholarisLauncherNohalo,
-  clean: scholarisLauncherClean,
-  new: scholarisLauncherNew,
-  transparent: scholarisLauncherTransparent,
-  original: scholarisLauncherOriginal,
-};
+// Lazy-load non-critical components
+const EmailCollectionModal = lazy(() => import("./EmailCollectionModal").then(m => ({ default: m.EmailCollectionModal })));
+const InlineTicketForm = lazy(() => import("./InlineTicketForm").then(m => ({ default: m.InlineTicketForm })));
+
+// No more top-level launcher image imports — resolved dynamically
 
 // Image with minimal loading (no blur/pulse placeholder)
 function BlurImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
