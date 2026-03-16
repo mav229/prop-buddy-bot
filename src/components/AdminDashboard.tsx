@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { 
   Bot, LogOut, MessageSquare, Database, ArrowLeft, Brain, Users, 
-  LayoutDashboard, Settings, Code, Palette, Ticket, Menu, Mail, Headphones, Monitor, Coins
+  LayoutDashboard, Settings, Code, Palette, Ticket, Menu, Mail, Headphones, Monitor, Coins, Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,6 +20,7 @@ import { LeadsManager } from "./LeadsManager";
 import { TicketsManager } from "./TicketsManager";
 import { FullpageUsageLogs } from "./FullpageUsageLogs";
 import { CreditUsageCalendar } from "./CreditUsageCalendar";
+import { AutoRepliesManager } from "./AutoRepliesManager";
 import { Link } from "react-router-dom";
 
 const navItems = [
@@ -31,6 +32,7 @@ const navItems = [
   { value: "leads", label: "Leads", icon: Mail },
   { value: "tickets", label: "Tickets", icon: Headphones },
   { value: "coupons", label: "Coupons", icon: Ticket },
+  { value: "auto-replies", label: "Auto-Replies", icon: Zap },
   { value: "customizer", label: "Customize", icon: Palette },
   { value: "embed", label: "Embed", icon: Code },
   { value: "fullpage", label: "16:9", icon: Monitor },
@@ -209,6 +211,10 @@ export const AdminDashboard = () => {
 
           <TabsContent value="coupons">
             <CouponsManager />
+          </TabsContent>
+
+          <TabsContent value="auto-replies">
+            <AutoRepliesManager />
           </TabsContent>
 
           <TabsContent value="customizer">

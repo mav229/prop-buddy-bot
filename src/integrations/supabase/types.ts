@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      auto_replies: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          match_mode: string
+          priority: number
+          response_text: string
+          trigger_keywords: string[]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          match_mode?: string
+          priority?: number
+          response_text: string
+          trigger_keywords?: string[]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          match_mode?: string
+          priority?: number
+          response_text?: string
+          trigger_keywords?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       autobot_settings: {
         Row: {
           bot_name: string | null
@@ -68,6 +101,30 @@ export type Database = {
           role?: string
           session_id?: string
           source?: string
+        }
+        Relationships: []
+      }
+      chat_ratings: {
+        Row: {
+          created_at: string
+          id: string
+          message_index: number
+          rating: string
+          session_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_index: number
+          rating: string
+          session_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_index?: number
+          rating?: string
+          session_id?: string
         }
         Relationships: []
       }

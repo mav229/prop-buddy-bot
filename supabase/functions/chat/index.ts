@@ -646,12 +646,53 @@ serve(async (req) => {
       });
     }
 
+    const lastContent = lastUserMsg?.content || "";
+
+    // ═══════════════════════════════════════════════════════════════
+    // LAYER 2.5: Auto-replies from database (zero AI credits)
+    // ═══════════════════════════════════════════════════════════════
+    if (lastContent.trim()) {
+      try {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const tmpClient = createClient(supabaseUrl, supabaseKey);
+        const { data: autoReplies } = await tmpClient
+          .from("auto_replies")
+          .select("trigger_keywords, response_text, match_mode, priority")
+          .eq("is_active", true)
+          .order("priority", { ascending: false });
+
+        if (autoReplies && autoReplies.length > 0) {
+          const lowerContent = lastContent.trim().toLowerCase();
+          for (const ar of autoReplies) {
+            const keywords = (ar.trigger_keywords as string[]) || [];
+            let matched = false;
+            for (const kw of keywords) {
+              const lowerKw = kw.toLowerCase();
+              if (ar.match_mode === "exact" && lowerContent === lowerKw) matched = true;
+              else if (ar.match_mode === "starts_with" && lowerContent.startsWith(lowerKw)) matched = true;
+              else if (ar.match_mode === "contains" && lowerContent.includes(lowerKw)) matched = true;
+              if (matched) break;
+            }
+            if (matched) {
+              console.log(`[AUTO-REPLY] Matched keywords: ${keywords.join(", ")} — skipping AI`);
+              const stream = createSseTextStream(ar.response_text, 0);
+              return new Response(stream, {
+                headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+              });
+            }
+          }
+        }
+      } catch (arErr) {
+        console.error("[AUTO-REPLY] Error checking auto-replies:", arErr);
+      }
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // LAYER 3: Skip AI for simple greetings (zero credits)
     // Only when it's the first message and no email context
     // ═══════════════════════════════════════════════════════════════
     const isFirstMessage = !messages || messages.length <= 1;
-    const lastContent = lastUserMsg?.content || "";
     if (isFirstMessage && !userEmail && GREETING_PATTERNS.test(lastContent.trim())) {
       console.log("[LAYER 3] Simple greeting detected — skipping AI entirely");
       const stream = createSseTextStream(CANNED_GREETING, 0);

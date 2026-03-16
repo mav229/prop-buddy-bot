@@ -111,44 +111,31 @@ export interface WidgetConfig {
 }
 
 const defaultConfig: WidgetConfig = {
-  // Header - Vibrant blue flowing gradient
   headerGradientStart: "#6366f1",
   headerGradientMiddle: "#4f46e5",
   headerGradientEnd: "#7c3aed",
   headerGradientAngle: 180,
-  
-  // Greeting
   greetingText: "Hello Trader!",
   greetingEmoji: "👋",
   greetingSubtext: "How can I help?",
   greetingTextColor: "#c7d2fe",
   greetingSubtextColor: "#ffffff",
-  
-  // Bot Identity
   botName: "Scholaris AI",
   botSubtitle: "Online",
-  
-  // Logo
   logoUrl: "",
   launcherLogoUrl: "https://res.cloudinary.com/dzozyqlqr/image/upload/v1767166947/Untitled_design_5_pjs1rs.png",
   launcherStyle: "nohalo",
   showLogo: true,
   logoSize: 48,
   logoBorderRadius: 12,
-  
-  // Colors
   primaryColor: "#6366f1",
   accentColor: "#818cf8",
   backgroundColor: "rgba(15, 23, 42, 0.95)",
   cardBackgroundColor: "rgba(30, 41, 59, 0.9)",
   textColor: "#111827",
   mutedTextColor: "#6b7280",
-  
-  // Tab Colors
   activeTabColor: "#3b82f6",
   inactiveTabColor: "#9ca3af",
-  
-  // Cards
   cardBorderRadius: 12,
   cardShadow: "0 1px 3px rgba(0,0,0,0.1)",
   showDiscordCard: true,
@@ -158,50 +145,32 @@ const defaultConfig: WidgetConfig = {
   messageCardText: "Send us a message",
   messageCardGradientStart: "#667eea",
   messageCardGradientEnd: "#764ba2",
-  
-  // Help Section
   showHelpSearch: true,
   helpSearchText: "Search for help",
   supportEmail: "support@propscholar.com",
   showSupportCard: true,
   supportCardGradientStart: "#3b82f6",
   supportCardGradientEnd: "#2563eb",
-  
-  // Chat Messages Settings
   showTimestamps: true,
   chatMessageFontSize: 14,
-  
-  // Suggested Questions
   suggestedQuestions: [
     "How PropScholar works?",
     "What are the drawdown rules?",
     "How do payouts work?",
     "Tell me about evaluations",
   ],
-  
-  // Footer
   footerText: "Powered by PropScholar",
   showFooter: true,
   footerTextColor: "#667eea",
-  
-  // Dimensions
   widgetWidth: 380,
   widgetHeight: 600,
-  
-  // Animations
   enableAnimations: true,
   animationSpeed: "normal",
-  
-  // Online Indicator
   showOnlineIndicator: true,
   onlineIndicatorColor: "#22c55e",
-  
-  // Notification Popup
   showNotificationPopup: true,
   notificationPopupDelay: 20,
   notificationPopupText: "Hi there! 👋 I can help you with any questions!",
-  
-  // Chat Messages
   chatBackgroundColor: "#f9fafb",
   userMessageBgColor: "#6366f1",
   userMessageTextColor: "#ffffff",
@@ -214,11 +183,7 @@ const defaultConfig: WidgetConfig = {
   chatInputBorderColor: "#e5e7eb",
   sendButtonBgColor: "#6366f1",
   sendButtonIconColor: "#ffffff",
-  
-  // URL Blocklist
   blockedUrls: [],
-  
-  // Embed Settings
   embedWidth: 384,
   embedHeight: 600,
   customDomain: "",
@@ -241,23 +206,26 @@ const sanitizeConfig = (cfg: WidgetConfig): WidgetConfig => {
   const blockedUrls = (cfg.blockedUrls || [])
     .map((u) => (u || "").toString().trim())
     .filter(Boolean);
-
   const customDomain = (cfg.customDomain || "").toString().trim();
-
-  return {
-    ...cfg,
-    blockedUrls,
-    customDomain,
-  };
+  return { ...cfg, blockedUrls, customDomain };
 };
 
 export const WidgetConfigProvider = ({ children }: { children: ReactNode }) => {
-  const [config, setConfig] = useState<WidgetConfig>(defaultConfig);
+  // ── SPEED FIX: Initialize from localStorage cache instantly ──
+  const [config, setConfig] = useState<WidgetConfig>(() => {
+    try {
+      const cached = localStorage.getItem(STORAGE_KEY);
+      if (cached) {
+        return sanitizeConfig({ ...defaultConfig, ...JSON.parse(cached) });
+      }
+    } catch {}
+    return defaultConfig;
+  });
   const [loaded, setLoaded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const saveTimer = useRef<number | undefined>(undefined);
 
-  // Load config from backend on mount (public read, no auth required)
+  // Load from DB in background (update if different)
   useEffect(() => {
     const load = async () => {
       try {
@@ -268,36 +236,24 @@ export const WidgetConfigProvider = ({ children }: { children: ReactNode }) => {
           .maybeSingle() as { data: { config: any } | null; error: any };
 
         if (!error && data && data.config && typeof data.config === "object") {
-          setConfig((prev) => sanitizeConfig({ ...prev, ...(data.config as Partial<WidgetConfig>) } as WidgetConfig));
-        } else {
-          // Fallback to localStorage for backwards compat
-          const stored = localStorage.getItem(STORAGE_KEY);
-          if (stored) {
-            setConfig((prev) => sanitizeConfig({ ...prev, ...JSON.parse(stored) }));
-          }
+          const fresh = sanitizeConfig({ ...defaultConfig, ...(data.config as Partial<WidgetConfig>) } as WidgetConfig);
+          setConfig(fresh);
+          // Update localStorage cache
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh)); } catch {}
         }
-      } catch {
-        // Fallback to localStorage
-        try {
-          const stored = localStorage.getItem(STORAGE_KEY);
-          if (stored) {
-            setConfig((prev) => sanitizeConfig({ ...prev, ...JSON.parse(stored) }));
-          }
-        } catch {}
-      }
+      } catch {}
       setLoaded(true);
     };
     load();
   }, []);
 
-  // Persist to backend (debounced)
   const persistToBackend = async (cfg: WidgetConfig): Promise<boolean> => {
     try {
       const { error } = await supabase
         .from("widget_config" as any)
         .upsert({ id: DB_ROW_ID, config: cfg as any } as any, { onConflict: "id" });
       if (error) {
-        console.warn("Failed to persist widget config to backend:", error.message);
+        console.warn("Failed to persist widget config:", error.message);
         return false;
       }
       return true;
@@ -305,21 +261,15 @@ export const WidgetConfigProvider = ({ children }: { children: ReactNode }) => {
       console.warn("Error persisting widget config:", e);
       return false;
     } finally {
-      // Always persist to localStorage as fallback
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
-      } catch {}
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg)); } catch {}
     }
   };
 
   const updateConfig = (updates: Partial<WidgetConfig>) => {
     setConfig((prev) => {
       const next = sanitizeConfig({ ...prev, ...updates } as WidgetConfig);
-      // Debounced persist
       if (saveTimer.current) window.clearTimeout(saveTimer.current);
-      saveTimer.current = window.setTimeout(() => {
-        persistToBackend(next);
-      }, 600);
+      saveTimer.current = window.setTimeout(() => { persistToBackend(next); }, 600);
       return next;
     });
   };
@@ -337,7 +287,6 @@ export const WidgetConfigProvider = ({ children }: { children: ReactNode }) => {
     setIsSaving(false);
   };
 
-  // Listen for config updates from parent window (for iframe widgets receiving real-time pushes)
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
       if (!e?.data || typeof e.data !== "object") return;
@@ -360,7 +309,6 @@ export const WidgetConfigProvider = ({ children }: { children: ReactNode }) => {
 export const useWidgetConfig = () => {
   const context = useContext(WidgetConfigContext);
   if (!context) {
-    // Return default config if not in provider
     return {
       config: defaultConfig,
       updateConfig: () => {},

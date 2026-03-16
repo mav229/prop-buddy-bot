@@ -1,31 +1,20 @@
-import { useRef, useEffect, useLayoutEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useLayoutEffect, useState, useCallback, lazy, Suspense } from "react";
 import { X, MessageCircle, Send, Search, Home, HelpCircle, ExternalLink, ChevronRight, ShoppingBag, Clock, AlertTriangle, RefreshCw } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { ChatSkeleton, CardSkeleton } from "./ChatSkeleton";
 import { TypingIndicator } from "./TypingIndicator";
-import { EmailCollectionModal } from "./EmailCollectionModal";
-import { InlineTicketForm } from "./InlineTicketForm";
 import { useWidgetConfig } from "@/contexts/WidgetConfigContext";
-import { playSound, preloadAllSounds } from "@/hooks/useSounds";
-import scholarisLogo from "@/assets/scholaris-logo.png";
-import scholarisLauncherNew from "@/assets/scholaris-launcher-new.png";
-import scholarisLauncherNohalo from "@/assets/scholaris-launcher-nohalo.png";
-import scholarisLauncherClean from "@/assets/scholaris-launcher-clean.png";
-import scholarisLauncherTransparent from "@/assets/scholaris-launcher-transparent.png";
-import scholarisLauncherOriginal from "@/assets/scholaris-launcher.png";
+import { playSound } from "@/hooks/useSounds";
 import propscholarLogo from "@/assets/propscholar-logo.jpg";
 import { cn } from "@/lib/utils";
 
-// Map launcher style to asset
-const launcherAssets: Record<string, string> = {
-  nohalo: scholarisLauncherNohalo,
-  clean: scholarisLauncherClean,
-  new: scholarisLauncherNew,
-  transparent: scholarisLauncherTransparent,
-  original: scholarisLauncherOriginal,
-};
+// Lazy-load non-critical components
+const EmailCollectionModal = lazy(() => import("./EmailCollectionModal").then(m => ({ default: m.EmailCollectionModal })));
+const InlineTicketForm = lazy(() => import("./InlineTicketForm").then(m => ({ default: m.InlineTicketForm })));
+
+// No more top-level launcher image imports — resolved dynamically
 
 // Image with minimal loading (no blur/pulse placeholder)
 function BlurImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
@@ -181,8 +170,8 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   }, []);
 
   const headerLogo = config.logoUrl || propscholarLogo;
-  // Use custom URL if set, otherwise pick from built-in styles
-  const launcherLogo = config.launcherLogoUrl || launcherAssets[config.launcherStyle] || launcherAssets.nohalo;
+  // Use custom URL or default CDN logo — no more bundled PNG imports
+  const launcherLogo = config.launcherLogoUrl || "https://res.cloudinary.com/dzozyqlqr/image/upload/v1767166947/Untitled_design_5_pjs1rs.png";
 
   // Immediately notify parent iframe of state change (don't wait for effect)
   const notifyParent = useCallback((action: "expanded" | "minimized") => {
@@ -197,9 +186,8 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
 
   const handleOpen = useCallback(() => {
     playSound("open", 0.12);
-    preloadAllSounds();
+    // Sound preloading deferred — happens lazily on first play
     setIsMinimized(false);
-    // Immediately notify parent - don't rely solely on the effect
     notifyParent("expanded");
   }, [notifyParent]);
   
@@ -248,16 +236,10 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   }, [isWidget, isMinimized, inIframe, config.backgroundColor]);
 
 
-  // Keep widget iframe instantly interactive; tiny delay only for full-page embed skeletons
+  // SPEED FIX: Remove artificial delay — set ready immediately
   useEffect(() => {
-    if (isWidget) {
-      const raf = window.requestAnimationFrame(() => setIsReady(true));
-      return () => window.cancelAnimationFrame(raf);
-    }
-
-    const timer = window.setTimeout(() => setIsReady(true), 100);
-    return () => clearTimeout(timer);
-  }, [isWidget]);
+    setIsReady(true);
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -406,14 +388,16 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     >
       {/* Email Collection Modal - wrapped for proper z-index */}
       {showEmailPopup && (
-        <div className="absolute inset-x-0 top-0 z-[60] pointer-events-auto">
-          <EmailCollectionModal
-            isOpen={showEmailPopup}
-            onClose={handleEmailPopupClose}
-            onSuccess={handleEmailCollected}
-            sessionId={sessionId}
-          />
-        </div>
+        <Suspense fallback={null}>
+          <div className="absolute inset-x-0 top-0 z-[60] pointer-events-auto">
+            <EmailCollectionModal
+              isOpen={showEmailPopup}
+              onClose={handleEmailPopupClose}
+              onSuccess={handleEmailCollected}
+              sessionId={sessionId}
+            />
+          </div>
+        </Suspense>
       )}
       
       {/* Agent connect message removed - no more ticket form overlay */}
@@ -621,14 +605,16 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                     </div>
                   )}
                   {showTicketForm && (
-                    <div className="py-2">
-                      <InlineTicketForm
-                        onClose={() => setShowTicketForm(false)}
-                        onSuccess={handleTicketSuccess}
-                        sessionId={sessionId}
-                        chatHistory={messages.map((m) => ({ role: m.role, content: m.content }))}
-                      />
-                    </div>
+                    <Suspense fallback={null}>
+                      <div className="py-2">
+                        <InlineTicketForm
+                          onClose={() => setShowTicketForm(false)}
+                          onSuccess={handleTicketSuccess}
+                          sessionId={sessionId}
+                          chatHistory={messages.map((m) => ({ role: m.role, content: m.content }))}
+                        />
+                      </div>
+                    </Suspense>
                   )}
                 </>
               )}
