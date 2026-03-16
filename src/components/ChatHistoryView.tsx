@@ -269,27 +269,52 @@ export const ChatHistoryView = () => {
 
               {expandedSession === session.session_id && (
                 <div className="border-t border-border p-4 space-y-3 bg-muted/20">
-                  {session.messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`flex ${
-                        msg.role === "user" ? "justify-end" : "justify-start"
-                      }`}
-                    >
+                  {session.messages.map((msg, msgIdx) => {
+                    const ratingKey = `${session.session_id}:${msgIdx}`;
+                    const currentRating = ratings[ratingKey];
+                    return (
                       <div
-                        className={`max-w-[80%] px-4 py-2 rounded-lg text-sm ${
-                          msg.role === "user"
-                            ? "bg-primary/20 text-foreground"
-                            : "bg-secondary text-foreground"
+                        key={msg.id}
+                        className={`flex ${
+                          msg.role === "user" ? "justify-end" : "justify-start"
                         }`}
                       >
-                        <p className="text-xs text-muted-foreground mb-1 capitalize">
-                          {msg.role}
-                        </p>
-                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                        <div className="max-w-[80%]">
+                          <div
+                            className={`px-4 py-2 rounded-lg text-sm ${
+                              msg.role === "user"
+                                ? "bg-primary/20 text-foreground"
+                                : "bg-secondary text-foreground"
+                            }`}
+                          >
+                            <p className="text-xs text-muted-foreground mb-1 capitalize">
+                              {msg.role}
+                            </p>
+                            <p className="whitespace-pre-wrap">{msg.content}</p>
+                          </div>
+                          {/* Rating buttons for assistant messages */}
+                          {msg.role === "assistant" && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <button
+                                onClick={() => rateMessage(session.session_id, msgIdx, "up")}
+                                className={`p-1 rounded transition-colors ${currentRating === "up" ? "text-green-500" : "text-muted-foreground hover:text-green-500"}`}
+                              >
+                                <ThumbsUp className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => rateMessage(session.session_id, msgIdx, "down")}
+                                className={`p-1 rounded transition-colors ${currentRating === "down" ? "text-red-500" : "text-muted-foreground hover:text-red-500"}`}
+                              >
+                                <ThumbsDown className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
+                </div>
+              )}
                 </div>
               )}
             </div>
