@@ -646,6 +646,8 @@ serve(async (req) => {
       });
     }
 
+    const lastContent = lastUserMsg?.content || "";
+
     // ═══════════════════════════════════════════════════════════════
     // LAYER 2.5: Auto-replies from database (zero AI credits)
     // ═══════════════════════════════════════════════════════════════
