@@ -170,8 +170,8 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   }, []);
 
   const headerLogo = config.logoUrl || propscholarLogo;
-  // Use custom URL if set, otherwise pick from built-in styles
-  const launcherLogo = config.launcherLogoUrl || launcherAssets[config.launcherStyle] || launcherAssets.nohalo;
+  // Use custom URL or default CDN logo — no more bundled PNG imports
+  const launcherLogo = config.launcherLogoUrl || "https://res.cloudinary.com/dzozyqlqr/image/upload/v1767166947/Untitled_design_5_pjs1rs.png";
 
   // Immediately notify parent iframe of state change (don't wait for effect)
   const notifyParent = useCallback((action: "expanded" | "minimized") => {
