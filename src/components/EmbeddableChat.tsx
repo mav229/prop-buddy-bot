@@ -605,14 +605,16 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
                     </div>
                   )}
                   {showTicketForm && (
-                    <div className="py-2">
-                      <InlineTicketForm
-                        onClose={() => setShowTicketForm(false)}
-                        onSuccess={handleTicketSuccess}
-                        sessionId={sessionId}
-                        chatHistory={messages.map((m) => ({ role: m.role, content: m.content }))}
-                      />
-                    </div>
+                    <Suspense fallback={null}>
+                      <div className="py-2">
+                        <InlineTicketForm
+                          onClose={() => setShowTicketForm(false)}
+                          onSuccess={handleTicketSuccess}
+                          sessionId={sessionId}
+                          chatHistory={messages.map((m) => ({ role: m.role, content: m.content }))}
+                        />
+                      </div>
+                    </Suspense>
                   )}
                 </>
               )}
