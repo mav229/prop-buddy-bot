@@ -236,16 +236,10 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
   }, [isWidget, isMinimized, inIframe, config.backgroundColor]);
 
 
-  // Keep widget iframe instantly interactive; tiny delay only for full-page embed skeletons
+  // SPEED FIX: Remove artificial delay — set ready immediately
   useEffect(() => {
-    if (isWidget) {
-      const raf = window.requestAnimationFrame(() => setIsReady(true));
-      return () => window.cancelAnimationFrame(raf);
-    }
-
-    const timer = window.setTimeout(() => setIsReady(true), 100);
-    return () => clearTimeout(timer);
-  }, [isWidget]);
+    setIsReady(true);
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
