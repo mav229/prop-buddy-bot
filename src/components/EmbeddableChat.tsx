@@ -186,9 +186,8 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
 
   const handleOpen = useCallback(() => {
     playSound("open", 0.12);
-    preloadAllSounds();
+    // Sound preloading deferred — happens lazily on first play
     setIsMinimized(false);
-    // Immediately notify parent - don't rely solely on the effect
     notifyParent("expanded");
   }, [notifyParent]);
   
