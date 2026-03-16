@@ -33,11 +33,42 @@ export const ChatHistoryView = () => {
   const [loading, setLoading] = useState(true);
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [ratings, setRatings] = useState<Record<string, "up" | "down">>({});
   const { toast } = useToast();
 
   useEffect(() => {
     fetchSessions();
+    fetchRatings();
   }, []);
+
+  const fetchRatings = async () => {
+    try {
+      const { data } = await supabase
+        .from("chat_ratings" as any)
+        .select("session_id, message_index, rating");
+      if (data) {
+        const map: Record<string, "up" | "down"> = {};
+        (data as any[]).forEach(r => {
+          map[`${r.session_id}:${r.message_index}`] = r.rating;
+        });
+        setRatings(map);
+      }
+    } catch {}
+  };
+
+  const rateMessage = async (sessionId: string, msgIndex: number, rating: "up" | "down") => {
+    const key = `${sessionId}:${msgIndex}`;
+    const prev = ratings[key];
+    if (prev === rating) return; // already rated same
+    setRatings(r => ({ ...r, [key]: rating }));
+    const { error } = await supabase
+      .from("chat_ratings" as any)
+      .upsert({ session_id: sessionId, message_index: msgIndex, rating } as any, { onConflict: "session_id,message_index" });
+    if (error) {
+      sonnerToast.error("Failed to save rating");
+      setRatings(r => { const n = { ...r }; if (prev) n[key] = prev; else delete n[key]; return n; });
+    }
+  };
 
   const fetchSessions = async () => {
     setLoading(true);
