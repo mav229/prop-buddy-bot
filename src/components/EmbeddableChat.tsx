@@ -388,14 +388,16 @@ export const EmbeddableChat = ({ isWidget = false }: EmbeddableChatProps) => {
     >
       {/* Email Collection Modal - wrapped for proper z-index */}
       {showEmailPopup && (
-        <div className="absolute inset-x-0 top-0 z-[60] pointer-events-auto">
-          <EmailCollectionModal
-            isOpen={showEmailPopup}
-            onClose={handleEmailPopupClose}
-            onSuccess={handleEmailCollected}
-            sessionId={sessionId}
-          />
-        </div>
+        <Suspense fallback={null}>
+          <div className="absolute inset-x-0 top-0 z-[60] pointer-events-auto">
+            <EmailCollectionModal
+              isOpen={showEmailPopup}
+              onClose={handleEmailPopupClose}
+              onSuccess={handleEmailCollected}
+              sessionId={sessionId}
+            />
+          </div>
+        </Suspense>
       )}
       
       {/* Agent connect message removed - no more ticket form overlay */}
