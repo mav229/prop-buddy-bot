@@ -265,6 +265,26 @@ export const LeadsManager = () => {
                 <Download className="w-4 h-4" />
                 <span className="hidden sm:inline">CSV</span>
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const emails = filteredLeads.map(l => l.email);
+                  if (emails.length === 0) { toast.error("No leads to export"); return; }
+                  const unique = [...new Set(emails)];
+                  const blob = new Blob([unique.join("\n")], { type: "text/plain" });
+                  const link = document.createElement("a");
+                  link.href = URL.createObjectURL(blob);
+                  link.download = `emails-${format(new Date(), "yyyy-MM-dd")}.txt`;
+                  link.click();
+                  toast.success(`Exported ${unique.length} unique emails`);
+                }}
+                className="gap-2"
+                title="Export emails only"
+              >
+                <Mail className="w-4 h-4" />
+                <span className="hidden sm:inline">Emails</span>
+              </Button>
             </div>
           </div>
         </CardHeader>
