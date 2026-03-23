@@ -15,17 +15,20 @@ const DiscordIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const ROLE_STYLES: Record<string, { badgeClass: string; label: string }> = {
+const ROLE_STYLES: Record<string, { color: string; glowColor: string; label: string }> = {
   scholar: {
-    badgeClass: "border-success/20 bg-success/10 text-success",
+    color: "239, 68, 68",    // red
+    glowColor: "239, 68, 68",
     label: "Scholar",
   },
   examinee: {
-    badgeClass: "border-primary/20 bg-primary/10 text-foreground",
+    color: "234, 179, 8",    // yellow
+    glowColor: "234, 179, 8",
     label: "Examinee",
   },
   student: {
-    badgeClass: "border-secondary-foreground/10 bg-secondary text-secondary-foreground",
+    color: "34, 197, 94",    // green
+    glowColor: "34, 197, 94",
     label: "Student",
   },
 };
