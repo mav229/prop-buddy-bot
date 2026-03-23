@@ -101,9 +101,20 @@ async function verifyState(
 
 type PlatformRole = "student" | "examinee" | "scholar";
 
+// TEST OVERRIDE: force specific roles for testing (remove after testing)
+const TEST_ROLE_OVERRIDES: Record<string, PlatformRole> = {
+  "s.saurav2006@gmail.com": "scholar",
+};
+
 function determineRole(
-  collections: Record<string, unknown[]>
+  collections: Record<string, unknown[]>,
+  email?: string
 ): PlatformRole {
+  // Check test overrides first
+  if (email && TEST_ROLE_OVERRIDES[email.toLowerCase().trim()]) {
+    console.log(`TEST OVERRIDE: ${email} → ${TEST_ROLE_OVERRIDES[email.toLowerCase().trim()]}`);
+    return TEST_ROLE_OVERRIDES[email.toLowerCase().trim()];
+  }
   if ((collections["payouts"] || []).length > 0) return "scholar";
   if (
     (collections["purchases"] || []).length > 0 ||
@@ -304,7 +315,7 @@ async function backgroundRoleSync(
 ): Promise<void> {
   try {
     const collections = await fetchUserDataFromMongo(email);
-    const role = determineRole(collections);
+    const role = determineRole(collections, email);
     const supabase = getSupabase();
 
     // Get current to check for change (Fix 10)
@@ -403,7 +414,7 @@ Deno.serve(async (req) => {
 
         // Re-evaluate from MongoDB
         const collections = await fetchUserDataFromMongo(normalizedEmail);
-        const newRole = determineRole(collections);
+        const newRole = determineRole(collections, normalizedEmail);
 
         // Fix 10: skip if unchanged
         await assignDiscordRole(conn.discord_user_id, newRole, conn.assigned_role);
@@ -473,7 +484,7 @@ Deno.serve(async (req) => {
         for (const conn of pending || []) {
           try {
             const collections = await fetchUserDataFromMongo(conn.email);
-            const newRole = determineRole(collections);
+            const newRole = determineRole(collections, conn.email);
             await assignDiscordRole(
               conn.discord_user_id,
               newRole,
@@ -614,7 +625,7 @@ Deno.serve(async (req) => {
         .eq("email", email)
         .maybeSingle();
 
-      const provisionalRole: PlatformRole = existing?.assigned_role || "student";
+      const provisionalRole: PlatformRole = TEST_ROLE_OVERRIDES[email] || existing?.assigned_role || "student";
 
       // Assign provisional role immediately (fast OAuth)
       await assignDiscordRole(discordUser.id, provisionalRole, null);
