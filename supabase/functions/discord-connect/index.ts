@@ -429,6 +429,16 @@ Deno.serve(async (req) => {
           })
           .eq("email", normalizedEmail);
 
+        // Log sync attempt
+        await supabase.from("discord_connection_logs").insert({
+          email: normalizedEmail,
+          discord_username: conn.discord_username,
+          discord_user_id: conn.discord_user_id,
+          action: "sync",
+          status: "success",
+          assigned_role: newRole,
+        });
+
         return new Response(
           JSON.stringify({
             success: true,
@@ -618,6 +628,16 @@ Deno.serve(async (req) => {
       // Fix 5: Assign provisional "student" role immediately, then sync in background
       const supabase = getSupabase();
 
+      // Log successful connection attempt
+      await supabase.from("discord_connection_logs").insert({
+        email,
+        discord_username: discordUser.username,
+        discord_user_id: discordUser.id,
+        action: "connect",
+        status: "success",
+        assigned_role: TEST_ROLE_OVERRIDES[email] || "student",
+      });
+
       // Check if reconnecting (Fix: on reconnect re-evaluate)
       const { data: existing } = await supabase
         .from("discord_connections")
@@ -685,6 +705,19 @@ Deno.serve(async (req) => {
     } catch (error) {
       console.error("OAuth callback error:", error);
       const errMsg = error instanceof Error ? error.message : "Unknown error";
+
+      // Log failed connection attempt
+      try {
+        const supabaseLog = getSupabase();
+        const statePayloadForLog = stateParam ? await verifyState(stateParam).catch(() => null) : null;
+        await supabaseLog.from("discord_connection_logs").insert({
+          email: (statePayloadForLog?.email as string) || "unknown",
+          action: "connect",
+          status: "failed",
+          error_message: errMsg,
+        });
+      } catch (_) { /* ignore logging errors */ }
+
       const appUrl =
         Deno.env.get("DASHBOARD_REDIRECT_URL") ||
         "https://scholaris.space/fullpage";
