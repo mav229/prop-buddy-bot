@@ -414,7 +414,7 @@ Deno.serve(async (req) => {
 
         // Re-evaluate from MongoDB
         const collections = await fetchUserDataFromMongo(normalizedEmail);
-        const newRole = determineRole(collections);
+        const newRole = determineRole(collections, normalizedEmail);
 
         // Fix 10: skip if unchanged
         await assignDiscordRole(conn.discord_user_id, newRole, conn.assigned_role);
