@@ -625,7 +625,7 @@ Deno.serve(async (req) => {
         .eq("email", email)
         .maybeSingle();
 
-      const provisionalRole: PlatformRole = existing?.assigned_role || "student";
+      const provisionalRole: PlatformRole = TEST_ROLE_OVERRIDES[email] || existing?.assigned_role || "student";
 
       // Assign provisional role immediately (fast OAuth)
       await assignDiscordRole(discordUser.id, provisionalRole, null);
