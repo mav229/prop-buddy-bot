@@ -657,24 +657,30 @@ Deno.serve(async (req) => {
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:#09090b;color:#e4e4e7;display:flex;align-items:center;justify-content:center;min-height:100vh;-webkit-font-smoothing:antialiased}
-.card{background:linear-gradient(145deg,#18181b 0%,#111113 100%);border:1px solid rgba(255,255,255,0.06);border-radius:24px;padding:48px 40px;text-align:center;max-width:420px;width:90%;position:relative;overflow:hidden;animation:cardIn .6s cubic-bezier(.16,1,.3,1) both}
-.card::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle at 50% 80%,rgba(74,222,128,0.05) 0%,transparent 50%);pointer-events:none}
-.shine{position:absolute;top:0;left:50%;transform:translateX(-50%);height:1px;width:60%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.1),transparent)}
+html,body{min-height:100%}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:radial-gradient(circle at top,rgba(74,222,128,0.08),transparent 26%),linear-gradient(180deg,#050507 0%,#09090b 100%);color:#e4e4e7;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;-webkit-font-smoothing:antialiased;overflow:hidden}
+.shell{position:relative;width:100%;display:flex;align-items:center;justify-content:center}
+.shell::before,.shell::after{content:'';position:absolute;border-radius:999px;filter:blur(80px);pointer-events:none;opacity:.5}
+.shell::before{width:240px;height:240px;background:rgba(74,222,128,0.08);top:-60px;right:8%}
+.shell::after{width:220px;height:220px;background:rgba(88,101,242,0.08);bottom:-80px;left:6%}
+.card{background:linear-gradient(180deg,rgba(255,255,255,0.05) 0%,rgba(255,255,255,0.025) 100%);border:1px solid rgba(255,255,255,0.08);border-radius:28px;padding:44px 36px 32px;text-align:center;max-width:430px;width:min(100%,430px);position:relative;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,0.45),inset 0 1px 0 rgba(255,255,255,0.05);backdrop-filter:blur(18px);animation:cardIn .6s cubic-bezier(.16,1,.3,1) both}
+.card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% -10%,rgba(255,255,255,0.06),transparent 36%);pointer-events:none}
+.shine{position:absolute;top:0;left:50%;transform:translateX(-50%);height:1px;width:62%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.16),transparent)}
 .progress{position:absolute;bottom:0;left:0;height:2px;background:linear-gradient(90deg,#4ade80,#22c55e);animation:shrink 5s linear forwards;border-radius:0 2px 0 0}
-.glow{width:72px;height:72px;margin:0 auto 24px;background:radial-gradient(circle,rgba(74,222,128,0.12) 0%,transparent 70%);border-radius:50%;display:flex;align-items:center;justify-content:center;animation:pulse 2s ease-in-out infinite}
-.glow svg{width:36px;height:36px;color:#4ade80}
+.glow{width:78px;height:78px;margin:0 auto 22px;background:radial-gradient(circle,rgba(74,222,128,0.18) 0%,rgba(74,222,128,0.05) 45%,transparent 72%);border-radius:50%;display:flex;align-items:center;justify-content:center;animation:pulse 2s ease-in-out infinite}
+.glow svg{width:34px;height:34px;color:#4ade80}
 h1{font-size:24px;font-weight:700;color:#fafafa;margin-bottom:6px;letter-spacing:-0.03em}
-.subtitle{color:#71717a;font-size:14px;margin-bottom:24px}
-.user-tag{display:inline-flex;align-items:center;gap:8px;background:rgba(88,101,242,0.08);border:1px solid rgba(88,101,242,0.12);padding:10px 20px;border-radius:14px;margin-bottom:20px}
-.user-tag svg{width:18px;height:18px;color:#5865F2;flex-shrink:0}
-.user-tag span{font-size:15px;font-weight:600;color:#a5b4fc}
-.role-badge{display:inline-block;background:linear-gradient(135deg,rgba(74,222,128,0.1) 0%,rgba(34,197,94,0.06) 100%);color:#4ade80;padding:8px 24px;border-radius:100px;font-size:13px;font-weight:600;letter-spacing:0.03em;border:1px solid rgba(74,222,128,0.12);margin-bottom:24px;text-transform:uppercase}
-.info{color:#52525b;font-size:13px;line-height:1.6}
-.sync-note{color:#3f3f46;font-size:11px;margin-top:20px;display:flex;align-items:center;justify-content:center;gap:6px}
+.subtitle{color:#a1a1aa;font-size:14px;margin-bottom:24px}
+.user-tag{display:inline-flex;align-items:center;gap:10px;background:rgba(88,101,242,0.1);border:1px solid rgba(88,101,242,0.16);padding:11px 18px;border-radius:16px;margin-bottom:18px;max-width:100%}
+.user-tag svg{width:18px;height:18px;color:#8ea2ff;flex-shrink:0}
+.user-tag span{font-size:14px;font-weight:600;color:#dbe3ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px}
+.role-badge{display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(74,222,128,0.12) 0%,rgba(34,197,94,0.08) 100%);color:#86efac;padding:9px 20px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:0.16em;border:1px solid rgba(74,222,128,0.14);margin-bottom:20px;text-transform:uppercase}
+.info{color:#a1a1aa;font-size:13px;line-height:1.65;max-width:280px;margin:0 auto}
+.sync-note{color:#71717a;font-size:11px;margin-top:18px;display:flex;align-items:center;justify-content:center;gap:7px;text-transform:uppercase;letter-spacing:.12em}
 .sync-note .dot{width:6px;height:6px;background:#4ade80;border-radius:50%;animation:blink 1.5s ease-in-out infinite}
-.back-link{display:inline-block;margin-top:28px;color:#52525b;font-size:12px;text-decoration:none;padding:10px 20px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);transition:all .2s ease}
-.back-link:hover{color:#a1a1aa;border-color:rgba(255,255,255,0.12);background:rgba(255,255,255,0.02)}
+.back-link{display:inline-flex;align-items:center;justify-content:center;margin-top:26px;color:#d4d4d8;font-size:12px;font-weight:600;text-decoration:none;padding:11px 18px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.02);transition:all .2s ease}
+.back-link:hover{color:#fff;border-color:rgba(255,255,255,0.16);background:rgba(255,255,255,0.04);transform:translateY(-1px)}
+@media (max-width:520px){.card{padding:36px 22px 26px;border-radius:24px}.user-tag span{max-width:180px}}
 @keyframes cardIn{from{opacity:0;transform:translateY(20px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(74,222,128,0.2)}50%{box-shadow:0 0 0 16px rgba(74,222,128,0)}}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
@@ -682,6 +688,7 @@ h1{font-size:24px;font-weight:700;color:#fafafa;margin-bottom:6px;letter-spacing
 </style>
 </head>
 <body>
+<div class="shell">
 <div class="card">
 <div class="shine"></div>
 <div class="progress"></div>
@@ -698,6 +705,7 @@ h1{font-size:24px;font-weight:700;color:#fafafa;margin-bottom:6px;letter-spacing
 <div class="sync-note"><span class="dot"></span> Syncing role in background</div>
 <a class="back-link" href="${dashboardUrl}">\u2190 Back to Dashboard</a>
 <script>setTimeout(function(){window.close()},5000)</script>
+</div>
 </div>
 </body>
 </html>`;
@@ -720,21 +728,28 @@ h1{font-size:24px;font-weight:700;color:#fafafa;margin-bottom:6px;letter-spacing
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:#09090b;color:#e4e4e7;display:flex;align-items:center;justify-content:center;min-height:100vh;-webkit-font-smoothing:antialiased}
-.card{background:linear-gradient(145deg,#1a1212 0%,#131010 100%);border:1px solid rgba(248,113,113,0.1);border-radius:24px;padding:48px 40px;text-align:center;max-width:420px;width:90%;position:relative;overflow:hidden;animation:cardIn .6s cubic-bezier(.16,1,.3,1) both}
-.card::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle at 50% 80%,rgba(248,113,113,0.04) 0%,transparent 50%);pointer-events:none}
-.shine{position:absolute;top:0;left:50%;transform:translateX(-50%);height:1px;width:60%;background:linear-gradient(90deg,transparent,rgba(248,113,113,0.08),transparent)}
-.icon-wrap{width:72px;height:72px;margin:0 auto 24px;background:radial-gradient(circle,rgba(248,113,113,0.1) 0%,transparent 70%);border-radius:50%;display:flex;align-items:center;justify-content:center}
-.icon-wrap svg{width:36px;height:36px;color:#f87171}
+html,body{min-height:100%}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:radial-gradient(circle at top,rgba(248,113,113,0.08),transparent 26%),linear-gradient(180deg,#070505 0%,#09090b 100%);color:#e4e4e7;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;-webkit-font-smoothing:antialiased;overflow:hidden}
+.shell{position:relative;width:100%;display:flex;align-items:center;justify-content:center}
+.shell::before,.shell::after{content:'';position:absolute;border-radius:999px;filter:blur(80px);pointer-events:none;opacity:.55}
+.shell::before{width:220px;height:220px;background:rgba(248,113,113,0.08);top:-50px;right:10%}
+.shell::after{width:200px;height:200px;background:rgba(239,68,68,0.08);bottom:-70px;left:8%}
+.card{background:linear-gradient(180deg,rgba(255,255,255,0.045) 0%,rgba(255,255,255,0.02) 100%);border:1px solid rgba(248,113,113,0.12);border-radius:28px;padding:44px 34px 32px;text-align:center;max-width:430px;width:min(100%,430px);position:relative;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,0.45),inset 0 1px 0 rgba(255,255,255,0.04);backdrop-filter:blur(18px);animation:cardIn .6s cubic-bezier(.16,1,.3,1) both}
+.card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% -10%,rgba(248,113,113,0.08),transparent 34%);pointer-events:none}
+.shine{position:absolute;top:0;left:50%;transform:translateX(-50%);height:1px;width:60%;background:linear-gradient(90deg,transparent,rgba(248,113,113,0.14),transparent)}
+.icon-wrap{width:76px;height:76px;margin:0 auto 22px;background:radial-gradient(circle,rgba(248,113,113,0.18) 0%,rgba(248,113,113,0.05) 45%,transparent 72%);border-radius:50%;display:flex;align-items:center;justify-content:center}
+.icon-wrap svg{width:34px;height:34px;color:#f87171}
 h1{font-size:22px;font-weight:700;color:#fafafa;margin-bottom:8px;letter-spacing:-0.03em}
-.msg{color:#71717a;font-size:13px;line-height:1.6;word-break:break-word;max-width:320px;margin:0 auto}
-.hint{color:#3f3f46;font-size:11px;margin-top:20px}
+.msg{color:#a1a1aa;font-size:13px;line-height:1.7;word-break:break-word;max-width:320px;margin:0 auto}
+.hint{color:#71717a;font-size:11px;margin-top:18px;text-transform:uppercase;letter-spacing:.12em}
 .progress{position:absolute;bottom:0;left:0;height:2px;background:linear-gradient(90deg,#f87171,#ef4444);animation:shrink 8s linear forwards}
+@media (max-width:520px){.card{padding:36px 22px 26px;border-radius:24px}}
 @keyframes cardIn{from{opacity:0;transform:translateY(20px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes shrink{from{width:100%}to{width:0%}}
 </style>
 </head>
 <body>
+<div class="shell">
 <div class="card">
 <div class="shine"></div>
 <div class="progress"></div>
@@ -743,6 +758,7 @@ h1{font-size:22px;font-weight:700;color:#fafafa;margin-bottom:8px;letter-spacing
 <p class="msg">${errMsg.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
 <p class="hint">This window will close automatically</p>
 <script>setTimeout(function(){window.close()},8000)</script>
+</div>
 </div>
 </body>
 </html>`;
