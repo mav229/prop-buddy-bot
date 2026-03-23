@@ -695,6 +695,19 @@ Deno.serve(async (req) => {
     } catch (error) {
       console.error("OAuth callback error:", error);
       const errMsg = error instanceof Error ? error.message : "Unknown error";
+
+      // Log failed connection attempt
+      try {
+        const supabaseLog = getSupabase();
+        const statePayloadForLog = stateParam ? await verifyState(stateParam).catch(() => null) : null;
+        await supabaseLog.from("discord_connection_logs").insert({
+          email: (statePayloadForLog?.email as string) || "unknown",
+          action: "connect",
+          status: "failed",
+          error_message: errMsg,
+        });
+      } catch (_) { /* ignore logging errors */ }
+
       const appUrl =
         Deno.env.get("DASHBOARD_REDIRECT_URL") ||
         "https://scholaris.space/fullpage";
