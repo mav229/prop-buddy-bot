@@ -129,59 +129,106 @@ export const DiscordConnectWidget = ({ emailOverride, minimal }: DiscordConnectW
 
   // ── Connected state ──
   if (connection) {
+    const roleColor = role?.color || "34, 197, 94";
     return (
       <div className="w-full max-w-xs">
         <div className="group relative">
-          <div className="absolute -inset-[1px] rounded-[26px] bg-gradient-to-b from-primary/18 via-primary/6 to-transparent opacity-70 blur-sm transition-opacity duration-300 group-hover:opacity-100" />
-          <div className="relative overflow-hidden rounded-[24px] border border-border/80 bg-gradient-to-b from-card to-secondary/60 px-4 py-4 shadow-2xl">
-            <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-primary/25 to-transparent" />
-            <div className="flex items-center gap-3">
+          {/* Subtle outer glow matching role color */}
+          <div
+            className="absolute -inset-[1px] rounded-[22px] opacity-40 blur-md transition-opacity duration-500 group-hover:opacity-60"
+            style={{ background: `radial-gradient(ellipse at center, rgba(${roleColor}, 0.15), transparent 70%)` }}
+          />
+          <div
+            className="relative overflow-hidden rounded-[20px] px-5 py-5"
+            style={{
+              background: "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              boxShadow: `0 0 40px -15px rgba(${roleColor}, 0.08), inset 0 1px 0 0 rgba(255,255,255,0.04)`,
+            }}
+          >
+            {/* Top accent line in role color */}
+            <div
+              className="absolute top-0 left-1/2 -translate-x-1/2 h-px w-2/3"
+              style={{ background: `linear-gradient(90deg, transparent, rgba(${roleColor}, 0.3), transparent)` }}
+            />
+
+            <div className="flex items-center gap-3.5">
+              {/* Avatar */}
               <div className="relative flex-shrink-0">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-border/70 bg-secondary shadow-lg">
-                  <DiscordIcon className="h-5 w-5 text-foreground/85" />
+                <div
+                  className="flex h-12 w-12 items-center justify-center rounded-[14px]"
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                  }}
+                >
+                  <DiscordIcon className="h-5.5 w-5.5 text-white/70" />
                 </div>
-                <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 border-card bg-success">
-                  <span className="h-1.5 w-1.5 rounded-full bg-background" />
+                <span
+                  className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2"
+                  style={{
+                    borderColor: "#0a0a0a",
+                    backgroundColor: `rgb(${roleColor})`,
+                  }}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-black/30" />
                 </span>
               </div>
 
+              {/* Info */}
               <div className="min-w-0 flex-1 text-left">
-                <div className="mb-1 flex items-center gap-1.5">
-                  <span className="truncate text-sm font-semibold tracking-tight text-foreground">
+                <div className="mb-1.5 flex items-center gap-2">
+                  <span className="truncate text-[15px] font-semibold tracking-tight text-white/90">
                     {connection.discord_username}
                   </span>
-                  <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-success" />
+                  <CheckCircle2
+                    className="h-3.5 w-3.5 flex-shrink-0"
+                    style={{ color: `rgb(${roleColor})` }}
+                  />
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   {role && (
                     <span
-                      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${role.badgeClass}`}
+                      className="inline-flex items-center rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]"
+                      style={{
+                        background: `rgba(${roleColor}, 0.12)`,
+                        border: `1px solid rgba(${roleColor}, 0.25)`,
+                        color: `rgb(${roleColor})`,
+                      }}
                     >
                       {role.label}
                     </span>
                   )}
-                  <span className="text-[11px] text-muted-foreground">
-                    Connected
-                  </span>
+                  <span className="text-[11px] text-white/30">Connected</span>
                 </div>
               </div>
 
+              {/* Sync button */}
               <button
                 onClick={handleSync}
                 disabled={syncing}
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/70 bg-background/30 text-muted-foreground transition-all duration-200 hover:border-primary/20 hover:bg-secondary hover:text-foreground disabled:opacity-60"
+                className="flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 disabled:opacity-40"
+                style={{
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                }}
                 title="Re-sync role"
               >
                 {syncing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin text-white/50" />
                 ) : (
-                  <RefreshCw className="h-4 w-4" />
+                  <RefreshCw className="h-4 w-4 text-white/40" />
                 )}
               </button>
             </div>
-            <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
-              <span>Role sync available anytime</span>
-              <span className="uppercase tracking-[0.18em] text-foreground/55">Live</span>
+
+            {/* Footer */}
+            <div
+              className="mt-4 flex items-center justify-between pt-3.5 text-[11px]"
+              style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+            >
+              <span className="text-white/25">Role sync available anytime</span>
+              <span className="uppercase tracking-[0.2em] text-white/20 text-[10px]">Live</span>
             </div>
           </div>
         </div>
