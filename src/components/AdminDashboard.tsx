@@ -269,6 +269,10 @@ export const AdminDashboard = () => {
             <CreditUsageCalendar />
           </TabsContent>
 
+          <TabsContent value="conn-logs">
+            <ConnectionLogsView />
+          </TabsContent>
+
           <TabsContent value="discord">
             <DiscordSettings />
           </TabsContent>
