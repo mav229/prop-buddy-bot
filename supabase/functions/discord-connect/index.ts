@@ -484,7 +484,7 @@ Deno.serve(async (req) => {
         for (const conn of pending || []) {
           try {
             const collections = await fetchUserDataFromMongo(conn.email);
-            const newRole = determineRole(collections);
+            const newRole = determineRole(collections, conn.email);
             await assignDiscordRole(
               conn.discord_user_id,
               newRole,
