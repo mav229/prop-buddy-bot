@@ -26,7 +26,7 @@ interface DiscordConnectWidgetProps {
   minimal?: boolean;
 }
 
-export const DiscordConnectWidget = ({ emailOverride }: DiscordConnectWidgetProps) => {
+export const DiscordConnectWidget = ({ emailOverride, minimal }: DiscordConnectWidgetProps) => {
   const { user } = useAuth();
   const email = emailOverride || user?.email;
 
