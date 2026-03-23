@@ -652,121 +652,42 @@ Deno.serve(async (req) => {
 
       const roleLabel =
         provisionalRole.charAt(0).toUpperCase() + provisionalRole.slice(1);
-      const dashboardUrl =
+      const appUrl =
         Deno.env.get("DASHBOARD_REDIRECT_URL") ||
         "https://prop-buddy-bot.lovable.app/fullpage";
+      const popupBase = appUrl.replace(/\/fullpage\/?$/, "") + "/discord-popup";
+      const successUrl = new URL(popupBase);
+      successUrl.searchParams.set("status", "success");
+      successUrl.searchParams.set("title", "Discord Connected");
+      successUrl.searchParams.set("subtitle", "You're all set");
+      successUrl.searchParams.set("username", discordUser.username ?? "Discord user");
+      successUrl.searchParams.set("role", roleLabel);
+      successUrl.searchParams.set(
+        "message",
+        "Your role has been assigned based on your PropScholar account."
+      );
+      successUrl.searchParams.set("note", "Syncing role in background");
+      successUrl.searchParams.set("close", "5000");
+      successUrl.searchParams.set("returnTo", appUrl);
 
-      const successHtml = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Discord Connected</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-html,body{min-height:100%}
-body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:radial-gradient(circle at top,rgba(74,222,128,0.08),transparent 26%),linear-gradient(180deg,#050507 0%,#09090b 100%);color:#e4e4e7;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;-webkit-font-smoothing:antialiased;overflow:hidden}
-.shell{position:relative;width:100%;display:flex;align-items:center;justify-content:center}
-.shell::before,.shell::after{content:'';position:absolute;border-radius:999px;filter:blur(80px);pointer-events:none;opacity:.5}
-.shell::before{width:240px;height:240px;background:rgba(74,222,128,0.08);top:-60px;right:8%}
-.shell::after{width:220px;height:220px;background:rgba(88,101,242,0.08);bottom:-80px;left:6%}
-.card{background:linear-gradient(180deg,rgba(255,255,255,0.05) 0%,rgba(255,255,255,0.025) 100%);border:1px solid rgba(255,255,255,0.08);border-radius:28px;padding:44px 36px 32px;text-align:center;max-width:430px;width:min(100%,430px);position:relative;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,0.45),inset 0 1px 0 rgba(255,255,255,0.05);backdrop-filter:blur(18px);animation:cardIn .6s cubic-bezier(.16,1,.3,1) both}
-.card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% -10%,rgba(255,255,255,0.06),transparent 36%);pointer-events:none}
-.shine{position:absolute;top:0;left:50%;transform:translateX(-50%);height:1px;width:62%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.16),transparent)}
-.progress{position:absolute;bottom:0;left:0;height:2px;background:linear-gradient(90deg,#4ade80,#22c55e);animation:shrink 5s linear forwards;border-radius:0 2px 0 0}
-.glow{width:78px;height:78px;margin:0 auto 22px;background:radial-gradient(circle,rgba(74,222,128,0.18) 0%,rgba(74,222,128,0.05) 45%,transparent 72%);border-radius:50%;display:flex;align-items:center;justify-content:center;animation:pulse 2s ease-in-out infinite}
-.glow svg{width:34px;height:34px;color:#4ade80}
-h1{font-size:24px;font-weight:700;color:#fafafa;margin-bottom:6px;letter-spacing:-0.03em}
-.subtitle{color:#a1a1aa;font-size:14px;margin-bottom:24px}
-.user-tag{display:inline-flex;align-items:center;gap:10px;background:rgba(88,101,242,0.1);border:1px solid rgba(88,101,242,0.16);padding:11px 18px;border-radius:16px;margin-bottom:18px;max-width:100%}
-.user-tag svg{width:18px;height:18px;color:#8ea2ff;flex-shrink:0}
-.user-tag span{font-size:14px;font-weight:600;color:#dbe3ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px}
-.role-badge{display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(74,222,128,0.12) 0%,rgba(34,197,94,0.08) 100%);color:#86efac;padding:9px 20px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:0.16em;border:1px solid rgba(74,222,128,0.14);margin-bottom:20px;text-transform:uppercase}
-.info{color:#a1a1aa;font-size:13px;line-height:1.65;max-width:280px;margin:0 auto}
-.sync-note{color:#71717a;font-size:11px;margin-top:18px;display:flex;align-items:center;justify-content:center;gap:7px;text-transform:uppercase;letter-spacing:.12em}
-.sync-note .dot{width:6px;height:6px;background:#4ade80;border-radius:50%;animation:blink 1.5s ease-in-out infinite}
-.back-link{display:inline-flex;align-items:center;justify-content:center;margin-top:26px;color:#d4d4d8;font-size:12px;font-weight:600;text-decoration:none;padding:11px 18px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.02);transition:all .2s ease}
-.back-link:hover{color:#fff;border-color:rgba(255,255,255,0.16);background:rgba(255,255,255,0.04);transform:translateY(-1px)}
-@media (max-width:520px){.card{padding:36px 22px 26px;border-radius:24px}.user-tag span{max-width:180px}}
-@keyframes cardIn{from{opacity:0;transform:translateY(20px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
-@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(74,222,128,0.2)}50%{box-shadow:0 0 0 16px rgba(74,222,128,0)}}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
-@keyframes shrink{from{width:100%}to{width:0%}}
-</style>
-</head>
-<body>
-<div class="shell">
-<div class="card">
-<div class="shine"></div>
-<div class="progress"></div>
-<div class="glow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
-<h1>Discord Connected</h1>
-<p class="subtitle">You're all set</p>
-<div class="user-tag">
-<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
-<span>${discordUser.username}</span>
-</div>
-<br>
-<div class="role-badge">${roleLabel}</div>
-<p class="info">Your role has been assigned based on your PropScholar account.</p>
-<div class="sync-note"><span class="dot"></span> Syncing role in background</div>
-<a class="back-link" href="${dashboardUrl}">\u2190 Back to Dashboard</a>
-<script>setTimeout(function(){window.close()},5000)</script>
-</div>
-</div>
-</body>
-</html>`;
-
-      return htmlResponse(successHtml);
+      return Response.redirect(successUrl.toString(), 302);
     } catch (error) {
       console.error("OAuth callback error:", error);
       const errMsg = error instanceof Error ? error.message : "Unknown error";
-      const errorHtml = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Connection Failed</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-html,body{min-height:100%}
-body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:radial-gradient(circle at top,rgba(248,113,113,0.08),transparent 26%),linear-gradient(180deg,#070505 0%,#09090b 100%);color:#e4e4e7;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;-webkit-font-smoothing:antialiased;overflow:hidden}
-.shell{position:relative;width:100%;display:flex;align-items:center;justify-content:center}
-.shell::before,.shell::after{content:'';position:absolute;border-radius:999px;filter:blur(80px);pointer-events:none;opacity:.55}
-.shell::before{width:220px;height:220px;background:rgba(248,113,113,0.08);top:-50px;right:10%}
-.shell::after{width:200px;height:200px;background:rgba(239,68,68,0.08);bottom:-70px;left:8%}
-.card{background:linear-gradient(180deg,rgba(255,255,255,0.045) 0%,rgba(255,255,255,0.02) 100%);border:1px solid rgba(248,113,113,0.12);border-radius:28px;padding:44px 34px 32px;text-align:center;max-width:430px;width:min(100%,430px);position:relative;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,0.45),inset 0 1px 0 rgba(255,255,255,0.04);backdrop-filter:blur(18px);animation:cardIn .6s cubic-bezier(.16,1,.3,1) both}
-.card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% -10%,rgba(248,113,113,0.08),transparent 34%);pointer-events:none}
-.shine{position:absolute;top:0;left:50%;transform:translateX(-50%);height:1px;width:60%;background:linear-gradient(90deg,transparent,rgba(248,113,113,0.14),transparent)}
-.icon-wrap{width:76px;height:76px;margin:0 auto 22px;background:radial-gradient(circle,rgba(248,113,113,0.18) 0%,rgba(248,113,113,0.05) 45%,transparent 72%);border-radius:50%;display:flex;align-items:center;justify-content:center}
-.icon-wrap svg{width:34px;height:34px;color:#f87171}
-h1{font-size:22px;font-weight:700;color:#fafafa;margin-bottom:8px;letter-spacing:-0.03em}
-.msg{color:#a1a1aa;font-size:13px;line-height:1.7;word-break:break-word;max-width:320px;margin:0 auto}
-.hint{color:#71717a;font-size:11px;margin-top:18px;text-transform:uppercase;letter-spacing:.12em}
-.progress{position:absolute;bottom:0;left:0;height:2px;background:linear-gradient(90deg,#f87171,#ef4444);animation:shrink 8s linear forwards}
-@media (max-width:520px){.card{padding:36px 22px 26px;border-radius:24px}}
-@keyframes cardIn{from{opacity:0;transform:translateY(20px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
-@keyframes shrink{from{width:100%}to{width:0%}}
-</style>
-</head>
-<body>
-<div class="shell">
-<div class="card">
-<div class="shine"></div>
-<div class="progress"></div>
-<div class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
-<h1>Connection Failed</h1>
-<p class="msg">${errMsg.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
-<p class="hint">This window will close automatically</p>
-<script>setTimeout(function(){window.close()},8000)</script>
-</div>
-</div>
-</body>
-</html>`;
+      const appUrl =
+        Deno.env.get("DASHBOARD_REDIRECT_URL") ||
+        "https://prop-buddy-bot.lovable.app/fullpage";
+      const popupBase = appUrl.replace(/\/fullpage\/?$/, "") + "/discord-popup";
+      const errorUrl = new URL(popupBase);
+      errorUrl.searchParams.set("status", "error");
+      errorUrl.searchParams.set("title", "Connection Failed");
+      errorUrl.searchParams.set("subtitle", "Please try again");
+      errorUrl.searchParams.set("message", errMsg);
+      errorUrl.searchParams.set("note", "This window will close automatically");
+      errorUrl.searchParams.set("close", "8000");
+      errorUrl.searchParams.set("returnTo", appUrl);
 
-      return htmlResponse(errorHtml, 500);
+      return Response.redirect(errorUrl.toString(), 302);
     }
   }
 
