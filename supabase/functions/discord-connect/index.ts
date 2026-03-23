@@ -654,7 +654,7 @@ Deno.serve(async (req) => {
         provisionalRole.charAt(0).toUpperCase() + provisionalRole.slice(1);
       const appUrl =
         Deno.env.get("DASHBOARD_REDIRECT_URL") ||
-        "https://prop-buddy-bot.lovable.app/fullpage";
+        "https://scholaris.space/fullpage";
       const popupBase = appUrl.replace(/\/fullpage\/?$/, "") + "/discord-popup";
       const successUrl = new URL(popupBase);
       successUrl.searchParams.set("status", "success");
@@ -676,7 +676,7 @@ Deno.serve(async (req) => {
       const errMsg = error instanceof Error ? error.message : "Unknown error";
       const appUrl =
         Deno.env.get("DASHBOARD_REDIRECT_URL") ||
-        "https://prop-buddy-bot.lovable.app/fullpage";
+        "https://scholaris.space/fullpage";
       const popupBase = appUrl.replace(/\/fullpage\/?$/, "") + "/discord-popup";
       const errorUrl = new URL(popupBase);
       errorUrl.searchParams.set("status", "error");
