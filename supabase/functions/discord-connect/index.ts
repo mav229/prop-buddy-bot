@@ -10,6 +10,20 @@ const corsHeaders = {
 
 const DISCORD_API = "https://discord.com/api/v10";
 
+function htmlResponse(html: string, status = 200): Response {
+  return new Response(new TextEncoder().encode(html), {
+    status,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}
+
 function sanitizeEnvValue(value: string | undefined | null): string | null {
   if (!value) return null;
   const normalized = value.trim().replace(/^['\"]|['\"]$/g, "");
@@ -519,20 +533,14 @@ Deno.serve(async (req) => {
     const stateParam = url.searchParams.get("state");
 
     if (!code || !stateParam) {
-      return new Response("<h1>Error: Missing code or state</h1>", {
-        status: 400,
-        headers: { "Content-Type": "text/html" },
-      });
+      return htmlResponse("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Connection Failed</title></head><body><h1>Error: Missing code or state</h1></body></html>", 400);
     }
 
     try {
       // Fix 1: Verify HMAC-signed state
       const statePayload = await verifyState(stateParam);
       if (!statePayload || !statePayload.email) {
-        return new Response(
-          "<h1>Error: Invalid or expired state token</h1>",
-          { status: 403, headers: { "Content-Type": "text/html" } }
-        );
+        return htmlResponse("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Connection Failed</title></head><body><h1>Error: Invalid or expired state token</h1></body></html>", 403);
       }
 
       const email = (statePayload.email as string).toLowerCase().trim();
@@ -710,12 +718,7 @@ h1{font-size:24px;font-weight:700;color:#fafafa;margin-bottom:6px;letter-spacing
 </body>
 </html>`;
 
-      return new Response(successHtml, {
-        headers: {
-          "Content-Type": "text/html; charset=utf-8",
-          "Cache-Control": "no-store",
-        },
-      });
+      return htmlResponse(successHtml);
     } catch (error) {
       console.error("OAuth callback error:", error);
       const errMsg = error instanceof Error ? error.message : "Unknown error";
@@ -763,13 +766,7 @@ h1{font-size:22px;font-weight:700;color:#fafafa;margin-bottom:8px;letter-spacing
 </body>
 </html>`;
 
-      return new Response(errorHtml, {
-        status: 500,
-        headers: {
-          "Content-Type": "text/html; charset=utf-8",
-          "Cache-Control": "no-store",
-        },
-      });
+      return htmlResponse(errorHtml, 500);
     }
   }
 
