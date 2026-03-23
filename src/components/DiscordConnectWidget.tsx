@@ -168,6 +168,43 @@ export const DiscordConnectWidget = ({ emailOverride, minimal }: DiscordConnectW
   }
 
   // ── Disconnected state ──
+  if (minimal) {
+    return (
+      <div className="w-full max-w-xs">
+        <div className="group relative">
+          {/* Outer glow border */}
+          <div
+            className="absolute -inset-px rounded-2xl opacity-60 group-hover:opacity-100 transition-opacity duration-500"
+            style={{
+              background: "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))",
+            }}
+          />
+          <button
+            onClick={handleConnect}
+            disabled={loading}
+            className="relative w-full rounded-2xl px-8 py-4 text-[15px] font-semibold transition-all duration-300"
+            style={{
+              background: "linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 100%)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              color: loading ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.85)",
+              boxShadow: "0 4px 24px -4px rgba(0,0,0,0.4), inset 0 1px 0 0 rgba(255,255,255,0.06)",
+            }}
+          >
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Connecting...
+              </span>
+            ) : (
+              "Connect"
+            )}
+          </button>
+        </div>
+        {error && <p className="mt-3 text-xs text-center text-red-400/80">{error}</p>}
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-xs">
       <div className="group relative">
