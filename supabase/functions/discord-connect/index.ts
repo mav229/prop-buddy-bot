@@ -718,12 +718,7 @@ h1{font-size:24px;font-weight:700;color:#fafafa;margin-bottom:6px;letter-spacing
 </body>
 </html>`;
 
-      return new Response(successHtml, {
-        headers: {
-          "Content-Type": "text/html; charset=utf-8",
-          "Cache-Control": "no-store",
-        },
-      });
+      return htmlResponse(successHtml);
     } catch (error) {
       console.error("OAuth callback error:", error);
       const errMsg = error instanceof Error ? error.message : "Unknown error";
@@ -771,13 +766,7 @@ h1{font-size:22px;font-weight:700;color:#fafafa;margin-bottom:8px;letter-spacing
 </body>
 </html>`;
 
-      return new Response(errorHtml, {
-        status: 500,
-        headers: {
-          "Content-Type": "text/html; charset=utf-8",
-          "Cache-Control": "no-store",
-        },
-      });
+      return htmlResponse(errorHtml, 500);
     }
   }
 
