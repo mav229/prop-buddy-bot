@@ -429,6 +429,16 @@ Deno.serve(async (req) => {
           })
           .eq("email", normalizedEmail);
 
+        // Log sync attempt
+        await supabase.from("discord_connection_logs").insert({
+          email: normalizedEmail,
+          discord_username: conn.discord_username,
+          discord_user_id: conn.discord_user_id,
+          action: "sync",
+          status: "success",
+          assigned_role: newRole,
+        });
+
         return new Response(
           JSON.stringify({
             success: true,
