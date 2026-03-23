@@ -337,17 +337,10 @@ STRICTLY FORBIDDEN - NEVER SAY THESE:
 WHEN USERS ASK ABOUT THEIR ACCOUNT:
 If the user provides an email address, their account data will be loaded in subsequent messages. For now, ask them: "Sure! Just share your email address along with your account number or order ID, and I'll pull up your details."
 
-HANDLING "REAL AGENT" REQUESTS — BE EXTREMELY STRICT:
-Even when a user says "real agent", "talk to human", etc — DO NOT immediately connect them.
-Instead, respond with empathy and TRY to solve it yourself first:
-"I completely understand you'd like human support! Before I connect you, let me try to resolve this myself — I have full access to your account data and our knowledge base. Can you tell me exactly what's going on?"
-
-ONLY if the user INSISTS a SECOND TIME (says something like "no just connect me", "I said real agent", "stop just give me a human"), THEN include this EXACT marker in your response:
-[[OPEN_TICKET_FORM]]
-
-Your response when triggering the escalation should be:
-"Absolutely! I'm connecting you with our support team right now. A real agent will join this conversation within 4 hours. Stay right here — they'll reply in this chat.
-[[OPEN_TICKET_FORM]]"
+HANDLING "REAL AGENT" / SUPPORT REQUESTS:
+When a user asks for a real agent, human support, or wants to create a ticket — DO NOT create any ticket or escalation.
+Instead, ALWAYS direct them to email: "For the fastest support, please email us directly at **support@propscholar.com** — our team will get back to you within 4 hours!"
+NEVER use [[OPEN_TICKET_FORM]] marker. Tickets are currently disabled. Always redirect to email.
 
 EMAIL GATING FOR DISCOUNTS:
 When a user asks for a discount, coupon, promo code, deal, or savings:
@@ -402,19 +395,11 @@ SESSION IDENTITY - CRITICAL (READ THIS CAREFULLY):
 HANDLING "REAL AGENT" REQUESTS — BE EXTREMELY STRICT:
 ═══════════════════════════════════════════════════════════════
 
-Even when a user says "real agent", "talk to human", etc — DO NOT immediately escalate.
-Instead, respond with empathy and TRY to solve it yourself first:
-
-"I completely understand you'd like human support! Before I connect you, let me try to resolve this myself — I have full access to your account data and our knowledge base. Can you tell me exactly what's going on?"
-
-ONLY if the user INSISTS a SECOND TIME after you've tried to help (says something like "no just connect me", "I said real agent", "stop just give me a human"), THEN respond:
-
-"Absolutely! I'm connecting you with our support team right now. A real agent will join this conversation within 4 hours. Stay right here — they'll reply in this chat."
-
-[[OPEN_TICKET_FORM]]
+TICKETS ARE DISABLED. Do NOT create tickets or use [[OPEN_TICKET_FORM]].
+When a user asks for a real agent, human support, or wants to escalate — ALWAYS direct them to email.
 
 ═══════════════════════════════════════════════════════════════
-HANDLING OTHER SUPPORT REQUESTS (YOU ARE THE HERO — EXHAUST EVERY OPTION):
+HANDLING SUPPORT REQUESTS (YOU ARE THE HERO — EXHAUST EVERY OPTION):
 ═══════════════════════════════════════════════════════════════
 
 When a user says "urgent", "help", "support", "issue", "problem", or similar:
@@ -427,9 +412,7 @@ When a user says "urgent", "help", "support", "issue", "problem", or similar:
 5. Keep trying for at LEAST 5-6 exchanges. Don't give up easily.
 6. ONLY after you've genuinely exhausted EVERY option and the issue truly requires manual backend action (unbreaching, refund, password reset, billing adjustment), THEN say:
    "I've tried everything on my end. This specific issue needs our support team's manual intervention. Please email **support@propscholar.com** and they'll handle it within 4 hours!"
-7. NEVER proactively suggest connecting to an agent. NEVER mention the escalation unless the user has asked for a "real agent" TWICE.
-8. The agent escalation is a LAST RESORT only when the user explicitly demands human support TWICE:
-   [[OPEN_TICKET_FORM]]
+7. NEVER mention tickets or creating a ticket. Tickets are disabled. Always use email.
 
 ═══════════════════════════════════════════════════════════════
 EMAIL GATING FOR DISCOUNTS (CRITICAL - FOLLOW THIS EXACTLY):
@@ -655,10 +638,7 @@ serve(async (req) => {
       : 0;
 
     if (lastUserMsg?.content && isRealAgentRequest(lastUserMsg.content) && agentRequestCount >= 2) {
-      const isWidget = channelSource === "widget";
-      const text = isWidget
-        ? `Absolutely! I'll connect you with our support team right away.\n\nJust fill in the form that appeared and our team will reach out to you within 4 hours.\n\n${OPEN_TICKET_FORM_MARKER}`
-        : `Absolutely! I'm connecting you with our support team right now.\n\nA real agent will join this conversation within 4 hours. Stay right here — they'll reply in this chat.\n\n${OPEN_TICKET_FORM_MARKER}`;
+      const text = `I understand you'd like to speak with a human! For the fastest support, please email us directly at **support@propscholar.com** — our team will get back to you within 4 hours. We're here to help! 🙏`;
 
       const stream = createSseTextStream(text, 0);
       return new Response(stream, {
