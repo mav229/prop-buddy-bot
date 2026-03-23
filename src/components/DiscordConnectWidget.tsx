@@ -152,62 +152,43 @@ export const DiscordConnectWidget = ({ emailOverride, minimal }: DiscordConnectW
               style={{ background: `linear-gradient(90deg, transparent, rgba(${roleColor}, 0.3), transparent)` }}
             />
 
-            <div className="flex items-center gap-3.5">
+            <div className="flex items-center gap-4">
               {/* Avatar */}
               <div className="relative flex-shrink-0">
                 <div
-                  className="flex h-12 w-12 items-center justify-center rounded-[14px]"
+                  className="flex h-11 w-11 items-center justify-center rounded-full"
                   style={{
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.08)",
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,255,255,0.1)",
                   }}
                 >
-                  <DiscordIcon className="h-5.5 w-5.5 text-white/70" />
+                  <DiscordIcon className="h-5 w-5 text-white/60" />
                 </div>
-                <span
-                  className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2"
-                  style={{
-                    borderColor: "#0a0a0a",
-                    backgroundColor: `rgb(${roleColor})`,
-                  }}
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-black/30" />
-                </span>
               </div>
 
-              {/* Info */}
+              {/* Username — Role */}
               <div className="min-w-0 flex-1 text-left">
-                <div className="mb-1.5 flex items-center gap-2">
-                  <span className="truncate text-[15px] font-semibold tracking-tight text-white/90">
-                    {connection.discord_username}
-                  </span>
-                  <CheckCircle2
-                    className="h-3.5 w-3.5 flex-shrink-0"
-                    style={{ color: `rgb(${roleColor})` }}
-                  />
-                </div>
-                <div className="flex items-center gap-2.5">
-                  {role && (
+                <span className="text-[15px] font-semibold tracking-tight text-white/90">
+                  {connection.discord_username}
+                </span>
+                {role && (
+                  <>
+                    <span className="mx-2 text-white/15">—</span>
                     <span
-                      className="inline-flex items-center rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]"
-                      style={{
-                        background: `rgba(${roleColor}, 0.12)`,
-                        border: `1px solid rgba(${roleColor}, 0.25)`,
-                        color: `rgb(${roleColor})`,
-                      }}
+                      className="text-[13px] font-semibold"
+                      style={{ color: `rgb(${roleColor})` }}
                     >
                       {role.label}
                     </span>
-                  )}
-                  <span className="text-[11px] text-white/30">Connected</span>
-                </div>
+                  </>
+                )}
               </div>
 
               {/* Sync button */}
               <button
                 onClick={handleSync}
                 disabled={syncing}
-                className="flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 disabled:opacity-40"
+                className="flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-200 disabled:opacity-40"
                 style={{
                   background: "rgba(255,255,255,0.04)",
                   border: "1px solid rgba(255,255,255,0.07)",
@@ -215,9 +196,9 @@ export const DiscordConnectWidget = ({ emailOverride, minimal }: DiscordConnectW
                 title="Re-sync role"
               >
                 {syncing ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-white/50" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-white/50" />
                 ) : (
-                  <RefreshCw className="h-4 w-4 text-white/40" />
+                  <RefreshCw className="h-3.5 w-3.5 text-white/35" />
                 )}
               </button>
             </div>
