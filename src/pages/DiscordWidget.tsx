@@ -13,7 +13,7 @@ const DiscordWidgetPage = () => {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4 overflow-hidden relative"
+      className="h-screen flex items-center justify-center p-4 overflow-hidden relative"
       style={{ fontFamily: "'Inter', sans-serif", background: "#050505" }}
     >
       {/* Main card with entry animation */}
