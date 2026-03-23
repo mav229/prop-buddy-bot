@@ -101,9 +101,20 @@ async function verifyState(
 
 type PlatformRole = "student" | "examinee" | "scholar";
 
+// TEST OVERRIDE: force specific roles for testing (remove after testing)
+const TEST_ROLE_OVERRIDES: Record<string, PlatformRole> = {
+  "s.saurav2006@gmail.com": "scholar",
+};
+
 function determineRole(
-  collections: Record<string, unknown[]>
+  collections: Record<string, unknown[]>,
+  email?: string
 ): PlatformRole {
+  // Check test overrides first
+  if (email && TEST_ROLE_OVERRIDES[email.toLowerCase().trim()]) {
+    console.log(`TEST OVERRIDE: ${email} → ${TEST_ROLE_OVERRIDES[email.toLowerCase().trim()]}`);
+    return TEST_ROLE_OVERRIDES[email.toLowerCase().trim()];
+  }
   if ((collections["payouts"] || []).length > 0) return "scholar";
   if (
     (collections["purchases"] || []).length > 0 ||
