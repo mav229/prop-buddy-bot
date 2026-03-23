@@ -638,10 +638,7 @@ serve(async (req) => {
       : 0;
 
     if (lastUserMsg?.content && isRealAgentRequest(lastUserMsg.content) && agentRequestCount >= 2) {
-      const isWidget = channelSource === "widget";
-      const text = isWidget
-        ? `Absolutely! I'll connect you with our support team right away.\n\nJust fill in the form that appeared and our team will reach out to you within 4 hours.\n\n${OPEN_TICKET_FORM_MARKER}`
-        : `Absolutely! I'm connecting you with our support team right now.\n\nA real agent will join this conversation within 4 hours. Stay right here — they'll reply in this chat.\n\n${OPEN_TICKET_FORM_MARKER}`;
+      const text = `I understand you'd like to speak with a human! For the fastest support, please email us directly at **support@propscholar.com** — our team will get back to you within 4 hours. We're here to help! 🙏`;
 
       const stream = createSseTextStream(text, 0);
       return new Response(stream, {
