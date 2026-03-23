@@ -533,20 +533,14 @@ Deno.serve(async (req) => {
     const stateParam = url.searchParams.get("state");
 
     if (!code || !stateParam) {
-      return new Response("<h1>Error: Missing code or state</h1>", {
-        status: 400,
-        headers: { "Content-Type": "text/html" },
-      });
+      return htmlResponse("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Connection Failed</title></head><body><h1>Error: Missing code or state</h1></body></html>", 400);
     }
 
     try {
       // Fix 1: Verify HMAC-signed state
       const statePayload = await verifyState(stateParam);
       if (!statePayload || !statePayload.email) {
-        return new Response(
-          "<h1>Error: Invalid or expired state token</h1>",
-          { status: 403, headers: { "Content-Type": "text/html" } }
-        );
+        return htmlResponse("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Connection Failed</title></head><body><h1>Error: Invalid or expired state token</h1></body></html>", 403);
       }
 
       const email = (statePayload.email as string).toLowerCase().trim();
