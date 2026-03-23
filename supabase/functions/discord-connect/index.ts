@@ -10,6 +10,20 @@ const corsHeaders = {
 
 const DISCORD_API = "https://discord.com/api/v10";
 
+function htmlResponse(html: string, status = 200): Response {
+  return new Response(new TextEncoder().encode(html), {
+    status,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}
+
 function sanitizeEnvValue(value: string | undefined | null): string | null {
   if (!value) return null;
   const normalized = value.trim().replace(/^['\"]|['\"]$/g, "");
