@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Loader2, CheckCircle, RefreshCw } from "lucide-react";
+import { Loader2, CheckCircle2, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -15,10 +15,19 @@ const DiscordIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const ROLE_STYLES: Record<string, { color: string; label: string }> = {
-  scholar:  { color: "text-emerald-400", label: "Scholar" },
-  examinee: { color: "text-amber-400",   label: "Examinee" },
-  student:  { color: "text-blue-400",    label: "Student" },
+const ROLE_STYLES: Record<string, { badgeClass: string; label: string }> = {
+  scholar: {
+    badgeClass: "border-success/20 bg-success/10 text-success",
+    label: "Scholar",
+  },
+  examinee: {
+    badgeClass: "border-primary/20 bg-primary/10 text-foreground",
+    label: "Examinee",
+  },
+  student: {
+    badgeClass: "border-secondary-foreground/10 bg-secondary text-secondary-foreground",
+    label: "Student",
+  },
 };
 
 interface DiscordConnectWidgetProps {
@@ -120,46 +129,57 @@ export const DiscordConnectWidget = ({ emailOverride, minimal }: DiscordConnectW
     return (
       <div className="w-full max-w-xs">
         <div className="group relative">
-          <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-[#5865F2]/40 via-emerald-500/30 to-[#5865F2]/40 opacity-60 blur-sm group-hover:opacity-80 transition-opacity" />
-          <div className="relative flex items-center gap-3 rounded-2xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] px-4 py-3 shadow-xl">
-            {/* Discord avatar area */}
-            <div className="relative flex-shrink-0">
-              <div className="w-10 h-10 rounded-full bg-[#5865F2]/20 flex items-center justify-center">
-                <DiscordIcon className="w-5 h-5 text-[#5865F2]" />
-              </div>
-              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full border-2 border-[hsl(var(--card))]">
-                <span className="absolute inset-0 bg-emerald-400 rounded-full animate-ping opacity-40" />
-              </span>
-            </div>
-
-            {/* Info */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="text-sm font-semibold text-[hsl(var(--foreground))] truncate">
-                  {connection.discord_username}
+          <div className="absolute -inset-[1px] rounded-[26px] bg-gradient-to-b from-primary/18 via-primary/6 to-transparent opacity-70 blur-sm transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="relative overflow-hidden rounded-[24px] border border-border/80 bg-gradient-to-b from-card to-secondary/60 px-4 py-4 shadow-2xl">
+            <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-primary/25 to-transparent" />
+            <div className="flex items-center gap-3">
+              <div className="relative flex-shrink-0">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-border/70 bg-secondary shadow-lg">
+                  <DiscordIcon className="h-5 w-5 text-foreground/85" />
+                </div>
+                <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 border-card bg-success">
+                  <span className="h-1.5 w-1.5 rounded-full bg-background" />
                 </span>
-                <CheckCircle className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
               </div>
-              {role && (
-                <span className={`text-xs font-medium ${role.color}`}>
-                  {role.label}
-                </span>
-              )}
-            </div>
 
-            {/* Sync */}
-            <button
-              onClick={handleSync}
-              disabled={syncing}
-              className="p-2 rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))] transition-colors"
-              title="Re-sync role"
-            >
-              {syncing ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <RefreshCw className="w-4 h-4" />
-              )}
-            </button>
+              <div className="min-w-0 flex-1 text-left">
+                <div className="mb-1 flex items-center gap-1.5">
+                  <span className="truncate text-sm font-semibold tracking-tight text-foreground">
+                    {connection.discord_username}
+                  </span>
+                  <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-success" />
+                </div>
+                <div className="flex items-center gap-2">
+                  {role && (
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${role.badgeClass}`}
+                    >
+                      {role.label}
+                    </span>
+                  )}
+                  <span className="text-[11px] text-muted-foreground">
+                    Connected
+                  </span>
+                </div>
+              </div>
+
+              <button
+                onClick={handleSync}
+                disabled={syncing}
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/70 bg-background/30 text-muted-foreground transition-all duration-200 hover:border-primary/20 hover:bg-secondary hover:text-foreground disabled:opacity-60"
+                title="Re-sync role"
+              >
+                {syncing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+            <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
+              <span>Role sync available anytime</span>
+              <span className="uppercase tracking-[0.18em] text-foreground/55">Live</span>
+            </div>
           </div>
         </div>
         {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
@@ -172,7 +192,6 @@ export const DiscordConnectWidget = ({ emailOverride, minimal }: DiscordConnectW
     return (
       <div className="w-full max-w-xs">
         <div className="group relative">
-          {/* Outer glow border */}
           <div
             className="absolute -inset-px rounded-2xl opacity-60 group-hover:opacity-100 transition-opacity duration-500"
             style={{
@@ -208,24 +227,24 @@ export const DiscordConnectWidget = ({ emailOverride, minimal }: DiscordConnectW
   return (
     <div className="w-full max-w-xs">
       <div className="group relative">
-        <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-[#5865F2]/50 to-[#5865F2]/30 opacity-0 group-hover:opacity-70 blur-sm transition-opacity duration-300" />
+        <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-primary/20 via-primary/10 to-transparent opacity-0 blur-sm transition-opacity duration-300 group-hover:opacity-100" />
         <button
           onClick={handleConnect}
           disabled={loading}
-          className="relative w-full flex items-center gap-3 rounded-2xl bg-[hsl(var(--card))] border border-[hsl(var(--border))] hover:border-[#5865F2]/40 px-4 py-3 shadow-lg hover:shadow-xl transition-all duration-300"
+          className="relative flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-lg transition-all duration-300 hover:border-primary/20 hover:bg-secondary/80 hover:shadow-xl"
         >
-          <div className="w-10 h-10 rounded-full bg-[#5865F2]/15 flex items-center justify-center group-hover:bg-[#5865F2]/25 transition-colors">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-secondary transition-colors group-hover:bg-secondary/80">
             {loading ? (
-              <Loader2 className="w-5 h-5 text-[#5865F2] animate-spin" />
+              <Loader2 className="h-5 w-5 animate-spin text-foreground" />
             ) : (
-              <DiscordIcon className="w-5 h-5 text-[#5865F2]" />
+              <DiscordIcon className="h-5 w-5 text-foreground" />
             )}
           </div>
           <div className="text-left">
-            <span className="text-sm font-semibold text-[hsl(var(--foreground))]">
+            <span className="text-sm font-semibold text-foreground">
               {loading ? "Connecting..." : "Connect Discord"}
             </span>
-            <p className="text-xs text-[hsl(var(--muted-foreground))]">
+            <p className="text-xs text-muted-foreground">
               Link your account for roles
             </p>
           </div>
