@@ -12,102 +12,106 @@ const DiscordWidgetPage = () => {
   const email = searchParams.get("email") || undefined;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4 overflow-hidden relative"
-         style={{ fontFamily: "'Inter', sans-serif" }}>
-
-      {/* Subtle white glow background */}
-      <div className="pointer-events-none fixed inset-0 flex items-center justify-center">
-        <div
-          className="rounded-full blur-[120px] opacity-[0.04]"
-          style={{ width: 600, height: 600, background: "white" }}
-        />
-      </div>
-
-      {/* Main card */}
+    <div
+      className="min-h-screen flex items-center justify-center p-4 overflow-hidden relative"
+      style={{ fontFamily: "'Inter', sans-serif", background: "#050505" }}
+    >
+      {/* Main card with entry animation */}
       <div
-        className="relative w-full max-w-md"
-        style={{ animation: "cardIn 0.8s cubic-bezier(0.16,1,0.3,1) forwards" }}
+        className="relative w-full max-w-[420px]"
+        style={{ animation: "cardIn 0.9s cubic-bezier(0.16,1,0.3,1) forwards" }}
       >
-        {/* Card container */}
-        <div className="relative rounded-3xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl overflow-hidden">
+        {/* Reflection glow beneath the card */}
+        <div
+          className="absolute -bottom-16 left-1/2 -translate-x-1/2 w-[80%] h-24 rounded-full blur-[40px] opacity-[0.12]"
+          style={{ background: "linear-gradient(90deg, transparent 10%, rgba(255,255,255,0.5) 50%, transparent 90%)" }}
+        />
 
-          {/* Top edge shine */}
+        {/* Card */}
+        <div
+          className="relative rounded-[28px] overflow-hidden"
+          style={{
+            background: "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)",
+            border: "1px solid rgba(255,255,255,0.07)",
+            boxShadow: "0 0 80px -20px rgba(0,0,0,0.8), inset 0 1px 0 0 rgba(255,255,255,0.05)",
+          }}
+        >
+          {/* Noise/grain texture overlay */}
           <div
-            className="absolute top-0 left-1/2 -translate-x-1/2 h-px w-2/3"
+            className="absolute inset-0 opacity-[0.03] pointer-events-none"
             style={{
-              background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)",
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+              backgroundSize: "128px 128px",
             }}
           />
 
-          <div className="px-8 pt-10 pb-8 flex flex-col items-center text-center">
+          {/* Top edge highlight */}
+          <div
+            className="absolute top-0 left-1/2 -translate-x-1/2 h-px w-3/5"
+            style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent)" }}
+          />
 
-            {/* Floating Discord icon */}
-            <div className="relative mb-8">
+          <div className="relative px-10 pt-14 pb-10 flex flex-col items-center text-center">
+            {/* Discord icon in dark square */}
+            <div
+              className="mb-8"
+              style={{ animation: "fadeUp 0.6s 0.2s both" }}
+            >
               <div
-                className="w-20 h-20 rounded-2xl border border-white/10 bg-white/[0.04] flex items-center justify-center"
-                style={{ animation: "float 4s ease-in-out infinite" }}
+                className="w-[72px] h-[72px] rounded-2xl flex items-center justify-center"
+                style={{
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  boxShadow: "0 8px 32px -8px rgba(0,0,0,0.5)",
+                }}
               >
-                <DiscordIcon className="w-10 h-10 text-[#5865F2]" />
+                <DiscordIcon className="w-9 h-9 text-white/80" />
               </div>
-              {/* Shadow beneath */}
-              <div
-                className="absolute -bottom-4 left-1/2 w-14 h-3 rounded-full bg-white/10 blur-sm"
-                style={{ animation: "shadowPulse 4s ease-in-out infinite", transform: "translateX(-50%)" }}
-              />
             </div>
 
             {/* Eyebrow */}
             <span
-              className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/30 mb-4"
+              className="text-[11px] font-semibold uppercase tracking-[0.25em] text-white/25 mb-5"
               style={{ animation: "fadeUp 0.6s 0.3s both" }}
             >
               Community
             </span>
 
             {/* Heading */}
-            <h1 className="mb-3" style={{ animation: "fadeUp 0.6s 0.4s both" }}>
-              <span className="block text-3xl font-bold text-white/40">
-                Join the
-              </span>
-              <span className="block text-3xl font-bold text-white mt-1">
-                conversation
-              </span>
+            <h1
+              className="text-[28px] font-bold text-white leading-tight mb-3"
+              style={{ animation: "fadeUp 0.6s 0.35s both" }}
+            >
+              Join the<br />conversation
             </h1>
 
             {/* Subtitle */}
             <p
-              className="text-sm text-white/30 max-w-[260px] leading-relaxed mb-8"
-              style={{ animation: "fadeUp 0.6s 0.5s both" }}
+              className="text-[13px] text-white/30 max-w-[260px] leading-relaxed mb-10"
+              style={{ animation: "fadeUp 0.6s 0.4s both" }}
             >
-              Connect your account and get your role assigned automatically.
+              Connect your account and get your role
+              assigned automatically.
             </p>
 
-            {/* Discord Connect Widget */}
+            {/* Connect widget */}
             <div
               className="w-full flex justify-center"
-              style={{ animation: "fadeUp 0.6s 0.6s both" }}
+              style={{ animation: "fadeUp 0.6s 0.5s both" }}
             >
-              <DiscordConnectWidget emailOverride={email} />
+              <DiscordConnectWidget emailOverride={email} minimal />
             </div>
           </div>
         </div>
       </div>
 
       <style>{`
-        @keyframes float {
-          0%,100% { transform: translateY(0); }
-          50%     { transform: translateY(-14px); }
-        }
-        @keyframes shadowPulse {
-          0%,100% { opacity: 0.7; transform: translateX(-50%) scaleX(1); }
-          50%     { opacity: 0.15; transform: translateX(-50%) scaleX(0.55); }
-        }
         @keyframes cardIn {
-          from { opacity: 0; transform: translateY(40px) scale(0.93); }
+          from { opacity: 0; transform: translateY(32px) scale(0.96); }
           to   { opacity: 1; transform: translateY(0) scale(1); }
         }
         @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(12px); }
+          from { opacity: 0; transform: translateY(10px); }
           to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>

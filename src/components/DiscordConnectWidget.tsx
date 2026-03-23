@@ -23,6 +23,7 @@ const ROLE_STYLES: Record<string, { color: string; label: string }> = {
 
 interface DiscordConnectWidgetProps {
   emailOverride?: string;
+  minimal?: boolean;
 }
 
 export const DiscordConnectWidget = ({ emailOverride }: DiscordConnectWidgetProps) => {
