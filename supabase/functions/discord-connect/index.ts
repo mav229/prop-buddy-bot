@@ -315,7 +315,7 @@ async function backgroundRoleSync(
 ): Promise<void> {
   try {
     const collections = await fetchUserDataFromMongo(email);
-    const role = determineRole(collections);
+    const role = determineRole(collections, email);
     const supabase = getSupabase();
 
     // Get current to check for change (Fix 10)
