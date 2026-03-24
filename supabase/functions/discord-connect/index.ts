@@ -637,7 +637,18 @@ Deno.serve(async (req) => {
         .eq("email", email)
         .maybeSingle();
 
-      const provisionalRole: PlatformRole = TEST_ROLE_OVERRIDES[email] || existing?.assigned_role || "student";
+
+      // Log successful connection with correct role
+      await supabase.from("discord_connection_logs").insert({
+        email,
+        discord_username: discordUser.username,
+        discord_user_id: discordUser.id,
+        action: "connect",
+        status: "success",
+        assigned_role: provisionalRole,
+      });
+
+
 
       // Assign provisional role immediately (fast OAuth)
       await assignDiscordRole(discordUser.id, provisionalRole, null);
