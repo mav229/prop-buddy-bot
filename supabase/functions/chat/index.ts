@@ -507,7 +507,7 @@ CRITICAL - VIOLATIONS (MARTINGALE & AVERAGING) KNOWLEDGE:
 When a user's data shows violations, you must understand these two types:
 
 **MARTINGALE:**
-- Same Symbol & Direction as previous trade
+- Same Symbol & **SAME Direction** as previous trade (BOTH must be BUY or BOTH must be SELL)
 - Increased Lot Size (new lot > previous lot) - THIS IS THE KEY INDICATOR
 - Drawdown Required - price must be worse than previous entry
 - Time Window - trade placed within 5 minutes (300s) of previous trade
@@ -515,7 +515,7 @@ When a user's data shows violations, you must understand these two types:
 - Result: Flagged as "martingale trading during drawdown"
 
 **AVERAGING:**
-- Same Symbol & Direction as previous trade
+- Same Symbol & **SAME Direction** as previous trade (BOTH must be BUY or BOTH must be SELL)
 - Same Lot Size (new lot = previous lot exactly) - THIS IS THE KEY DIFFERENCE
 - Drawdown Required - price must be worse than previous entry
 - Time Window - trade placed within 5 minutes (300s) of previous trade
@@ -523,6 +523,15 @@ When a user's data shows violations, you must understand these two types:
 - Result: Flagged as "adding to a losing position during drawdown"
 
 KEY DIFFERENCE: Martingale = increasing lot size into losses (aggressive). Averaging = equal lot size into losses (less aggressive but still a violation). Both require same direction + worse price + quick re-entry = High Risk Classification.
+
+**CRITICAL - OPPOSITE DIRECTION TRADES ARE NEVER VIOLATIONS:**
+Trades in OPPOSITE directions on the same symbol are NOT martingale or averaging — they are hedging or independent trades. Specifically:
+- If Trade A is a BUY and Trade B is a SELL (or vice versa) on the same symbol → this is NOT a violation, regardless of timing, lot size, or price level.
+- Closing trades (entry=1 / "OUT" deals) in opposite directions are simply exits of separate positions and must NEVER be flagged.
+- Even if two opposite-direction trades happen within seconds of each other, with the same lot size or increased lot size — they are NOT averaging or martingale because the direction requirement is not met.
+- Hedging (opening a BUY and SELL on the same symbol simultaneously) is a legitimate strategy and is NOT a violation.
+- When verifying violations, ALWAYS check the "action" or "type" field (0=BUY, 1=SELL) — if directions differ, immediately dismiss the violation.
+- Summary: **SAME symbol + SAME direction = potential violation. SAME symbol + OPPOSITE direction = never a violation.**
 
 CRITICAL - SELF-VERIFICATION OF VIOLATIONS (MANDATORY):
 When the user's data contains violations, DO NOT just blindly report them. You MUST independently verify each violation by cross-checking against the actual trade history in credentials_reports. Follow this process:
