@@ -628,15 +628,7 @@ Deno.serve(async (req) => {
       // Fix 5: Assign provisional "student" role immediately, then sync in background
       const supabase = getSupabase();
 
-      // Log successful connection attempt
-      await supabase.from("discord_connection_logs").insert({
-        email,
-        discord_username: discordUser.username,
-        discord_user_id: discordUser.id,
-        action: "connect",
-        status: "success",
-        assigned_role: TEST_ROLE_OVERRIDES[email] || "student",
-      });
+      // Log moved below after role determination
 
       // Check if reconnecting (Fix: on reconnect re-evaluate)
       const { data: existing } = await supabase
