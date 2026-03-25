@@ -1139,6 +1139,17 @@ ABSOLUTE EMAIL RULE FOR DASHBOARD USERS:
       console.log(`Skipped MongoDB for ${latestEmail} — no account intent detected`);
     }
 
+    if (isPreAuthenticated && mongoContext && shouldUseDirectAccountReply(lastContent, channelSource)) {
+      const directReply = buildDirectAccountReply(mongoContext);
+      if (directReply) {
+        console.log("[FAST PATH] Returning direct dashboard account summary without AI");
+        const stream = createSseTextStream(directReply, 0);
+        return new Response(stream, {
+          headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+        });
+      }
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // Choose LITE vs FULL prompt based on context
     // ═══════════════════════════════════════════════════════════════
