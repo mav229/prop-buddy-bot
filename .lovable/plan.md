@@ -1,48 +1,63 @@
 
 
-## Plan: Improve Discord Widget Email Detection
+# Make Dashboard Scholaris Personalized — No Email Re-Asks
 
-The code you shared (from your PropScholar dashboard) retrieves the user email from `localStorage.getItem("userEmail")` — which is fragile. Based on your existing patterns, the widget already supports receiving email via the `?email=` query param and `window.postMessage`.
+## Problem
+When a pre-authenticated dashboard user (`/fullpage?email=...`) says "hi", it bypasses the canned greeting (line 705 requires `!userEmail`) and goes straight to AI. The AI then sometimes asks for email despite the pre-auth prompt, and it costs credits for a simple greeting.
 
-### What needs to change
+**Key constraint from user**: Keep all existing logic intact — MongoDB checks, account checks, daily limits, coupon email-gating for the public widget. Only change behavior for dashboard (`/fullpage`) pre-authenticated users.
 
-**On the PropScholar dashboard side** (the code you shared — NOT in this project):
+## Changes
 
-The email retrieval should try multiple sources in order:
-1. **Decode the `propscholar_access_token` JWT** from localStorage (most reliable — this is the actual auth token)
-2. **Fall back to `localStorage.getItem("userEmail")`** as a backup
-3. **Listen for `window.postMessage`** events (for dynamic updates)
+### 1. New DB table: `widget_user_profiles`
+Stores dashboard user memory across sessions.
 
-Here's the production-ready code for your dashboard:
-
-```tsx
-useEffect(() => {
-  // 1. Try decoding JWT token (most reliable)
-  const token = localStorage.getItem("propscholar_access_token");
-  if (token) {
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      const decoded = payload.email || payload.user_email || payload.sub || "";
-      if (decoded && decoded.includes("@")) {
-        setUserEmail(decoded);
-        return;
-      }
-    } catch (e) {
-      console.warn("Failed to decode token:", e);
-    }
-  }
-
-  // 2. Fallback to explicit localStorage key
-  const stored = localStorage.getItem("userEmail") || "";
-  if (stored) setUserEmail(stored);
-}, []);
+```sql
+CREATE TABLE widget_user_profiles (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email text NOT NULL UNIQUE,
+  display_name text,
+  first_seen_at timestamptz DEFAULT now(),
+  last_seen_at timestamptz DEFAULT now(),
+  total_sessions integer DEFAULT 1,
+  preferences jsonb DEFAULT '{}'::jsonb
+);
+ALTER TABLE widget_user_profiles ENABLE ROW LEVEL SECURITY;
+-- No public access; edge functions use service role
+CREATE POLICY "No public access" ON widget_user_profiles FOR ALL USING (false);
 ```
 
-### On this project's side (Scholaris)
+### 2. Add personalized canned greeting for dashboard users in `chat/index.ts`
 
-The `/discord-widget` page already handles the `?email=` param correctly — **no changes needed here**. The widget receives the email via the iframe URL and passes it to `DiscordConnectWidget`.
+Right after line 705 (the existing `!userEmail` canned greeting), add a new branch:
 
-### Summary
+```
+if (isFirstMessage && userEmail && GREETING_PATTERNS.test(lastContent.trim())) {
+  // Upsert widget_user_profiles (increment sessions, update last_seen)
+  // Extract first name from email prefix (e.g. "john.doe@..." → "John")
+  // Return personalized greeting: "Hey John, welcome back. How can I help?"
+  // Zero AI credits — instant canned response
+}
+```
 
-This is a **dashboard-side fix only** — the improved email extraction logic goes into your PropScholar dashboard codebase, not this project. The JWT decode approach matches the pattern described in your auto-personalization flow.
+- First-time users: "Hey [Name], welcome to your personal assistant. What can I help with?"
+- Returning users (`total_sessions > 1`): "Hey [Name], welcome back. What can I help with today?"
+
+### 3. Add explicit "NEVER ask email" to pre-auth prompt section
+
+In the existing `preAuthNote` block (line 817-868), add one line:
+
+> "This user's email is already confirmed. For coupons or discounts, share them immediately — do NOT ask for email. Do NOT ask for email under ANY circumstance."
+
+This ensures even non-greeting messages never trigger email asks for dashboard users.
+
+## What stays exactly the same
+- Public widget: email-gating for coupons, email collection popup, generic canned greeting — all unchanged
+- MongoDB lookups, daily account check limit, session cache — all unchanged  
+- Discord bot behavior — unchanged
+- All existing verification rules for non-dashboard users — unchanged
+
+## Files modified
+- `supabase/functions/chat/index.ts` — add personalized greeting branch + strengthen pre-auth prompt
+- New migration — create `widget_user_profiles` table
 
