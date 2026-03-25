@@ -1008,9 +1008,13 @@ serve(async (req) => {
 
     // ═══════════════════════════════════════════════════════════════
     // LAYER 5: Account check rate limit — 1 per user per UTC day
+    // Dashboard pre-authenticated users are EXEMPT from this limit
     // ═══════════════════════════════════════════════════════════════
     let accountCheckBlocked = false;
-    if (shouldFetchMongo && latestEmail) {
+    const isDashboardUser = isPreAuthenticated && (channelSource === "fullpage" || channelSource === "dashboard");
+    
+    if (shouldFetchMongo && latestEmail && !isDashboardUser) {
+      // Only apply daily limit to NON-dashboard users (public widget)
       const todayUTC = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
       const checkKey = `__acct_check__${todayUTC}`;
       
@@ -1022,12 +1026,10 @@ serve(async (req) => {
         .maybeSingle();
 
       if (existingCheck) {
-        // Already used their daily check
         console.log(`[LAYER 5] Account check BLOCKED for ${latestEmail} — already used today (${todayUTC})`);
         accountCheckBlocked = true;
         shouldFetchMongo = false;
       } else {
-        // First check today — record it
         console.log(`[LAYER 5] Recording first account check for ${latestEmail} on ${todayUTC}`);
         await supabase
           .from("session_cache")
@@ -1036,6 +1038,8 @@ serve(async (req) => {
             { onConflict: "session_id,email" }
           );
       }
+    } else if (shouldFetchMongo && isDashboardUser) {
+      console.log(`[LAYER 5] Dashboard user ${latestEmail} — EXEMPT from daily limit, fetching MongoDB`);
     }
 
     // Fetch KB, coupons (with in-memory cache), and MongoDB context (with session cache) in parallel
