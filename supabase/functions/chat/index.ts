@@ -709,6 +709,63 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
       });
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    // LAYER 3B: Personalized greeting for pre-authenticated dashboard users
+    // Zero AI credits — instant canned response with their name
+    // ═══════════════════════════════════════════════════════════════
+    if (isFirstMessage && userEmail && GREETING_PATTERNS.test(lastContent.trim())) {
+      console.log("[LAYER 3B] Pre-auth greeting detected — personalized canned response");
+      try {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const sbClient = createClient(supabaseUrl, supabaseKey);
+
+        // Extract first name from email prefix
+        const emailPrefix = userEmail.split("@")[0] || "";
+        const firstName = emailPrefix
+          .split(/[._-]/)[0]
+          .replace(/\d+/g, "")
+          .replace(/^./, (c: string) => c.toUpperCase()) || "there";
+
+        // Upsert widget_user_profiles
+        const { data: existingProfile } = await sbClient
+          .from("widget_user_profiles")
+          .select("total_sessions")
+          .eq("email", userEmail.toLowerCase())
+          .maybeSingle();
+
+        if (existingProfile) {
+          await sbClient
+            .from("widget_user_profiles")
+            .update({
+              last_seen_at: new Date().toISOString(),
+              total_sessions: (existingProfile.total_sessions || 1) + 1,
+            })
+            .eq("email", userEmail.toLowerCase());
+        } else {
+          await sbClient
+            .from("widget_user_profiles")
+            .insert({
+              email: userEmail.toLowerCase(),
+              display_name: firstName,
+            });
+        }
+
+        const isReturning = existingProfile && (existingProfile.total_sessions || 0) > 0;
+        const greeting = isReturning
+          ? `Hey ${firstName}, welcome back. How can I help you today?`
+          : `Hey ${firstName}, welcome to your personal assistant. Ask me anything about your accounts, payouts, or rules — I'm here to help.`;
+
+        const stream = createSseTextStream(greeting, 0);
+        return new Response(stream, {
+          headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+        });
+      } catch (greetErr) {
+        console.error("[LAYER 3B] Error in personalized greeting, falling through to AI:", greetErr);
+        // Fall through to normal AI flow
+      }
+    }
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
