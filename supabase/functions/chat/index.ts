@@ -318,6 +318,201 @@ const createSseTextStream = (text: string, inputTokens = 0) => {
   });
 };
 
+function getNestedValue(obj: any, path: string[]): unknown {
+  return path.reduce((acc: any, key) => (acc == null ? undefined : acc[key]), obj);
+}
+
+function getFirstDefined(...values: unknown[]): unknown {
+  return values.find((value) => value !== undefined && value !== null && value !== "");
+}
+
+function normalizeAccountId(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  const raw = String(value).trim();
+  return raw ? raw : null;
+}
+
+function formatUsd(value: unknown): string | null {
+  if (value === null || value === undefined || value === "") return null;
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: numeric % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(numeric);
+}
+
+function shouldUseDirectAccountReply(lastContent: string, channelSource: string): boolean {
+  if (!(channelSource === "fullpage" || channelSource === "dashboard")) return false;
+
+  const normalized = (lastContent || "").trim().toLowerCase();
+  if (!normalized) return false;
+
+  const directPatterns = [
+    /^(check|show|get|view)\s+(my\s+)?accounts?(\s+(status|details|info))?$/i,
+    /^(show|give)\s+(me\s+)?(all\s+)?(my\s+)?accounts?$/i,
+    /^(what'?s|what is)\s+my\s+account\s+status$/i,
+    /^(here'?s|this is)?\s*[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\s*,?\s*\d{6,}\s*$/i,
+    /^\d{6,}\s*,?\s*[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\s*$/i,
+  ];
+
+  return directPatterns.some((pattern) => pattern.test(normalized));
+}
+
+function buildDirectAccountReply(ctx: any): string | null {
+  const credentialDocs = Array.isArray(ctx?.collections?.credentialkeys)
+    ? ctx.collections.credentialkeys
+    : [];
+  const reportDocs = Array.isArray(ctx?.collections?.credentials_reports)
+    ? ctx.collections.credentials_reports
+    : [];
+  const violations = Array.isArray(ctx?.collections?.violations)
+    ? ctx.collections.violations
+    : [];
+  const payouts = Array.isArray(ctx?.collections?.payouts)
+    ? ctx.collections.payouts
+    : [];
+
+  const reportsByAccount = new Map<string, any>();
+  for (const report of reportDocs) {
+    const accountId = normalizeAccountId(
+      getFirstDefined(report?.account, report?.loginId, report?.accountNumber, report?.account_number)
+    );
+    if (accountId && !reportsByAccount.has(accountId)) {
+      reportsByAccount.set(accountId, report);
+    }
+  }
+
+  const accountLines: string[] = [];
+  const seenAccounts = new Set<string>();
+
+  for (const doc of credentialDocs) {
+    const credentialEntries = Array.isArray(doc?.credentials) && doc.credentials.length > 0
+      ? doc.credentials
+      : [doc];
+
+    for (const credential of credentialEntries) {
+      const accountId = normalizeAccountId(
+        getFirstDefined(
+          credential?.loginId,
+          credential?.account,
+          credential?.accountNumber,
+          credential?.account_number,
+          doc?.loginId,
+          doc?.account,
+          doc?.accountNumber,
+          doc?.account_number,
+        )
+      );
+
+      if (!accountId || seenAccounts.has(accountId)) continue;
+      seenAccounts.add(accountId);
+
+      const report = reportsByAccount.get(accountId);
+      const status = String(
+        getFirstDefined(
+          credential?.credentialStatus,
+          doc?.credentialStatus,
+          credential?.status,
+          doc?.status,
+          report?.credentialStatus,
+          "UNKNOWN",
+        )
+      ).replace(/_/g, " ");
+
+      const balance = formatUsd(
+        getFirstDefined(
+          getNestedValue(report, ["evaluation", "metrics", "balance"]),
+          getNestedValue(report, ["metrics", "balance"]),
+          credential?.balance,
+          doc?.balance,
+        )
+      );
+      const equity = formatUsd(
+        getFirstDefined(
+          getNestedValue(report, ["evaluation", "metrics", "equity"]),
+          getNestedValue(report, ["metrics", "equity"]),
+          credential?.equity,
+          doc?.equity,
+        )
+      );
+      const profitableDays = getFirstDefined(
+        getNestedValue(report, ["evaluation", "metrics", "profitable_days"]),
+        getNestedValue(report, ["metrics", "profitable_days"]),
+      );
+
+      const lineParts = [`• **Account ${accountId}** — **${status}**`];
+      if (balance) lineParts.push(`Balance: **${balance}**`);
+      if (equity) lineParts.push(`Equity: **${equity}**`);
+      if (profitableDays !== undefined && profitableDays !== null && profitableDays !== "") {
+        lineParts.push(`Profitable days: **${profitableDays}**`);
+      }
+
+      accountLines.push(lineParts.join("\n  "));
+    }
+  }
+
+  if (accountLines.length === 0 && reportDocs.length > 0) {
+    for (const report of reportDocs.slice(0, 5)) {
+      const accountId = normalizeAccountId(
+        getFirstDefined(report?.account, report?.loginId, report?.accountNumber, report?.account_number)
+      );
+      if (!accountId || seenAccounts.has(accountId)) continue;
+      seenAccounts.add(accountId);
+
+      const balance = formatUsd(
+        getFirstDefined(
+          getNestedValue(report, ["evaluation", "metrics", "balance"]),
+          getNestedValue(report, ["metrics", "balance"]),
+        )
+      );
+      const equity = formatUsd(
+        getFirstDefined(
+          getNestedValue(report, ["evaluation", "metrics", "equity"]),
+          getNestedValue(report, ["metrics", "equity"]),
+        )
+      );
+      const profitableDays = getFirstDefined(
+        getNestedValue(report, ["evaluation", "metrics", "profitable_days"]),
+        getNestedValue(report, ["metrics", "profitable_days"]),
+      );
+
+      const lineParts = [`• **Account ${accountId}**`];
+      if (balance) lineParts.push(`Balance: **${balance}**`);
+      if (equity) lineParts.push(`Equity: **${equity}**`);
+      if (profitableDays !== undefined && profitableDays !== null && profitableDays !== "") {
+        lineParts.push(`Profitable days: **${profitableDays}**`);
+      }
+
+      accountLines.push(lineParts.join("\n  "));
+    }
+  }
+
+  if (accountLines.length === 0) return null;
+
+  const martingaleCount = violations.filter((item: any) => JSON.stringify(item).toLowerCase().includes("martingale")).length;
+  const averagingCount = violations.filter((item: any) => JSON.stringify(item).toLowerCase().includes("averaging")).length;
+
+  const extras: string[] = [];
+  if (payouts.length > 0) {
+    extras.push(`• **Payout requests:** ${payouts.length}`);
+  }
+  if (martingaleCount || averagingCount) {
+    extras.push(`• **Risk flags:** martingale ${martingaleCount}, averaging ${averagingCount}`);
+  }
+
+  return [
+    `Here's your latest account snapshot:`,
+    "",
+    ...accountLines,
+    ...(extras.length > 0 ? ["", ...extras] : []),
+    "",
+    `If you want, I can also break down **payouts**, **violations**, or one **specific account** next.`,
+  ].join("\n");
+}
+
 // ═══════════════════════════════════════════════════════════════
 // SYSTEM PROMPT - LITE (for general queries, no user context)
 // Saves ~50% input tokens vs full prompt
