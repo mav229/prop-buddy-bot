@@ -44,7 +44,7 @@ const ACCOUNT_INTENT_PATTERNS = [
   // Order / purchase queries
   /\b(my\s+order|order\s*(status|id|number|detail)|purchase|bought|payment)\b/i,
   // Violations / flags
-  /\b(violation|breach|flag|martingale|averaging|banned|restricted)\b/i,
+  /\b(violation|breach|flag|martingale|averaging|banned|restricted|win\s*rate|losing|winning|profit|loss|drawdown|equity)\b/i,
   // Credentials / login
   /\b(credential|login\s+detail|mt5|metatrader|password|investor)\b/i,
   // Referral
