@@ -922,6 +922,12 @@ DATA ACCESS:
 - NEVER display: passwords, investor passwords, full email, phone numbers
 - You CAN hint at email: "the email starting with ${userEmail.substring(0, 2)}***"
 - You CAN show: account numbers, balances, equity, profit targets, drawdown levels, order amounts, payout amounts, credential statuses, violation details
+
+ABSOLUTE EMAIL RULE FOR DASHBOARD USERS:
+- This user's email is ALREADY CONFIRMED: ${userEmail}
+- For coupons, discounts, or promotions — share them IMMEDIATELY. Do NOT ask for email first.
+- Do NOT ask for email under ANY circumstance — not for coupons, not for verification, not for anything.
+- The email-gating logic is ONLY for public widget users, NOT for dashboard users.
 ═══════════════════════════════════════════════════════════════`;
     }
     if (accountCheckBlocked) {
