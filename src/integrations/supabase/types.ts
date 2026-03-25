@@ -524,6 +524,36 @@ export type Database = {
         }
         Relationships: []
       }
+      widget_user_profiles: {
+        Row: {
+          display_name: string | null
+          email: string
+          first_seen_at: string | null
+          id: string
+          last_seen_at: string | null
+          preferences: Json | null
+          total_sessions: number | null
+        }
+        Insert: {
+          display_name?: string | null
+          email: string
+          first_seen_at?: string | null
+          id?: string
+          last_seen_at?: string | null
+          preferences?: Json | null
+          total_sessions?: number | null
+        }
+        Update: {
+          display_name?: string | null
+          email?: string
+          first_seen_at?: string | null
+          id?: string
+          last_seen_at?: string | null
+          preferences?: Json | null
+          total_sessions?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
