@@ -38,7 +38,7 @@ const GREETING_PATTERNS = /^(hi|hello|hey|hola|sup|yo|greetings|good morning|goo
 // ═══════════════════════════════════════════════════════════════
 const ACCOUNT_INTENT_PATTERNS = [
   // Account / status queries
-  /\b(my\s+account|account\s*(status|details|info|balance|number|data)|show\s+me|check\s+my|what'?s\s+my)\b/i,
+  /\b(my\s+account|account\s*(status|detail|details|info|balance|number|data)|show\s+me|check\s+my|what'?s\s+my)\b/i,
   // Payout queries
   /\b(payout|withdrawal|withdraw|pay\s*out|paid)\b/i,
   // Order / purchase queries
@@ -55,11 +55,22 @@ const ACCOUNT_INTENT_PATTERNS = [
   /\b\d{6,}\b/,
 ];
 
-function needsMongoContext(messages: any[]): boolean {
-  // Check last 3 user messages for account-related intent
+function needsMongoContext(
+  messages: any[],
+  options?: { channelSource?: string; isPreAuthenticated?: boolean }
+): boolean {
+  const isDashboardPreAuth =
+    options?.isPreAuthenticated &&
+    (options?.channelSource === "fullpage" || options?.channelSource === "dashboard");
+
+  // Dashboard users often send the account/email first, then follow up with "done?"
+  // so we keep a wider lookback there without affecting the public widget behavior.
+  const lookbackCount = isDashboardPreAuth ? 8 : 3;
+
+  // Check recent user messages for account-related intent
   const userMsgs = (messages || [])
     .filter((m: any) => m?.role === "user" && typeof m?.content === "string")
-    .slice(-3);
+    .slice(-lookbackCount);
   
   for (const msg of userMsgs) {
     const content = msg.content;
@@ -982,9 +993,14 @@ serve(async (req) => {
     // This saves massive credits by skipping MongoDB for general questions
     // even when an email is available (e.g., pre-authenticated dashboard users)
     // ═══════════════════════════════════════════════════════════════
-    let shouldFetchMongo = latestEmail && sessionId && (isPreAuthenticated 
-      ? needsMongoContext(messages) 
-      : needsMongoContext(messages));
+    let shouldFetchMongo = !!(
+      latestEmail &&
+      sessionId &&
+      needsMongoContext(messages, {
+        channelSource,
+        isPreAuthenticated,
+      })
+    );
     
     if (latestEmail && !shouldFetchMongo) {
       console.log(`[LAYER 4] Email detected (${latestEmail}) but no account intent — SKIPPING MongoDB`);
