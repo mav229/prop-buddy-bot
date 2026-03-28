@@ -523,6 +523,89 @@ Deno.serve(async (req) => {
         );
       }
 
+      // ── Scheduled sync: refresh ALL connections every 12hrs ──
+      if (action === "scheduled_sync") {
+        const authHeader = req.headers.get("Authorization");
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+        const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+        const isAuthorized =
+          authHeader?.includes(serviceKey || "___") ||
+          authHeader?.includes(anonKey || "___");
+        if (!isAuthorized) {
+          return new Response(JSON.stringify({ error: "Unauthorized" }), {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const supabase = getSupabase();
+
+        // Fetch all connections, process in batches of 50
+        let synced = 0;
+        let failed = 0;
+        let offset = 0;
+        const batchSize = 50;
+
+        while (true) {
+          const { data: batch } = await supabase
+            .from("discord_connections")
+            .select("*")
+            .range(offset, offset + batchSize - 1);
+
+          if (!batch || batch.length === 0) break;
+
+          for (const conn of batch) {
+            try {
+              const collections = await fetchUserDataFromMongo(conn.email);
+              const newRole = determineRole(collections, conn.email);
+              await assignDiscordRole(conn.discord_user_id, newRole, conn.assigned_role);
+
+              await supabase
+                .from("discord_connections")
+                .update({
+                  assigned_role: newRole,
+                  last_role_update: new Date().toISOString(),
+                  needs_sync: false,
+                  last_synced_at: new Date().toISOString(),
+                })
+                .eq("id", conn.id);
+
+              if (conn.assigned_role !== newRole) {
+                await supabase.from("discord_connection_logs").insert({
+                  email: conn.email,
+                  discord_username: conn.discord_username,
+                  discord_user_id: conn.discord_user_id,
+                  action: "scheduled_sync",
+                  status: "success",
+                  assigned_role: newRole,
+                });
+              }
+              synced++;
+            } catch (err) {
+              console.error(`Scheduled sync failed for ${conn.email}:`, err);
+              failed++;
+              await supabase.from("discord_connection_logs").insert({
+                email: conn.email,
+                discord_username: conn.discord_username,
+                discord_user_id: conn.discord_user_id,
+                action: "scheduled_sync",
+                status: "failed",
+                error_message: err instanceof Error ? err.message : "Unknown error",
+              }).catch(() => {});
+            }
+          }
+
+          offset += batchSize;
+          if (batch.length < batchSize) break;
+        }
+
+        console.log(`Scheduled sync complete: ${synced} synced, ${failed} failed`);
+        return new Response(
+          JSON.stringify({ synced, failed, total: synced + failed }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       // ── Health check: verify each role ID is configured and valid ──
       if (action === "health_check") {
         const guildId = getDiscordGuildId();
