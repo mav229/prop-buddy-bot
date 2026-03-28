@@ -39,7 +39,7 @@ const navItems = [
   { value: "embed", label: "Embed", icon: Code },
   { value: "fullpage", label: "16:9", icon: Monitor },
   { value: "credits", label: "Credits", icon: Coins },
-  { value: "abandoned", label: "Abandoned", icon: ShoppingCart },
+  { value: "abandoned", label: "Cart", icon: ShoppingCart },
   { value: "conn-logs", label: "Logs", icon: PlugZap },
   { value: "discord", label: "Settings", icon: Settings },
 ];
