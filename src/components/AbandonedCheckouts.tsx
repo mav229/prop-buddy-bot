@@ -125,14 +125,28 @@ export const AbandonedCheckouts = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold flex items-center gap-2">
-          <ShoppingCart className="w-6 h-6" />
-          Abandoned Checkouts
-        </h2>
-        <p className="text-muted-foreground">
-          Users who added items to cart but never completed payment
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <ShoppingCart className="w-6 h-6" />
+            Cart
+          </h2>
+          <p className="text-muted-foreground">
+            Users who added items to cart but never completed payment
+          </p>
+        </div>
+        <div className="text-right text-xs text-muted-foreground space-y-1">
+          <div className="flex items-center gap-1.5 justify-end">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            </span>
+            Live — refreshes in {countdown}s
+          </div>
+          {lastRefresh && (
+            <div>Last: {lastRefresh.toLocaleTimeString()}</div>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
