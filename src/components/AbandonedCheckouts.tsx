@@ -113,11 +113,42 @@ export const AbandonedCheckouts = () => {
   const sendReminder = async (user: AbandonedUser) => {
     setSendingEmail(user.id);
     try {
-      // For now, just copy email to clipboard as a quick action
-      await navigator.clipboard.writeText(user.email);
-      toast.success(`Email copied: ${user.email} — send reminder via your email tool`);
-    } catch {
-      toast.error("Failed to copy email");
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #1a1a1a;">Hey ${user.name || "there"}! 👋</h2>
+          <p style="color: #555; font-size: 15px; line-height: 1.6;">
+            We noticed you left some items in your cart at <strong>PropScholar</strong>. 
+            Don't miss out — complete your checkout now!
+          </p>
+          <p style="color: #555; font-size: 15px;">
+            You have <strong>${user.cartItems} item${user.cartItems > 1 ? "s" : ""}</strong> waiting for you.
+          </p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://propscholar.in" 
+               style="background-color: #7c3aed; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
+              Complete Your Purchase
+            </a>
+          </div>
+          <p style="color: #999; font-size: 13px;">
+            If you have any questions, reply to this email or reach out to our support team.
+          </p>
+          <p style="color: #999; font-size: 13px;">— Team PropScholar</p>
+        </div>
+      `;
+
+      const res = await supabase.functions.invoke("send-smtp-email", {
+        body: {
+          to: user.email,
+          subject: `Hey ${user.name || "there"}, you left items in your cart! 🛒`,
+          html,
+        },
+      });
+
+      if (res.error) throw res.error;
+      toast.success(`Reminder sent to ${user.email}`);
+    } catch (err: any) {
+      console.error("Failed to send reminder:", err);
+      toast.error("Failed to send reminder email");
     } finally {
       setSendingEmail(null);
     }
