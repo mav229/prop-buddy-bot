@@ -49,6 +49,11 @@ export const ConnectionLogsView = () => {
 
   return (
     <div className="space-y-6">
+      {/* Health Checker */}
+      <div className="border border-border/50 rounded-xl bg-card/30 p-5">
+        <DiscordHealthChecker />
+      </div>
+
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Connection Logs</h2>
