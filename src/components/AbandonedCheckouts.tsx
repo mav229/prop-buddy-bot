@@ -30,11 +30,7 @@ export const AbandonedCheckouts = () => {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
       
-      const res = await supabase.functions.invoke("abandoned-checkouts", {
-        headers: {
-          Authorization: `Bearer ${Deno.env?.get?.("SUPABASE_SERVICE_ROLE_KEY") || token}`,
-        },
-      });
+      const res = await supabase.functions.invoke("abandoned-checkouts");
 
       if (res.error) throw res.error;
       const result = res.data;
