@@ -113,26 +113,36 @@ export const AbandonedCheckouts = () => {
   const sendReminder = async (user: AbandonedUser) => {
     setSendingEmail(user.id);
     try {
+      const firstName = (user.name || "").split(" ")[0] || "there";
       const html = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h2 style="color: #1a1a1a;">Hey ${user.name || "there"}! 👋</h2>
-          <p style="color: #555; font-size: 15px; line-height: 1.6;">
-            We noticed you left some items in your cart at <strong>PropScholar</strong>. 
-            Don't miss out — complete your checkout now!
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; background-color: #0d1117; color: #e6edf3; border-radius: 12px;">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <h1 style="color: #ffffff; font-size: 22px; margin: 0;">PropScholar</h1>
+          </div>
+          <h2 style="color: #ffffff; font-size: 20px;">Hey ${firstName}! 👋</h2>
+          <p style="color: #b0b8c4; font-size: 15px; line-height: 1.7;">
+            We noticed you were checking out some amazing stuff on <strong style="color: #ffffff;">PropScholar</strong> 
+            but didn't complete your purchase.
           </p>
-          <p style="color: #555; font-size: 15px;">
-            You have <strong>${user.cartItems} item${user.cartItems > 1 ? "s" : ""}</strong> waiting for you.
+          <p style="color: #b0b8c4; font-size: 15px; line-height: 1.7;">
+            You still have <strong style="color: #ffffff;">${user.cartItems} item${user.cartItems > 1 ? "s" : ""}</strong> 
+            in your cart waiting for you. Don't let them slip away!
           </p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="https://propscholar.in" 
-               style="background-color: #7c3aed; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
-              Complete Your Purchase
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="https://propscholar.com" 
+               style="background-color: #4A90D9; color: #ffffff; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block;">
+              Complete Your Purchase →
             </a>
           </div>
-          <p style="color: #999; font-size: 13px;">
-            If you have any questions, reply to this email or reach out to our support team.
+          <hr style="border: none; border-top: 1px solid #21262d; margin: 28px 0;" />
+          <p style="color: #b0b8c4; font-size: 14px; line-height: 1.7;">
+            Have any doubts or queries? Feel free to ask — we're always here to help! 
+            Just reply to this email and our team will get back to you shortly. 💬
           </p>
-          <p style="color: #999; font-size: 13px;">— Team PropScholar</p>
+          <p style="color: #8b949e; font-size: 13px; margin-top: 24px;">
+            Warm regards,<br/>
+            <strong style="color: #b0b8c4;">Team PropScholar</strong>
+          </p>
         </div>
       `;
 
