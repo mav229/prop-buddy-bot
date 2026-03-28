@@ -25,8 +25,8 @@ export const AbandonedCheckouts = () => {
   const [sendingEmail, setSendingEmail] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [countdown, setCountdown] = useState(60);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const countdownRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchAbandoned = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
