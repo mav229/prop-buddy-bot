@@ -637,6 +637,8 @@ Deno.serve(async (req) => {
         .eq("email", email)
         .maybeSingle();
 
+      // Determine provisional role: use existing if reconnecting, default to "student"
+      const provisionalRole: PlatformRole = (existing?.assigned_role as PlatformRole) || "student";
 
       // Log successful connection with correct role
       await supabase.from("discord_connection_logs").insert({
