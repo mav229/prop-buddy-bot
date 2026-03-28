@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, RefreshCw, CheckCircle, XCircle, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
+import { DiscordHealthChecker } from "./DiscordHealthChecker";
 
 interface ConnectionLog {
   id: string;
