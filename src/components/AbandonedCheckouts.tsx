@@ -115,34 +115,52 @@ export const AbandonedCheckouts = () => {
     try {
       const firstName = (user.name || "").split(" ")[0] || "there";
       const html = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; background-color: #0d1117; color: #e6edf3; border-radius: 12px;">
-          <div style="text-align: center; margin-bottom: 24px;">
-            <h1 style="color: #ffffff; font-size: 22px; margin: 0;">PropScholar</h1>
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 620px; margin: 0 auto; padding: 0; background-color: #0a0e1a;">
+          <!-- Outer glow wrapper -->
+          <div style="padding: 40px 20px; background: linear-gradient(180deg, #0a0e1a 0%, #0d1525 50%, #0a0e1a 100%);">
+            <!-- Glass card -->
+            <div style="background: linear-gradient(145deg, rgba(20,30,60,0.85) 0%, rgba(12,18,36,0.95) 100%); border: 1px solid rgba(100,160,255,0.15); border-radius: 16px; padding: 40px 36px; position: relative; box-shadow: 0 0 60px rgba(60,130,255,0.08), 0 0 120px rgba(60,130,255,0.04), inset 0 1px 0 rgba(255,255,255,0.05);">
+              
+              <!-- Brand name -->
+              <div style="text-align: center; margin-bottom: 32px;">
+                <span style="font-size: 26px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px;">PropScholar</span>
+                <div style="width: 40px; height: 2px; background: linear-gradient(90deg, transparent, #4A90D9, transparent); margin: 8px auto 0;"></div>
+              </div>
+
+              <!-- Greeting -->
+              <h2 style="color: #ffffff; font-size: 24px; font-weight: 700; margin: 0 0 16px;">Hey ${firstName}! 👋</h2>
+              
+              <p style="color: #8b95a8; font-size: 15px; line-height: 1.8; margin: 0 0 12px;">
+                You were just one step away from leveling up your trading journey.
+              </p>
+              
+              <p style="color: #8b95a8; font-size: 15px; line-height: 1.8; margin: 0 0 32px;">
+                You still have <strong style="color: #4A90D9; font-size: 17px;">${user.cartItems} item${user.cartItems > 1 ? "s" : ""}</strong> waiting in your cart.
+              </p>
+
+              <!-- CTA Button -->
+              <div style="text-align: center; margin: 0 0 32px;">
+                <a href="https://propscholar.com" 
+                   style="background: linear-gradient(135deg, #2563eb 0%, #4A90D9 50%, #2563eb 100%); color: #ffffff; padding: 16px 48px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 16px; display: inline-block; letter-spacing: 0.3px; box-shadow: 0 4px 24px rgba(74,144,217,0.35), 0 0 40px rgba(74,144,217,0.15); border: 1px solid rgba(100,170,255,0.2);">
+                  Complete Your Purchase →
+                </a>
+              </div>
+
+              <!-- Divider -->
+              <div style="height: 1px; background: linear-gradient(90deg, transparent, rgba(100,160,255,0.2), transparent); margin: 28px 0;"></div>
+
+              <!-- Support text -->
+              <p style="color: #6b7589; font-size: 14px; line-height: 1.7; margin: 0 0 24px;">
+                Got questions? Just reply to this email — our team has your back.
+              </p>
+
+              <!-- Sign off -->
+              <p style="color: #4a5568; font-size: 13px; margin: 0;">
+                Warm regards,<br/>
+                <strong style="color: #8b95a8;">Team PropScholar</strong>
+              </p>
+            </div>
           </div>
-          <h2 style="color: #ffffff; font-size: 20px;">Hey ${firstName}! 👋</h2>
-          <p style="color: #b0b8c4; font-size: 15px; line-height: 1.7;">
-            We noticed you were checking out some amazing stuff on <strong style="color: #ffffff;">PropScholar</strong> 
-            but didn't complete your purchase.
-          </p>
-          <p style="color: #b0b8c4; font-size: 15px; line-height: 1.7;">
-            You still have <strong style="color: #ffffff;">${user.cartItems} item${user.cartItems > 1 ? "s" : ""}</strong> 
-            in your cart waiting for you. Don't let them slip away!
-          </p>
-          <div style="text-align: center; margin: 32px 0;">
-            <a href="https://propscholar.com" 
-               style="background-color: #4A90D9; color: #ffffff; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block;">
-              Complete Your Purchase →
-            </a>
-          </div>
-          <hr style="border: none; border-top: 1px solid #21262d; margin: 28px 0;" />
-          <p style="color: #b0b8c4; font-size: 14px; line-height: 1.7;">
-            Have any doubts or queries? Feel free to ask — we're always here to help! 
-            Just reply to this email and our team will get back to you shortly. 💬
-          </p>
-          <p style="color: #8b949e; font-size: 13px; margin-top: 24px;">
-            Warm regards,<br/>
-            <strong style="color: #b0b8c4;">Team PropScholar</strong>
-          </p>
         </div>
       `;
 
