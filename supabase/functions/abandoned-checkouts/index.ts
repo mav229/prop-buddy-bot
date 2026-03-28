@@ -10,9 +10,9 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Verify caller is admin via Supabase auth
   const authHeader = req.headers.get("Authorization");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!authHeader || !serviceRoleKey || !authHeader.includes(serviceRoleKey)) {
+  if (!authHeader) {
     return new Response(
       JSON.stringify({ error: "Unauthorized" }),
       { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
