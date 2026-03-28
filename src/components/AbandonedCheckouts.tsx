@@ -23,27 +23,47 @@ export const AbandonedCheckouts = () => {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [sendingEmail, setSendingEmail] = useState<string | null>(null);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [countdown, setCountdown] = useState(60);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchAbandoned = async () => {
-    setLoading(true);
+  const fetchAbandoned = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await supabase.functions.invoke("abandoned-checkouts");
-
       if (res.error) throw res.error;
       const result = res.data;
       setData(result.abandoned || []);
       setFiltered(result.abandoned || []);
-      toast.success(`Found ${result.total || 0} abandoned checkouts`);
+      setLastRefresh(new Date());
+      setCountdown(60);
+      if (!silent) toast.success(`Found ${result.total || 0} abandoned checkouts`);
     } catch (err: any) {
       console.error("Failed to fetch abandoned checkouts:", err);
-      toast.error("Failed to fetch abandoned checkouts");
+      if (!silent) toast.error("Failed to fetch abandoned checkouts");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
+  // Initial fetch + auto-refresh every 60s
   useEffect(() => {
     fetchAbandoned();
+    intervalRef.current = setInterval(() => fetchAbandoned(true), 60000);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [fetchAbandoned]);
+
+  // Countdown timer
+  useEffect(() => {
+    countdownRef.current = setInterval(() => {
+      setCountdown((c) => (c <= 1 ? 60 : c - 1));
+    }, 1000);
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
   }, []);
 
   useEffect(() => {
