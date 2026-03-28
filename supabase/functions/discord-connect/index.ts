@@ -523,6 +523,83 @@ Deno.serve(async (req) => {
         );
       }
 
+      // ── Health check: verify each role ID is configured and valid ──
+      if (action === "health_check") {
+        const guildId = getDiscordGuildId();
+        const botToken = getDiscordBotToken();
+        const headers = {
+          Authorization: `Bot ${botToken}`,
+          "Content-Type": "application/json",
+        };
+
+        const results: Record<string, { configured: boolean; roleId: string | null; valid: boolean; roleName: string | null; error: string | null }> = {};
+
+        for (const role of ALL_ROLES) {
+          const roleId = getRoleId(role);
+          if (!roleId) {
+            results[role] = { configured: false, roleId: null, valid: false, roleName: null, error: "Role ID env var not set" };
+            continue;
+          }
+
+          try {
+            // Verify role exists in the guild
+            const res = await discordFetch(
+              `${DISCORD_API}/guilds/${guildId}/roles`,
+              { method: "GET", headers }
+            );
+            if (!res.ok) {
+              results[role] = { configured: true, roleId, valid: false, roleName: null, error: `Failed to fetch guild roles: ${res.status}` };
+              continue;
+            }
+            const guildRoles = await res.json();
+            const found = guildRoles.find((r: { id: string; name: string }) => r.id === roleId);
+            results[role] = {
+              configured: true,
+              roleId,
+              valid: !!found,
+              roleName: found?.name || null,
+              error: found ? null : `Role ID ${roleId} not found in guild`,
+            };
+          } catch (err) {
+            results[role] = { configured: true, roleId, valid: false, roleName: null, error: err instanceof Error ? err.message : "Unknown error" };
+          }
+        }
+
+        // Also check bot token & guild validity
+        let botValid = false;
+        let guildValid = false;
+        try {
+          const botRes = await discordFetch(`${DISCORD_API}/users/@me`, { method: "GET", headers });
+          botValid = botRes.ok;
+        } catch (_) { /* */ }
+        try {
+          const guildRes = await discordFetch(`${DISCORD_API}/guilds/${guildId}`, { method: "GET", headers });
+          guildValid = guildRes.ok;
+        } catch (_) { /* */ }
+
+        // Count connections per role
+        const supabase = getSupabase();
+        const { data: connections } = await supabase
+          .from("discord_connections")
+          .select("assigned_role");
+        const roleCounts: Record<string, number> = {};
+        for (const c of connections || []) {
+          roleCounts[c.assigned_role] = (roleCounts[c.assigned_role] || 0) + 1;
+        }
+
+        return new Response(
+          JSON.stringify({
+            bot_token_valid: botValid,
+            guild_valid: guildValid,
+            guild_id: guildId,
+            roles: results,
+            connection_counts: roleCounts,
+            total_connections: (connections || []).length,
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       return new Response(JSON.stringify({ error: "Unknown action" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
