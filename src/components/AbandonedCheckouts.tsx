@@ -146,7 +146,7 @@ export const AbandonedCheckouts = () => {
           />
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={fetchAbandoned} disabled={loading}>
+          <Button variant="outline" size="sm" onClick={() => fetchAbandoned()} disabled={loading}>
             <RefreshCw className={`w-4 h-4 mr-1 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
