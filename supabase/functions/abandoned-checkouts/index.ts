@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
       cart: 1,
       createdAt: 1,
       updatedAt: 1,
-    }).limit(500).toArray();
+    }).sort({ updatedAt: -1 }).limit(500).toArray();
 
     if (usersWithCart.length === 0) {
       return new Response(
