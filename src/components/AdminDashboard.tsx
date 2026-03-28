@@ -271,6 +271,10 @@ export const AdminDashboard = () => {
             <CreditUsageCalendar />
           </TabsContent>
 
+          <TabsContent value="abandoned">
+            <AbandonedCheckouts />
+          </TabsContent>
+
           <TabsContent value="conn-logs">
             <ConnectionLogsView />
           </TabsContent>
