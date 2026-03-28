@@ -22,6 +22,7 @@ import { FullpageUsageLogs } from "./FullpageUsageLogs";
 import { CreditUsageCalendar } from "./CreditUsageCalendar";
 import { AutoRepliesManager } from "./AutoRepliesManager";
 import { ConnectionLogsView } from "./ConnectionLogsView";
+import { AbandonedCheckouts } from "./AbandonedCheckouts";
 import { Link } from "react-router-dom";
 
 const navItems = [
