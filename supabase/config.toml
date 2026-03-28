@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.tickets-api]
 verify_jwt = false
+
+[functions.discord-role-cron]
+verify_jwt = false
