@@ -55,6 +55,45 @@
     editor.dispatchEvent(new InputEvent("input", { bubbles: true, cancelable: true, inputType: "insertText", data: text }));
   }
 
+  async function requestReplyOptions(text) {
+    if (typeof chrome !== "undefined" && chrome.runtime?.id) {
+      return await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({ type: "ps-fix-generate", text }, (response) => {
+          const runtimeError = chrome.runtime.lastError;
+          if (runtimeError) {
+            reject(new Error(runtimeError.message || "Extension message failed"));
+            return;
+          }
+
+          if (!response) {
+            reject(new Error("No response from extension background"));
+            return;
+          }
+
+          if (!response.ok) {
+            reject(new Error(response.error || "Reply generation failed"));
+            return;
+          }
+
+          resolve(response.data);
+        });
+      });
+    }
+
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` },
+      body: JSON.stringify({ text }),
+    });
+
+    if (!response.ok) {
+      const errBody = await response.json().catch(() => ({}));
+      throw new Error(errBody.error || `Error ${response.status}`);
+    }
+
+    return await response.json();
+  }
+
   // ── Popup UI ──
 
   function removeExistingPopup() {
@@ -116,7 +155,8 @@
     document.body.appendChild(popup);
     const btnRect = anchorButton.getBoundingClientRect();
     popup.style.position = "fixed";
-    popup.style.left = `${Math.max(8, btnRect.left - 160)}px`;
+    const popupLeft = Math.min(window.innerWidth - 348, Math.max(8, btnRect.left - 160));
+    popup.style.left = `${popupLeft}px`;
     popup.style.bottom = `${window.innerHeight - btnRect.top + 8}px`;
     popup.style.zIndex = "999999";
 
@@ -213,18 +253,7 @@
       button.classList.add("ps-loading");
 
       try {
-        const response = await fetch(API_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` },
-          body: JSON.stringify({ text }),
-        });
-
-        if (!response.ok) {
-          const errBody = await response.json().catch(() => ({}));
-          throw new Error(errBody.error || `Error ${response.status}`);
-        }
-
-        const data = await response.json();
+        const data = await requestReplyOptions(text);
 
         if (data.options && Array.isArray(data.options)) {
           createPopup(data.options, editor, button);
