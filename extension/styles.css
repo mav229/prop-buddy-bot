@@ -1,0 +1,85 @@
+/* PropScholar Fix Button */
+.ps-fix-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #b5bac1;
+  font-size: 18px;
+  font-weight: 700;
+  transition: all 0.15s ease;
+  position: relative;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.ps-fix-btn:hover {
+  background: rgba(37, 99, 235, 0.15);
+  color: #5865f2;
+}
+
+.ps-fix-btn.ps-loading {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.ps-fix-btn.ps-loading::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 2px solid transparent;
+  border-top-color: #5865f2;
+  border-radius: 50%;
+  animation: ps-spin 0.6s linear infinite;
+}
+
+.ps-fix-btn.ps-loading .ps-fix-icon {
+  visibility: hidden;
+}
+
+@keyframes ps-spin {
+  to { transform: rotate(360deg); }
+}
+
+.ps-fix-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #111214;
+  color: #dbdee1;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s;
+  z-index: 999;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+
+.ps-fix-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: #111214;
+}
+
+.ps-fix-btn:hover .ps-fix-tooltip {
+  opacity: 1;
+}
+
+/* Success flash */
+.ps-fix-btn.ps-success {
+  color: #23a55a !important;
+}

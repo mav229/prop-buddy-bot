@@ -15,6 +15,7 @@ import NotFound from "./pages/NotFound";
 import TicketDetail from "./pages/TicketDetail";
 import DiscordWidget from "./pages/DiscordWidget";
 import DiscordPopup from "./pages/DiscordPopup";
+import ExtensionDownload from "./pages/ExtensionDownload";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/embed-checker" element={<EmbedChecker />} />
             <Route path="/discord-widget" element={<DiscordWidget />} />
             <Route path="/discord-popup" element={<DiscordPopup />} />
+            <Route path="/extension" element={<ExtensionDownload />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
