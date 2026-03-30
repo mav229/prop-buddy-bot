@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 280px;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #1a1b1e;
+      color: #dbdee1;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .header img {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+    }
+    .header h1 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .desc {
+      font-size: 12.5px;
+      color: #949ba4;
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+    .steps {
+      background: #2b2d31;
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .step {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+    .step:last-child { margin-bottom: 0; }
+    .step-num {
+      background: #5865f2;
+      color: #fff;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .step-text {
+      font-size: 12px;
+      color: #b5bac1;
+      line-height: 1.4;
+    }
+    .footer {
+      margin-top: 14px;
+      text-align: center;
+      font-size: 10px;
+      color: #5865f2;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="icon.png" alt="PropScholar">
+    <h1>PropScholar Fix</h1>
+  </div>
+  <p class="desc">AI-powered message polisher for Discord moderators. Clean up your replies before sending.</p>
+  <div class="steps">
+    <div class="step">
+      <span class="step-num">1</span>
+      <span class="step-text">Type your message in Discord</span>
+    </div>
+    <div class="step">
+      <span class="step-num">2</span>
+      <span class="step-text">Click the <b>✦</b> button in the toolbar</span>
+    </div>
+    <div class="step">
+      <span class="step-num">3</span>
+      <span class="step-text">Your message gets polished — hit Enter to send!</span>
+    </div>
+  </div>
+  <p class="footer">propscholar.com</p>
+</body>
+</html>

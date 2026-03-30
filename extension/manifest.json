@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "PropScholar Fix",
+  "version": "1.0.0",
+  "description": "Polish your Discord messages with AI before sending. Built for PropScholar moderators.",
+  "permissions": ["activeTab"],
+  "content_scripts": [
+    {
+      "matches": ["https://discord.com/*", "https://canary.discord.com/*", "https://ptb.discord.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  }
+}
