@@ -42,17 +42,92 @@
     return (editor.innerText || editor.textContent || "").replace(/\u200b/g, "").trim();
   }
 
-  function setEditorText(editor, text) {
+  function normalizeComparableText(text) {
+    return String(text || "").replace(/\r\n/g, "\n").replace(/\u200b/g, "").trim();
+  }
+
+  function selectEditorContents(editor) {
     editor.focus();
     const sel = window.getSelection();
     const range = document.createRange();
     range.selectNodeContents(editor);
     sel?.removeAllRanges();
     sel?.addRange(range);
-    const ok = typeof document.execCommand === "function" && document.execCommand("insertText", false, text);
-    if (!ok) editor.textContent = text;
-    editor.dispatchEvent(new InputEvent("beforeinput", { bubbles: true, cancelable: true, inputType: "insertText", data: text }));
-    editor.dispatchEvent(new InputEvent("input", { bubbles: true, cancelable: true, inputType: "insertText", data: text }));
+  }
+
+  function moveCaretToEnd(editor) {
+    const sel = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+  }
+
+  function waitForEditorFlush() {
+    return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  }
+
+  function createPasteEvent(text) {
+    const clipboardData = new DataTransfer();
+    clipboardData.setData("text/plain", text);
+
+    let pasteEvent;
+    try {
+      pasteEvent = new ClipboardEvent("paste", {
+        bubbles: true,
+        cancelable: true,
+        clipboardData,
+      });
+    } catch {
+      pasteEvent = new Event("paste", { bubbles: true, cancelable: true });
+    }
+
+    if (!pasteEvent.clipboardData) {
+      Object.defineProperty(pasteEvent, "clipboardData", {
+        value: clipboardData,
+      });
+    }
+
+    return pasteEvent;
+  }
+
+  async function setEditorText(editor, text) {
+    const nextText = String(text || "").replace(/\r\n/g, "\n");
+    const comparableNextText = normalizeComparableText(nextText);
+
+    selectEditorContents(editor);
+    editor.dispatchEvent(new InputEvent("beforeinput", {
+      bubbles: true,
+      cancelable: true,
+      inputType: "insertFromPaste",
+      data: nextText,
+    }));
+    editor.dispatchEvent(createPasteEvent(nextText));
+    await waitForEditorFlush();
+
+    if (normalizeComparableText(getEditorText(editor)) === comparableNextText) {
+      moveCaretToEnd(editor);
+      return true;
+    }
+
+    selectEditorContents(editor);
+    const inserted = typeof document.execCommand === "function" && document.execCommand("insertText", false, nextText);
+    if (!inserted) {
+      editor.textContent = nextText;
+    }
+
+    editor.dispatchEvent(new InputEvent("input", {
+      bubbles: true,
+      cancelable: true,
+      inputType: "insertText",
+      data: nextText,
+    }));
+    editor.dispatchEvent(new Event("change", { bubbles: true }));
+    await waitForEditorFlush();
+    moveCaretToEnd(editor);
+
+    return normalizeComparableText(getEditorText(editor)) === comparableNextText;
   }
 
   async function requestReplyOptions(text) {
@@ -143,9 +218,18 @@
         row.appendChild(dots);
       }
 
-      row.addEventListener("click", () => {
-        setEditorText(editor, text);
-        removeExistingPopup();
+      row.addEventListener("click", async () => {
+        row.classList.add("ps-fix-option-pending");
+        const replaced = await setEditorText(editor, text);
+        row.classList.remove("ps-fix-option-pending");
+
+        if (replaced) {
+          removeExistingPopup();
+          return;
+        }
+
+        anchorButton.style.color = "#ed4245";
+        setTimeout(() => { anchorButton.style.color = ""; }, 2000);
       });
 
       popup.appendChild(row);
@@ -214,6 +298,7 @@
         border-radius: 6px; cursor: pointer; transition: background 0.12s;
         color: #dbdee1; font-size: 13px; line-height: 1.45;
       }
+      .ps-fix-option.ps-fix-option-pending { opacity: 0.6; pointer-events: none; }
       .ps-fix-option:hover { background: #2b2d31; }
       .ps-fix-option-text { flex: 1; word-break: break-word; }
       .ps-fix-option-text.ps-fix-expanded { white-space: pre-wrap; }
