@@ -5,11 +5,8 @@
   const API_URL = "https://pcvkjrxrlibhyyxldbzs.supabase.co/functions/v1/discord-fix";
   const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjdmtqcnhybGliaHl5eGxkYnpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4ODE5MTgsImV4cCI6MjA4MjQ1NzkxOH0.Ix2sX2oONBKUY-V7PVAnY7FO33TXvm_imZvMuCk849E";
 
-  let injectedEditors = new WeakSet();
-
   // Get text from Discord's Slate editor
   function getEditorText(editor) {
-    // Discord uses Slate — text lives in spans with data-slate-string
     const strings = editor.querySelectorAll('[data-slate-string="true"]');
     if (strings.length === 0) return "";
     return Array.from(strings).map(s => s.textContent).join("\n");
@@ -17,20 +14,22 @@
 
   // Set text in Discord's Slate editor
   function setEditorText(editor, text) {
-    // Focus the editor
     editor.focus();
+    // Select all
+    const sel = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    sel.removeAllRanges();
+    sel.addRange(range);
 
-    // Select all content
-    document.execCommand("selectAll", false, null);
-
-    // Small delay to ensure selection registers
+    // Use InputEvent to work with Slate's event system
     setTimeout(() => {
-      // Insert the new text via execCommand which works with contentEditable
+      document.execCommand("selectAll", false, null);
       document.execCommand("insertText", false, text);
     }, 50);
   }
 
-  // Create the Fix button
+  // Create the Fix button matching Discord's button style
   function createFixButton(editor) {
     const btn = document.createElement("button");
     btn.className = "ps-fix-btn";
@@ -74,7 +73,6 @@
         }
       } catch (err) {
         console.error("[PropScholar Fix]", err);
-        // Brief red flash on error
         btn.style.color = "#ed4245";
         setTimeout(() => { btn.style.color = ""; }, 2000);
       } finally {
@@ -85,59 +83,78 @@
     return btn;
   }
 
-  // Find toolbar and inject button
+  // Find and inject into Discord's toolbar
   function injectButton() {
-    // Discord's message editors
-    const editors = document.querySelectorAll('[role="textbox"][data-slate-editor="true"]');
+    // Target the main chat form's toolbar buttons
+    // Discord's structure: form contains the editor and a buttons area
+    const forms = document.querySelectorAll('form');
+    
+    forms.forEach((form) => {
+      // Must have a Slate editor inside
+      const editor = form.querySelector('[role="textbox"][data-slate-editor="true"]');
+      if (!editor) return;
 
-    editors.forEach((editor) => {
-      if (injectedEditors.has(editor)) return;
+      // Skip if already injected
+      if (form.querySelector(".ps-fix-btn")) return;
 
-      // Find the buttons toolbar near this editor
-      // Discord structures: form > div > div(toolbar with buttons)
-      const form = editor.closest("form");
-      if (!form) return;
+      // Strategy 1: Find buttons by aria-label (most reliable)
+      const knownButtons = form.querySelectorAll('button[aria-label]');
+      if (knownButtons.length === 0) return;
 
-      // Look for the button toolbar — it contains emoji/gif/sticker buttons
-      const toolbarButtons = form.querySelectorAll('button[class*="button"]');
-      if (toolbarButtons.length === 0) return;
-
-      // Find the buttons container (parent of the rightmost toolbar buttons)
-      const lastButton = toolbarButtons[toolbarButtons.length - 1];
-      const buttonsContainer = lastButton.parentElement;
-      if (!buttonsContainer) return;
-
-      // Check if we already injected here
-      if (buttonsContainer.querySelector(".ps-fix-btn")) {
-        injectedEditors.add(editor);
-        return;
+      // Find the container that holds emoji/gif/sticker buttons
+      // These are typically in a div next to or near the editor
+      let buttonsContainer = null;
+      
+      for (const btn of knownButtons) {
+        const label = (btn.getAttribute("aria-label") || "").toLowerCase();
+        if (label.includes("emoji") || label.includes("gif") || label.includes("sticker") || 
+            label.includes("select emoji") || label.includes("open gif")) {
+          buttonsContainer = btn.parentElement;
+          break;
+        }
       }
 
+      if (!buttonsContainer) {
+        // Fallback: find any button cluster near the bottom of the form
+        const allBtns = form.querySelectorAll('button');
+        if (allBtns.length > 0) {
+          const lastBtn = allBtns[allBtns.length - 1];
+          buttonsContainer = lastBtn.parentElement;
+        }
+      }
+
+      if (!buttonsContainer) return;
+
       const fixBtn = createFixButton(editor);
-      // Insert before the first button in the toolbar
+      // Insert at the beginning of the toolbar
       buttonsContainer.insertBefore(fixBtn, buttonsContainer.firstChild);
-      injectedEditors.add(editor);
+      
+      console.log("[PropScholar Fix] ✦ Button injected into Discord toolbar");
     });
   }
 
-  // Observe DOM changes to re-inject when Discord re-renders
+  // Observe DOM changes to re-inject when Discord re-renders (SPA navigation)
+  let debounceTimer;
   const observer = new MutationObserver(() => {
-    injectButton();
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(injectButton, 300);
   });
 
-  // Start observing once Discord loads
   function init() {
+    console.log("[PropScholar Fix] Extension loaded, looking for Discord editor...");
     injectButton();
     observer.observe(document.body, {
       childList: true,
       subtree: true,
     });
+    // Also periodically check in case MutationObserver misses something
+    setInterval(injectButton, 3000);
   }
 
   // Wait for Discord to fully load
   if (document.readyState === "complete") {
-    setTimeout(init, 2000);
+    setTimeout(init, 3000);
   } else {
-    window.addEventListener("load", () => setTimeout(init, 2000));
+    window.addEventListener("load", () => setTimeout(init, 3000));
   }
 })();
