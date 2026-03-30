@@ -15,21 +15,13 @@
   // Set text in Discord's Slate editor
   function setEditorText(editor, text) {
     editor.focus();
-    // Select all
-    const sel = window.getSelection();
-    const range = document.createRange();
-    range.selectNodeContents(editor);
-    sel.removeAllRanges();
-    sel.addRange(range);
-
-    // Use InputEvent to work with Slate's event system
     setTimeout(() => {
       document.execCommand("selectAll", false, null);
       document.execCommand("insertText", false, text);
     }, 50);
   }
 
-  // Create the Fix button matching Discord's button style
+  // Create the Fix button
   function createFixButton(editor) {
     const btn = document.createElement("button");
     btn.className = "ps-fix-btn";
@@ -85,55 +77,85 @@
 
   // Find and inject into Discord's toolbar
   function injectButton() {
-    // Target the main chat form's toolbar buttons
-    // Discord's structure: form contains the editor and a buttons area
-    const forms = document.querySelectorAll('form');
+    // Find all Slate editors on the page
+    const editors = document.querySelectorAll('[role="textbox"][data-slate-editor="true"]');
     
-    forms.forEach((form) => {
-      // Must have a Slate editor inside
-      const editor = form.querySelector('[role="textbox"][data-slate-editor="true"]');
-      if (!editor) return;
+    editors.forEach((editor) => {
+      // Walk up to find the form or the main chat input wrapper
+      let container = editor.closest('form') || editor.parentElement?.parentElement?.parentElement?.parentElement;
+      if (!container) return;
 
-      // Skip if already injected
-      if (form.querySelector(".ps-fix-btn")) return;
+      // Skip if already injected in this container
+      if (container.querySelector(".ps-fix-btn")) return;
 
-      // Strategy 1: Find buttons by aria-label (most reliable)
-      const knownButtons = form.querySelectorAll('button[aria-label]');
-      if (knownButtons.length === 0) return;
+      // Strategy: Find the buttons area near the editor
+      // Discord puts emoji/gif/sticker buttons in a sibling or nearby container
+      let buttonsArea = null;
 
-      // Find the container that holds emoji/gif/sticker buttons
-      // These are typically in a div next to or near the editor
-      let buttonsContainer = null;
-      
-      for (const btn of knownButtons) {
-        const label = (btn.getAttribute("aria-label") || "").toLowerCase();
-        if (label.includes("emoji") || label.includes("gif") || label.includes("sticker") || 
-            label.includes("select emoji") || label.includes("open gif")) {
-          buttonsContainer = btn.parentElement;
+      // Look for buttons with known aria-labels anywhere in the container
+      const allButtons = container.querySelectorAll('button[aria-label]');
+      for (const b of allButtons) {
+        const label = (b.getAttribute("aria-label") || "").toLowerCase();
+        if (label.includes("emoji") || label.includes("gif") || label.includes("sticker") ||
+            label.includes("select emoji") || label.includes("open gif picker") ||
+            label.includes("open sticker picker")) {
+          buttonsArea = b.parentElement;
           break;
         }
       }
 
-      if (!buttonsContainer) {
-        // Fallback: find any button cluster near the bottom of the form
-        const allBtns = form.querySelectorAll('button');
-        if (allBtns.length > 0) {
-          const lastBtn = allBtns[allBtns.length - 1];
-          buttonsContainer = lastBtn.parentElement;
+      // Fallback: look for button clusters outside the form but near it
+      if (!buttonsArea) {
+        // Try broader search - go up further
+        let searchScope = container.parentElement || container;
+        const broaderButtons = searchScope.querySelectorAll('button[aria-label]');
+        for (const b of broaderButtons) {
+          const label = (b.getAttribute("aria-label") || "").toLowerCase();
+          if (label.includes("emoji") || label.includes("gif") || label.includes("sticker")) {
+            buttonsArea = b.parentElement;
+            break;
+          }
         }
       }
 
-      if (!buttonsContainer) return;
+      // Fallback 2: Find any div with multiple buttons near the editor
+      if (!buttonsArea) {
+        const editorParent = editor.closest('[class*="channelTextArea"]') || 
+                             editor.closest('[class*="textArea"]') ||
+                             editor.parentElement?.parentElement?.parentElement;
+        if (editorParent) {
+          const btns = editorParent.querySelectorAll('button');
+          if (btns.length >= 2) {
+            buttonsArea = btns[btns.length - 1].parentElement;
+          }
+        }
+      }
+
+      // Fallback 3: Just place it next to the editor itself
+      if (!buttonsArea) {
+        const editorWrapper = editor.parentElement;
+        if (editorWrapper) {
+          const fixBtn = createFixButton(editor);
+          fixBtn.style.position = "absolute";
+          fixBtn.style.right = "8px";
+          fixBtn.style.top = "50%";
+          fixBtn.style.transform = "translateY(-50%)";
+          editorWrapper.style.position = "relative";
+          editorWrapper.appendChild(fixBtn);
+          console.log("[PropScholar Fix] ✦ Button injected (absolute position fallback)");
+          return;
+        }
+      }
+
+      if (!buttonsArea) return;
 
       const fixBtn = createFixButton(editor);
-      // Insert at the beginning of the toolbar
-      buttonsContainer.insertBefore(fixBtn, buttonsContainer.firstChild);
-      
+      buttonsArea.insertBefore(fixBtn, buttonsArea.firstChild);
       console.log("[PropScholar Fix] ✦ Button injected into Discord toolbar");
     });
   }
 
-  // Observe DOM changes to re-inject when Discord re-renders (SPA navigation)
+  // Observe DOM changes
   let debounceTimer;
   const observer = new MutationObserver(() => {
     clearTimeout(debounceTimer);
@@ -143,18 +165,13 @@
   function init() {
     console.log("[PropScholar Fix] Extension loaded, looking for Discord editor...");
     injectButton();
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
-    // Also periodically check in case MutationObserver misses something
+    observer.observe(document.body, { childList: true, subtree: true });
     setInterval(injectButton, 3000);
   }
 
-  // Wait for Discord to fully load
   if (document.readyState === "complete") {
-    setTimeout(init, 3000);
+    setTimeout(init, 2000);
   } else {
-    window.addEventListener("load", () => setTimeout(init, 3000));
+    window.addEventListener("load", () => setTimeout(init, 2000));
   }
 })();
