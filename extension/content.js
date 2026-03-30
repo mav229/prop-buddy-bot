@@ -95,6 +95,23 @@
   async function setEditorText(editor, text) {
     const nextText = String(text || "").replace(/\r\n/g, "\n");
     const comparableNextText = normalizeComparableText(nextText);
+    const previousText = normalizeComparableText(getEditorText(editor));
+
+    selectEditorContents(editor);
+    editor.dispatchEvent(new InputEvent("beforeinput", {
+      bubbles: true,
+      cancelable: true,
+      inputType: "deleteByCut",
+    }));
+    if (typeof document.execCommand === "function") {
+      document.execCommand("delete", false);
+    }
+    editor.dispatchEvent(new InputEvent("input", {
+      bubbles: true,
+      cancelable: true,
+      inputType: "deleteByCut",
+    }));
+    await waitForEditorFlush();
 
     selectEditorContents(editor);
     editor.dispatchEvent(new InputEvent("beforeinput", {
@@ -104,6 +121,12 @@
       data: nextText,
     }));
     editor.dispatchEvent(createPasteEvent(nextText));
+    editor.dispatchEvent(new InputEvent("input", {
+      bubbles: true,
+      cancelable: true,
+      inputType: "insertFromPaste",
+      data: nextText,
+    }));
     await waitForEditorFlush();
 
     if (normalizeComparableText(getEditorText(editor)) === comparableNextText) {
@@ -127,7 +150,8 @@
     await waitForEditorFlush();
     moveCaretToEnd(editor);
 
-    return normalizeComparableText(getEditorText(editor)) === comparableNextText;
+    const finalText = normalizeComparableText(getEditorText(editor));
+    return finalText === comparableNextText && finalText !== previousText;
   }
 
   async function requestReplyOptions(text) {
@@ -205,6 +229,10 @@
         dots.className = "ps-fix-expand-btn";
         dots.textContent = "•••";
         dots.title = "Show full reply";
+        dots.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        });
         dots.addEventListener("click", (e) => {
           e.stopPropagation();
           if (textSpan.textContent === text) {
@@ -218,7 +246,9 @@
         row.appendChild(dots);
       }
 
-      row.addEventListener("click", async () => {
+      row.addEventListener("mousedown", async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
         row.classList.add("ps-fix-option-pending");
         const replaced = await setEditorText(editor, text);
         row.classList.remove("ps-fix-option-pending");
