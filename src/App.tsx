@@ -15,6 +15,7 @@ import NotFound from "./pages/NotFound";
 import TicketDetail from "./pages/TicketDetail";
 import DiscordWidget from "./pages/DiscordWidget";
 import DiscordPopup from "./pages/DiscordPopup";
+import ExtensionDownload from "./pages/ExtensionDownload";
 
 const queryClient = new QueryClient();
 
