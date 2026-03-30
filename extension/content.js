@@ -6,7 +6,7 @@
   window.__PROP_SCHOLAR_FIX_LOADED__ = true;
 
   const API_URL = "https://pcvkjrxrlibhyyxldbzs.supabase.co/functions/v1/discord-fix";
-  const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjdmtqcnhybGliaHl5eGxkYnpzIiwicm9sZSI6ImFub24iLCJ9.Ix2sX2oONBKUY-V7PVAnY7FO33TXvm_imZvMuCk849E";
+  const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjdmtqcnhybGliaHl5eGxkYnpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4ODE5MTgsImV4cCI6MjA4MjQ1NzkxOH0.Ix2sX2oONBKUY-V7PVAnY7FO33TXvm_imZvMuCk849E";
   const EDITOR_SELECTOR = [
     'div[role="textbox"][contenteditable="true"][aria-multiline="true"]',
     'div[role="textbox"][contenteditable="true"]',
