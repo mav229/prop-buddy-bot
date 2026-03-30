@@ -29,13 +29,13 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-flash-lite",
         messages: [
           {
             role: "system",
-            content: `You are a message polisher for PropScholar Discord moderators. 
+            content: `You are a message polisher for PropScholar Discord moderators.
 
-Your job: Take a casually typed Discord message and rewrite it to be professional, clear, and helpful — while keeping the same meaning and tone (friendly but authoritative).
+Your job: Take a casually typed Discord message and rewrite it into THREE different polished variations. Each variation should be professional, clear, and helpful — while keeping the same meaning.
 
 Rules:
 - Keep it concise — Discord messages should be scannable
@@ -44,9 +44,11 @@ Rules:
 - Don't add unnecessary fluff or corporate speak
 - If the message has emojis, keep them natural
 - Don't change links, mentions (@), channel references (#), or code
-- Return ONLY the polished message, nothing else — no quotes, no explanation
 - Match the original language (if Hindi/Hinglish, keep it that way but cleaner)
-- If the message is already professional, return it mostly unchanged`,
+- If the message is already professional, return slight variations
+
+Return EXACTLY this JSON format, nothing else:
+{"options":["variation 1","variation 2","variation 3"]}`,
           },
           { role: "user", content: text },
         ],
@@ -71,11 +73,27 @@ Rules:
     }
 
     const data = await response.json();
-    const fixed = data.choices?.[0]?.message?.content?.trim();
+    const raw = data.choices?.[0]?.message?.content?.trim();
+    if (!raw) throw new Error("No response from AI");
 
-    if (!fixed) throw new Error("No response from AI");
+    // Parse the JSON response
+    let options: string[];
+    try {
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("No JSON found");
+      const parsed = JSON.parse(jsonMatch[0]);
+      options = parsed.options;
+      if (!Array.isArray(options) || options.length < 1) throw new Error("Invalid options");
+    } catch {
+      // Fallback: return the raw text as single option
+      options = [raw];
+    }
 
-    return new Response(JSON.stringify({ fixed }), {
+    // Ensure exactly 3 options
+    while (options.length < 3) options.push(options[0]);
+    options = options.slice(0, 3);
+
+    return new Response(JSON.stringify({ options }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
