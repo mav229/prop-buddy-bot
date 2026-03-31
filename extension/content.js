@@ -41,44 +41,84 @@
   }
 
   // ── THE KEY FUNCTION: Replace editor text so Slate.js actually knows about it ──
+  //
+  // Strategy: We simulate exactly what a human does:
+  //   1. Focus the editor
+  //   2. Ctrl+A (select all) via keyboard event
+  //   3. Type the new text via InputEvent("insertText")
+  //
+  // The critical insight: Discord's Slate listens to "beforeinput" events
+  // with inputType "insertText". execCommand("insertText") triggers this
+  // pipeline internally. But it ONLY works if the editor has real focus
+  // and selection at the time of the call.
 
   function setEditorText(editor, text) {
     const newText = String(text || "");
 
-    // 1. Focus the editor
+    // 1. Force focus onto the editor
     editor.focus();
 
-    // 2. Select ALL content using keyboard shortcut simulation
-    //    This is the most reliable way to select in Slate
-    const sel = window.getSelection();
-    const range = document.createRange();
-    range.selectNodeContents(editor);
-    sel.removeAllRanges();
-    sel.addRange(range);
+    // Small delay to let Discord's focus handlers settle
+    return new Promise((resolve) => {
+      requestAnimationFrame(() => {
+        // 2. Select ALL content
+        const sel = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(editor);
+        sel.removeAllRanges();
+        sel.addRange(range);
 
-    // 3. Use execCommand("insertText") — this is THE method that
-    //    goes through the browser's native editing pipeline and
-    //    Slate.js hooks into it. Paste events get intercepted by
-    //    Discord's custom handlers, but insertText works directly.
-    const success = document.execCommand("insertText", false, newText);
+        // 3. Delete existing content first
+        document.execCommand("delete", false);
 
-    if (!success) {
-      // Fallback: try delete + insert
-      document.execCommand("delete", false);
-      document.execCommand("insertText", false, newText);
-    }
+        // 4. Insert new text
+        const success = document.execCommand("insertText", false, newText);
 
-    // 4. Move caret to end
-    const endRange = document.createRange();
-    endRange.selectNodeContents(editor);
-    endRange.collapse(false);
-    sel.removeAllRanges();
-    sel.addRange(endRange);
+        if (!success) {
+          // Nuclear fallback: directly manipulate the DOM and fire events
+          // that Slate's onDOMBeforeInput handler will pick up
+          const slateNode = editor.querySelector('[data-slate-node="element"]') || editor;
+          const textNode = slateNode.querySelector('[data-slate-string="true"]');
 
-    // 5. Verify
-    const result = getEditorText(editor);
-    const expected = newText.replace(/\r\n/g, "\n").replace(/\u200b/g, "").trim();
-    return result.trim() === expected;
+          if (textNode) {
+            textNode.textContent = newText;
+          } else {
+            editor.textContent = newText;
+          }
+
+          // Fire the events Slate listens to
+          editor.dispatchEvent(new InputEvent("beforeinput", {
+            bubbles: true,
+            cancelable: true,
+            inputType: "insertText",
+            data: newText,
+          }));
+          editor.dispatchEvent(new InputEvent("input", {
+            bubbles: true,
+            cancelable: false,
+            inputType: "insertText",
+            data: newText,
+          }));
+        }
+
+        // 5. Move caret to end
+        try {
+          const endRange = document.createRange();
+          endRange.selectNodeContents(editor);
+          endRange.collapse(false);
+          sel.removeAllRanges();
+          sel.addRange(endRange);
+        } catch (e) { /* ignore */ }
+
+        // 6. Verify
+        const result = getEditorText(editor);
+        const expected = newText.replace(/\r\n/g, "\n").replace(/\u200b/g, "").trim();
+        const ok = result.trim() === expected;
+
+        console.log("[PropScholar Fix] setText:", ok ? "✓" : "✗", "expected:", expected.slice(0, 40), "got:", result.slice(0, 40));
+        resolve(ok);
+      });
+    });
   }
 
   async function requestReplyOptions(text) {
@@ -103,7 +143,6 @@
       });
     }
 
-    // Fallback direct fetch (won't work on discord.com due to CORS, but useful for testing)
     const API_URL = "https://pcvkjrxrlibhyyxldbzs.supabase.co/functions/v1/discord-fix";
     const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjdmtqcnhybGliaHl5eGxkYnpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4ODE5MTgsImV4cCI6MjA4MjQ1NzkxOH0.Ix2sX2oONBKUY-V7PVAnY7FO33TXvm_imZvMuCk849E";
     const response = await fetch(API_URL, {
@@ -171,14 +210,20 @@
         row.appendChild(dots);
       }
 
-      // Use click (not mousedown) so the editor keeps focus naturally
-      row.addEventListener("click", (event) => {
+      // CRITICAL: Use mousedown + preventDefault to prevent focus from leaving the editor
+      row.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      });
+
+      row.addEventListener("click", async (event) => {
         event.preventDefault();
         event.stopPropagation();
 
-        // Replace text using execCommand — Slate will sync
-        const replaced = setEditorText(editor, text);
         removeExistingPopup();
+
+        // Replace text — editor should still have focus since we prevented default on mousedown
+        const replaced = await setEditorText(editor, text);
 
         if (!replaced) {
           anchorButton.style.color = "#ed4245";
@@ -189,7 +234,11 @@
       popup.appendChild(row);
     });
 
-    // Position near the button
+    // Prevent the entire popup from stealing focus
+    popup.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+    });
+
     document.body.appendChild(popup);
     const btnRect = anchorButton.getBoundingClientRect();
     popup.style.position = "fixed";
@@ -198,7 +247,6 @@
     popup.style.bottom = `${window.innerHeight - btnRect.top + 8}px`;
     popup.style.zIndex = "999999";
 
-    // Close on outside click
     const closeHandler = (e) => {
       if (!popup.contains(e.target) && e.target !== anchorButton) {
         removeExistingPopup();
@@ -251,6 +299,7 @@
         display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px;
         border-radius: 6px; cursor: pointer; transition: background 0.12s;
         color: #dbdee1; font-size: 13px; line-height: 1.45;
+        user-select: none;
       }
       .ps-fix-option:hover { background: #2b2d31; }
       .ps-fix-option-text { flex: 1; word-break: break-word; }
@@ -275,6 +324,11 @@
     button.setAttribute("aria-label", "PropScholar Fix");
     button.innerHTML = `<span class="ps-fix-icon">✦</span><span class="ps-fix-tooltip">PropScholar Fix</span>`;
 
+    // Prevent the button itself from stealing editor focus
+    button.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+    });
+
     button.addEventListener("click", async (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -295,7 +349,7 @@
         if (data.options && Array.isArray(data.options)) {
           createPopup(data.options, editor, button);
         } else if (data.fixed) {
-          setEditorText(editor, data.fixed);
+          await setEditorText(editor, data.fixed);
           button.classList.add("ps-success");
           setTimeout(() => button.classList.remove("ps-success"), 1500);
         }
@@ -378,7 +432,7 @@
 
   function init() {
     injectStyles();
-    console.log("[PropScholar Fix] v1.2 ready");
+    console.log("[PropScholar Fix] v1.3 ready");
     injectButtons();
     observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-label", "class"] });
     document.addEventListener("focusin", injectButtons, true);
@@ -388,4 +442,3 @@
   if (document.readyState === "complete") setTimeout(init, 1200);
   else window.addEventListener("load", () => setTimeout(init, 1200));
 })();
-
