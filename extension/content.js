@@ -5,8 +5,6 @@
   if (window.__PROP_SCHOLAR_FIX_LOADED__) return;
   window.__PROP_SCHOLAR_FIX_LOADED__ = true;
 
-  const API_URL = "https://pcvkjrxrlibhyyxldbzs.supabase.co/functions/v1/discord-fix";
-  const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjdmtqcnhybGliaHl5eGxkYnpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4ODE5MTgsImV4cCI6MjA4MjQ1NzkxOH0.Ix2sX2oONBKUY-V7PVAnY7FO33TXvm_imZvMuCk849E";
   const EDITOR_SELECTOR = [
     'div[role="textbox"][contenteditable="true"][aria-multiline="true"]',
     'div[role="textbox"][contenteditable="true"]',
@@ -42,116 +40,45 @@
     return (editor.innerText || editor.textContent || "").replace(/\u200b/g, "").trim();
   }
 
-  function normalizeComparableText(text) {
-    return String(text || "").replace(/\r\n/g, "\n").replace(/\u200b/g, "").trim();
-  }
+  // ── THE KEY FUNCTION: Replace editor text so Slate.js actually knows about it ──
 
-  function selectEditorContents(editor) {
+  function setEditorText(editor, text) {
+    const newText = String(text || "");
+
+    // 1. Focus the editor
     editor.focus();
+
+    // 2. Select ALL content using keyboard shortcut simulation
+    //    This is the most reliable way to select in Slate
     const sel = window.getSelection();
     const range = document.createRange();
     range.selectNodeContents(editor);
-    sel?.removeAllRanges();
-    sel?.addRange(range);
-  }
+    sel.removeAllRanges();
+    sel.addRange(range);
 
-  function moveCaretToEnd(editor) {
-    const sel = window.getSelection();
-    const range = document.createRange();
-    range.selectNodeContents(editor);
-    range.collapse(false);
-    sel?.removeAllRanges();
-    sel?.addRange(range);
-  }
+    // 3. Use execCommand("insertText") — this is THE method that
+    //    goes through the browser's native editing pipeline and
+    //    Slate.js hooks into it. Paste events get intercepted by
+    //    Discord's custom handlers, but insertText works directly.
+    const success = document.execCommand("insertText", false, newText);
 
-  function waitForEditorFlush() {
-    return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-  }
-
-  function createPasteEvent(text) {
-    const clipboardData = new DataTransfer();
-    clipboardData.setData("text/plain", text);
-
-    let pasteEvent;
-    try {
-      pasteEvent = new ClipboardEvent("paste", {
-        bubbles: true,
-        cancelable: true,
-        clipboardData,
-      });
-    } catch {
-      pasteEvent = new Event("paste", { bubbles: true, cancelable: true });
-    }
-
-    if (!pasteEvent.clipboardData) {
-      Object.defineProperty(pasteEvent, "clipboardData", {
-        value: clipboardData,
-      });
-    }
-
-    return pasteEvent;
-  }
-
-  async function setEditorText(editor, text) {
-    const nextText = String(text || "").replace(/\r\n/g, "\n");
-    const comparableNextText = normalizeComparableText(nextText);
-    const previousText = normalizeComparableText(getEditorText(editor));
-
-    selectEditorContents(editor);
-    editor.dispatchEvent(new InputEvent("beforeinput", {
-      bubbles: true,
-      cancelable: true,
-      inputType: "deleteByCut",
-    }));
-    if (typeof document.execCommand === "function") {
+    if (!success) {
+      // Fallback: try delete + insert
       document.execCommand("delete", false);
-    }
-    editor.dispatchEvent(new InputEvent("input", {
-      bubbles: true,
-      cancelable: true,
-      inputType: "deleteByCut",
-    }));
-    await waitForEditorFlush();
-
-    selectEditorContents(editor);
-    editor.dispatchEvent(new InputEvent("beforeinput", {
-      bubbles: true,
-      cancelable: true,
-      inputType: "insertFromPaste",
-      data: nextText,
-    }));
-    editor.dispatchEvent(createPasteEvent(nextText));
-    editor.dispatchEvent(new InputEvent("input", {
-      bubbles: true,
-      cancelable: true,
-      inputType: "insertFromPaste",
-      data: nextText,
-    }));
-    await waitForEditorFlush();
-
-    if (normalizeComparableText(getEditorText(editor)) === comparableNextText) {
-      moveCaretToEnd(editor);
-      return true;
+      document.execCommand("insertText", false, newText);
     }
 
-    selectEditorContents(editor);
-    const inserted = typeof document.execCommand === "function" && document.execCommand("insertText", false, nextText);
-    if (!inserted) {
-      editor.textContent = nextText;
-    }
+    // 4. Move caret to end
+    const endRange = document.createRange();
+    endRange.selectNodeContents(editor);
+    endRange.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(endRange);
 
-    editor.dispatchEvent(new InputEvent("input", {
-      bubbles: true,
-      cancelable: true,
-      inputType: "insertText",
-      data: nextText,
-    }));
-    editor.dispatchEvent(new Event("change", { bubbles: true }));
-    await waitForEditorFlush();
-    moveCaretToEnd(editor);
-
-    const finalText = normalizeComparableText(getEditorText(editor));
-    return finalText === comparableNextText && finalText !== previousText;
+    // 5. Verify
+    const result = getEditorText(editor);
+    const expected = newText.replace(/\r\n/g, "\n").replace(/\u200b/g, "").trim();
+    return result.trim() === expected;
   }
 
   async function requestReplyOptions(text) {
@@ -163,33 +90,31 @@
             reject(new Error(runtimeError.message || "Extension message failed"));
             return;
           }
-
           if (!response) {
             reject(new Error("No response from extension background"));
             return;
           }
-
           if (!response.ok) {
             reject(new Error(response.error || "Reply generation failed"));
             return;
           }
-
           resolve(response.data);
         });
       });
     }
 
+    // Fallback direct fetch (won't work on discord.com due to CORS, but useful for testing)
+    const API_URL = "https://pcvkjrxrlibhyyxldbzs.supabase.co/functions/v1/discord-fix";
+    const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjdmtqcnhybGliaHl5eGxkYnpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4ODE5MTgsImV4cCI6MjA4MjQ1NzkxOH0.Ix2sX2oONBKUY-V7PVAnY7FO33TXvm_imZvMuCk849E";
     const response = await fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` },
       body: JSON.stringify({ text }),
     });
-
     if (!response.ok) {
       const errBody = await response.json().catch(() => ({}));
       throw new Error(errBody.error || `Error ${response.status}`);
     }
-
     return await response.json();
   }
 
@@ -211,7 +136,7 @@
     header.innerHTML = `<span class="ps-fix-popup-icon">✦</span><span>Pick a reply</span>`;
     popup.appendChild(header);
 
-    options.forEach((text, i) => {
+    options.forEach((text) => {
       const row = document.createElement("div");
       row.className = "ps-fix-option";
 
@@ -246,20 +171,19 @@
         row.appendChild(dots);
       }
 
-      row.addEventListener("mousedown", async (event) => {
+      // Use click (not mousedown) so the editor keeps focus naturally
+      row.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
-        row.classList.add("ps-fix-option-pending");
-        const replaced = await setEditorText(editor, text);
-        row.classList.remove("ps-fix-option-pending");
 
-        if (replaced) {
-          removeExistingPopup();
-          return;
+        // Replace text using execCommand — Slate will sync
+        const replaced = setEditorText(editor, text);
+        removeExistingPopup();
+
+        if (!replaced) {
+          anchorButton.style.color = "#ed4245";
+          setTimeout(() => { anchorButton.style.color = ""; }, 2000);
         }
-
-        anchorButton.style.color = "#ed4245";
-        setTimeout(() => { anchorButton.style.color = ""; }, 2000);
       });
 
       popup.appendChild(row);
@@ -328,7 +252,6 @@
         border-radius: 6px; cursor: pointer; transition: background 0.12s;
         color: #dbdee1; font-size: 13px; line-height: 1.45;
       }
-      .ps-fix-option.ps-fix-option-pending { opacity: 0.6; pointer-events: none; }
       .ps-fix-option:hover { background: #2b2d31; }
       .ps-fix-option-text { flex: 1; word-break: break-word; }
       .ps-fix-option-text.ps-fix-expanded { white-space: pre-wrap; }
@@ -356,7 +279,6 @@
       event.preventDefault();
       event.stopPropagation();
 
-      // If popup is already open, close it
       if (document.querySelector(".ps-fix-popup")) {
         removeExistingPopup();
         return;
@@ -373,7 +295,6 @@
         if (data.options && Array.isArray(data.options)) {
           createPopup(data.options, editor, button);
         } else if (data.fixed) {
-          // Backward compat
           setEditorText(editor, data.fixed);
           button.classList.add("ps-success");
           setTimeout(() => button.classList.remove("ps-success"), 1500);
@@ -457,7 +378,7 @@
 
   function init() {
     injectStyles();
-    console.log("[PropScholar Fix] Watching Discord composer...");
+    console.log("[PropScholar Fix] v1.2 ready");
     injectButtons();
     observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-label", "class"] });
     document.addEventListener("focusin", injectButtons, true);
@@ -467,3 +388,4 @@
   if (document.readyState === "complete") setTimeout(init, 1200);
   else window.addEventListener("load", () => setTimeout(init, 1200));
 })();
+
