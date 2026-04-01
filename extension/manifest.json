@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "PropScholar Fix",
-  "version": "1.1.0",
+  "version": "1.4.0",
   "description": "Polish your Discord messages with AI before sending. Built for PropScholar moderators.",
-  "permissions": ["activeTab"],
+  "permissions": ["activeTab", "clipboardWrite"],
   "host_permissions": ["https://pcvkjrxrlibhyyxldbzs.supabase.co/*"],
   "background": {
     "service_worker": "background.js"

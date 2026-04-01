@@ -40,42 +40,57 @@
     return (editor.innerText || editor.textContent || "").replace(/\u200b/g, "").trim();
   }
 
-  // ── THE KEY FUNCTION: Replace editor text so Slate.js actually knows about it ──
+  // ── THE KEY FUNCTION: Replace editor text using clipboard paste ──
   //
-  // Strategy: We simulate exactly what a human does:
-  //   1. Focus the editor
-  //   2. Ctrl+A (select all) via keyboard event
-  //   3. Type the new text via InputEvent("insertText")
-  //
-  // The critical insight: Discord's Slate listens to "beforeinput" events
-  // with inputType "insertText". execCommand("insertText") triggers this
-  // pipeline internally. But it ONLY works if the editor has real focus
-  // and selection at the time of the call.
+  // Discord's Slate.js editor ONLY trusts paste events from the clipboard.
+  // execCommand("insertText") updates the DOM but NOT Slate's internal model,
+  // causing the old text to be sent. Clipboard paste is the nuclear option
+  // that actually works.
 
-  function setEditorText(editor, text) {
+  async function setEditorText(editor, text) {
     const newText = String(text || "");
 
-    // 1. Focus editor — required for execCommand
+    // 1. Focus editor
     editor.focus();
 
-    // 2. Select all content using selectAllChildren (Slate-compatible)
+    // 2. Select all content
     const sel = document.getSelection();
     sel.selectAllChildren(editor);
 
-    // 3. Replace via execCommand — this is the ONLY method that
-    //    updates Slate.js internal state, not just the DOM
-    document.execCommand("insertText", false, newText);
-
-    // 4. Fire input event so Slate picks up the change
-    editor.dispatchEvent(new InputEvent("input", {
-      bubbles: true,
-      inputType: "insertText",
-      data: newText,
-    }));
-
-    // 5. Move caret to end
+    // 3. Write to clipboard and paste
     try {
-      sel.collapseToEnd();
+      await navigator.clipboard.writeText(newText);
+      document.execCommand("paste");
+    } catch (clipErr) {
+      // Clipboard API may be blocked — fall back to synthetic paste event
+      console.warn("[PropScholar Fix] Clipboard API blocked, using synthetic paste");
+
+      const dt = new DataTransfer();
+      dt.setData("text/plain", newText);
+
+      const pasteEvent = new ClipboardEvent("paste", {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: dt,
+      });
+      editor.dispatchEvent(pasteEvent);
+
+      // If paste event didn't work either, try insertText as last resort
+      if (getEditorText(editor) !== newText) {
+        sel.selectAllChildren(editor);
+        document.execCommand("insertText", false, newText);
+        editor.dispatchEvent(new InputEvent("input", {
+          bubbles: true,
+          inputType: "insertFromPaste",
+          data: newText,
+        }));
+      }
+    }
+
+    // 4. Move caret to end
+    try {
+      const newSel = document.getSelection();
+      newSel.collapseToEnd();
     } catch (e) { /* ignore */ }
 
     console.log("[PropScholar Fix] setText done:", newText.slice(0, 40));
@@ -133,7 +148,7 @@
 
     const header = document.createElement("div");
     header.className = "ps-fix-popup-header";
-    header.innerHTML = `<span class="ps-fix-popup-icon">✦</span><span>Pick a reply</span>`;
+    header.innerHTML = '<span class="ps-fix-popup-icon">✦</span><span>Pick a reply</span>';
     popup.appendChild(header);
 
     options.forEach((text) => {
@@ -171,7 +186,7 @@
         row.appendChild(dots);
       }
 
-      // CRITICAL: Use mousedown + preventDefault to prevent focus from leaving the editor
+      // Prevent focus theft
       row.addEventListener("mousedown", (event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -180,10 +195,7 @@
       row.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
-
         removeExistingPopup();
-
-        // Replace text — editor still has focus thanks to mousedown preventDefault
         setEditorText(editor, text);
       });
 
@@ -199,8 +211,8 @@
     const btnRect = anchorButton.getBoundingClientRect();
     popup.style.position = "fixed";
     const popupLeft = Math.min(window.innerWidth - 348, Math.max(8, btnRect.left - 160));
-    popup.style.left = `${popupLeft}px`;
-    popup.style.bottom = `${window.innerHeight - btnRect.top + 8}px`;
+    popup.style.left = popupLeft + "px";
+    popup.style.bottom = (window.innerHeight - btnRect.top + 8) + "px";
     popup.style.zIndex = "999999";
 
     const closeHandler = (e) => {
@@ -278,9 +290,8 @@
     button.className = "ps-fix-btn";
     button.dataset.editorId = getEditorId(editor);
     button.setAttribute("aria-label", "PropScholar Fix");
-    button.innerHTML = `<span class="ps-fix-icon">✦</span><span class="ps-fix-tooltip">PropScholar Fix</span>`;
+    button.innerHTML = '<span class="ps-fix-icon">✦</span><span class="ps-fix-tooltip">PropScholar Fix</span>';
 
-    // Prevent the button itself from stealing editor focus
     button.addEventListener("mousedown", (e) => {
       e.preventDefault();
     });
@@ -305,7 +316,7 @@
         if (data.options && Array.isArray(data.options)) {
           createPopup(data.options, editor, button);
         } else if (data.fixed) {
-          setEditorText(editor, data.fixed);
+          await setEditorText(editor, data.fixed);
           button.classList.add("ps-success");
           setTimeout(() => button.classList.remove("ps-success"), 1500);
         }
@@ -388,7 +399,7 @@
 
   function init() {
     injectStyles();
-    console.log("[PropScholar Fix] v1.3 ready");
+    console.log("[PropScholar Fix] v1.4 ready");
     injectButtons();
     observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-label", "class"] });
     document.addEventListener("focusin", injectButtons, true);
