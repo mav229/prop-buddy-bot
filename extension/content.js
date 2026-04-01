@@ -12,19 +12,19 @@
   ].join(", ");
   const TOOLBAR_LABEL_MATCHERS = ["emoji", "gif", "sticker", "gift", "apps"];
   const TRUNCATE_LENGTH = 80;
-  const PAGE_SET_TEXT_REQUEST_EVENT = "ps-fix:set-text-request";
-  const PAGE_SET_TEXT_RESPONSE_EVENT = "ps-fix:set-text-response";
+  const PAGE_ARM_DRAFT_EVENT = "ps-fix:arm-draft";
+  const PAGE_CLEAR_DRAFT_EVENT = "ps-fix:clear-draft";
+  const PAGE_DRAFT_STATE_EVENT = "ps-fix:draft-state";
 
   let editorIdCounter = 0;
-  let pageRequestCounter = 0;
-
-  // ── Helpers ──
+  let debounceTimer;
+  let floatingLayoutTimer;
 
   function isVisible(el) {
     if (!el || !(el instanceof HTMLElement)) return false;
-    const r = el.getBoundingClientRect();
-    const s = window.getComputedStyle(el);
-    return r.width > 0 && r.height > 0 && s.display !== "none" && s.visibility !== "hidden";
+    const rect = el.getBoundingClientRect();
+    const style = window.getComputedStyle(el);
+    return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
   }
 
   function getEditorId(editor) {
@@ -38,7 +38,11 @@
   function getEditorText(editor) {
     const slateStrings = editor.querySelectorAll('[data-slate-string="true"]');
     if (slateStrings.length > 0) {
-      return Array.from(slateStrings).map((n) => n.textContent || "").join("\n").replace(/\u200b/g, "").trim();
+      return Array.from(slateStrings)
+        .map((node) => node.textContent || "")
+        .join("\n")
+        .replace(/\u200b/g, "")
+        .trim();
     }
     return (editor.innerText || editor.textContent || "").replace(/\u200b/g, "").trim();
   }
@@ -53,138 +57,179 @@
         if (window.__PROP_SCHOLAR_FIX_PAGE_BRIDGE__) return;
         window.__PROP_SCHOLAR_FIX_PAGE_BRIDGE__ = true;
 
-        const REQUEST_EVENT = ${JSON.stringify("ps-fix:set-text-request")};
-        const RESPONSE_EVENT = ${JSON.stringify("ps-fix:set-text-response")};
+        const ARM_EVENT = ${JSON.stringify("ps-fix:arm-draft")};
+        const CLEAR_EVENT = ${JSON.stringify("ps-fix:clear-draft")};
+        const STATE_EVENT = ${JSON.stringify("ps-fix:draft-state")};
+        const MESSAGE_ROUTE = /\/channels\/[^/]+\/messages(?:\/[^/?]+)?(?:\?|$)/;
 
-        function getPlainText(editor) {
-          const slateStrings = editor.querySelectorAll('[data-slate-string="true"]');
-          if (slateStrings.length > 0) {
-            return Array.from(slateStrings)
-              .map((node) => node.textContent || '')
-              .join('\n')
-              .replace(/\u200b/g, '')
-              .trim();
-          }
-          return (editor.innerText || editor.textContent || '').replace(/\u200b/g, '').trim();
+        let pendingDraft = null;
+
+        function emitState(reason) {
+          document.dispatchEvent(new CustomEvent(STATE_EVENT, {
+            detail: {
+              active: Boolean(pendingDraft && pendingDraft.text),
+              text: pendingDraft?.text || '',
+              reason,
+            },
+          }));
         }
 
-        function focusEditor(editor) {
-          editor.focus();
-          editor.dispatchEvent(new Event('focus', { bubbles: false }));
+        function shouldPatch(url, method) {
+          return MESSAGE_ROUTE.test(String(url || '')) && ['POST', 'PATCH'].includes(String(method || 'GET').toUpperCase());
         }
 
-        function selectAll(editor) {
-          const selection = window.getSelection();
-          if (!selection) return;
-          const range = document.createRange();
-          range.selectNodeContents(editor);
-          selection.removeAllRanges();
-          selection.addRange(range);
-        }
-
-        function moveCaretToEnd(editor) {
-          const selection = window.getSelection();
-          if (!selection) return;
-          const range = document.createRange();
-          range.selectNodeContents(editor);
-          range.collapse(false);
-          selection.removeAllRanges();
-          selection.addRange(range);
-        }
-
-        function emitInputEvents(editor, inputType, data) {
-          try {
-            editor.dispatchEvent(new InputEvent('beforeinput', {
-              bubbles: true,
-              cancelable: true,
-              inputType,
-              data,
-            }));
-          } catch (_error) {}
+        function patchBody(body, nextText) {
+          if (typeof body !== 'string') return null;
+          const trimmed = body.trim();
+          if (!trimmed.startsWith('{')) return null;
 
           try {
-            editor.dispatchEvent(new InputEvent('input', {
-              bubbles: true,
-              inputType,
-              data,
-            }));
+            const parsed = JSON.parse(trimmed);
+            if (!parsed || typeof parsed !== 'object' || typeof parsed.content !== 'string') return null;
+            parsed.content = nextText;
+
+            if (typeof parsed.validated_content === 'string') {
+              parsed.validated_content = nextText;
+            }
+
+            if (typeof parsed.raw_content === 'string') {
+              parsed.raw_content = nextText;
+            }
+
+            return JSON.stringify(parsed);
           } catch (_error) {
-            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            return null;
           }
-
-          editor.dispatchEvent(new Event('change', { bubbles: true }));
-          editor.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'End' }));
         }
 
-        async function waitFrame() {
-          await new Promise((resolve) => requestAnimationFrame(resolve));
+        function currentDraft() {
+          return pendingDraft && pendingDraft.text ? pendingDraft : null;
         }
 
-        async function replaceEditorText(editor, text) {
-          const newText = String(text || '');
-          focusEditor(editor);
-          await waitFrame();
-
-          selectAll(editor);
-          document.execCommand('delete', false);
-          document.execCommand('insertText', false, newText);
-          emitInputEvents(editor, 'insertText', newText);
-          moveCaretToEnd(editor);
-          await waitFrame();
-
-          if (getPlainText(editor) === newText.trim()) return true;
-
-          focusEditor(editor);
-          selectAll(editor);
-
-          try {
-            const dataTransfer = new DataTransfer();
-            dataTransfer.setData('text/plain', newText);
-            editor.dispatchEvent(new ClipboardEvent('paste', {
-              bubbles: true,
-              cancelable: true,
-              clipboardData: dataTransfer,
-            }));
-            emitInputEvents(editor, 'insertFromPaste', newText);
-            moveCaretToEnd(editor);
-            await waitFrame();
-          } catch (_error) {}
-
-          return getPlainText(editor) === newText.trim();
-        }
-
-        document.addEventListener(REQUEST_EVENT, async (event) => {
-          const detail = event.detail || {};
-          const editor = document.querySelector('[data-ps-fix-editor-id="' + detail.editorId + '"]');
-
-          if (!editor) {
-            document.dispatchEvent(new CustomEvent(RESPONSE_EVENT, {
-              detail: { requestId: detail.requestId, ok: false, currentText: '', error: 'Editor not found' },
-            }));
+        document.addEventListener(ARM_EVENT, (event) => {
+          const nextText = String(event.detail?.text || '').trim();
+          if (!nextText) {
+            pendingDraft = null;
+            emitState('cleared');
             return;
           }
 
-          try {
-            const ok = await replaceEditorText(editor, detail.text);
-            document.dispatchEvent(new CustomEvent(RESPONSE_EVENT, {
-              detail: {
-                requestId: detail.requestId,
-                ok,
-                currentText: getPlainText(editor),
-                error: ok ? '' : 'Discord rejected the new text',
-              },
-            }));
-          } catch (error) {
-            document.dispatchEvent(new CustomEvent(RESPONSE_EVENT, {
-              detail: {
-                requestId: detail.requestId,
-                ok: false,
-                currentText: getPlainText(editor),
-                error: error instanceof Error ? error.message : String(error),
-              },
-            }));
-          }
+          pendingDraft = {
+            id: String(Date.now()) + Math.random().toString(36).slice(2),
+            text: nextText,
+            inFlight: false,
+          };
+          emitState('armed');
         });
+
+        document.addEventListener(CLEAR_EVENT, () => {
+          pendingDraft = null;
+          emitState('cleared');
+        });
+
+        const nativeFetch = typeof window.fetch === 'function' ? window.fetch.bind(window) : null;
+        if (nativeFetch) {
+          window.fetch = async function(resource, init) {
+            const draft = currentDraft();
+            const url = typeof resource === 'string'
+              ? resource
+              : resource && typeof resource.url === 'string'
+                ? resource.url
+                : '';
+            const method = String((init && init.method) || (resource && resource.method) || 'GET').toUpperCase();
+            let applied = false;
+            const activeDraftId = draft?.id;
+
+            if (draft && !draft.inFlight && shouldPatch(url, method)) {
+              try {
+                const originalBody = init && Object.prototype.hasOwnProperty.call(init, 'body')
+                  ? init.body
+                  : resource instanceof Request
+                    ? await resource.clone().text()
+                    : null;
+                const patchedBody = patchBody(originalBody, draft.text);
+
+                if (patchedBody !== null) {
+                  draft.inFlight = true;
+                  applied = true;
+
+                  if (resource instanceof Request && !(init && Object.prototype.hasOwnProperty.call(init, 'body'))) {
+                    resource = new Request(resource, {
+                      body: patchedBody,
+                      method,
+                    });
+                  } else {
+                    init = {
+                      ...(init || {}),
+                      method,
+                      body: patchedBody,
+                    };
+                  }
+                }
+              } catch (_error) {}
+            }
+
+            try {
+              const response = await nativeFetch(resource, init);
+
+              if (applied && pendingDraft && pendingDraft.id === activeDraftId) {
+                if (response.ok) {
+                  pendingDraft = null;
+                  emitState('sent');
+                } else {
+                  pendingDraft.inFlight = false;
+                  emitState('error');
+                }
+              }
+
+              return response;
+            } catch (error) {
+              if (applied && pendingDraft && pendingDraft.id === activeDraftId) {
+                pendingDraft.inFlight = false;
+                emitState('error');
+              }
+              throw error;
+            }
+          };
+        }
+
+        const nativeOpen = XMLHttpRequest.prototype.open;
+        const nativeSend = XMLHttpRequest.prototype.send;
+
+        XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+          this.__psFixMethod = method;
+          this.__psFixUrl = url;
+          return nativeOpen.call(this, method, url, ...rest);
+        };
+
+        XMLHttpRequest.prototype.send = function(body) {
+          const draft = currentDraft();
+
+          if (draft && !draft.inFlight && shouldPatch(this.__psFixUrl, this.__psFixMethod)) {
+            const patchedBody = patchBody(body, draft.text);
+
+            if (patchedBody !== null) {
+              draft.inFlight = true;
+              const activeDraftId = draft.id;
+
+              this.addEventListener('loadend', () => {
+                if (!pendingDraft || pendingDraft.id !== activeDraftId) return;
+
+                if (this.status >= 200 && this.status < 300) {
+                  pendingDraft = null;
+                  emitState('sent');
+                } else {
+                  pendingDraft.inFlight = false;
+                  emitState('error');
+                }
+              }, { once: true });
+
+              body = patchedBody;
+            }
+          }
+
+          return nativeSend.call(this, body);
+        };
       })();
     `;
 
@@ -192,41 +237,16 @@
     script.remove();
   }
 
-  async function setEditorText(editor, text) {
+  function updatePendingDraft(text) {
     ensurePageBridge();
+    document.dispatchEvent(new CustomEvent(PAGE_ARM_DRAFT_EVENT, {
+      detail: { text: String(text || "") },
+    }));
+  }
 
-    const newText = String(text || "");
-    const requestId = `ps-fix-request-${Date.now()}-${++pageRequestCounter}`;
-
-    const result = await new Promise((resolve, reject) => {
-      const timeout = window.setTimeout(() => {
-        document.removeEventListener(PAGE_SET_TEXT_RESPONSE_EVENT, handleResponse);
-        reject(new Error("Timed out while updating the Discord editor"));
-      }, 2500);
-
-      function handleResponse(event) {
-        if (event.detail?.requestId !== requestId) return;
-        window.clearTimeout(timeout);
-        document.removeEventListener(PAGE_SET_TEXT_RESPONSE_EVENT, handleResponse);
-        resolve(event.detail);
-      }
-
-      document.addEventListener(PAGE_SET_TEXT_RESPONSE_EVENT, handleResponse);
-      document.dispatchEvent(new CustomEvent(PAGE_SET_TEXT_REQUEST_EVENT, {
-        detail: {
-          requestId,
-          editorId: getEditorId(editor),
-          text: newText,
-        },
-      }));
-    });
-
-    if (!result.ok) {
-      throw new Error(result.error || "Discord editor rejected the replacement");
-    }
-
-    console.log("[PropScholar Fix] setText done:", result.currentText?.slice(0, 40) || newText.slice(0, 40));
-    return true;
+  function clearPendingDraft() {
+    ensurePageBridge();
+    document.dispatchEvent(new CustomEvent(PAGE_CLEAR_DRAFT_EVENT));
   }
 
   async function requestReplyOptions(text) {
@@ -255,7 +275,11 @@
     const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjdmtqcnhybGliaHl5eGxkYnpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4ODE5MTgsImV4cCI6MjA4MjQ1NzkxOH0.Ix2sX2oONBKUY-V7PVAnY7FO33TXvm_imZvMuCk849E";
     const response = await fetch(API_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json", apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` },
+      headers: {
+        "Content-Type": "application/json",
+        apikey: ANON_KEY,
+        Authorization: `Bearer ${ANON_KEY}`,
+      },
       body: JSON.stringify({ text }),
     });
     if (!response.ok) {
@@ -265,11 +289,140 @@
     return await response.json();
   }
 
-  // ── Popup UI ──
-
   function removeExistingPopup() {
     const existing = document.querySelector(".ps-fix-popup");
     if (existing) existing.remove();
+  }
+
+  function removeDraftTray() {
+    const existing = document.querySelector(".ps-fix-draft-tray");
+    if (existing) existing.remove();
+  }
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(String(text || ""));
+      return true;
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function positionPopup(popup) {
+    const anchorEditorId = popup.dataset.anchorEditorId;
+    const anchorButton = document.querySelector(`.ps-fix-btn[data-editor-id="${anchorEditorId}"]`);
+    if (!anchorButton) return;
+
+    const btnRect = anchorButton.getBoundingClientRect();
+    const popupWidth = 340;
+    popup.style.position = "fixed";
+    popup.style.left = `${Math.min(window.innerWidth - popupWidth - 8, Math.max(8, btnRect.left - 160))}px`;
+    popup.style.bottom = `${window.innerHeight - btnRect.top + 8}px`;
+    popup.style.zIndex = "999999";
+  }
+
+  function positionDraftTray(tray) {
+    const editorId = tray.dataset.editorId;
+    const editor = document.querySelector(`[data-ps-fix-editor-id="${editorId}"]`);
+    if (!editor) return;
+
+    const rect = editor.getBoundingClientRect();
+    const trayWidth = Math.min(420, window.innerWidth - 24);
+    tray.style.position = "fixed";
+    tray.style.width = `${trayWidth}px`;
+    tray.style.left = `${Math.min(window.innerWidth - trayWidth - 12, Math.max(12, rect.left))}px`;
+    tray.style.bottom = `${window.innerHeight - rect.top + 12}px`;
+    tray.style.zIndex = "999999";
+  }
+
+  function scheduleFloatingLayout() {
+    window.clearTimeout(floatingLayoutTimer);
+    floatingLayoutTimer = window.setTimeout(() => {
+      const popup = document.querySelector(".ps-fix-popup");
+      if (popup) positionPopup(popup);
+
+      const tray = document.querySelector(".ps-fix-draft-tray");
+      if (tray) positionDraftTray(tray);
+    }, 20);
+  }
+
+  function setDraftStatus(tray, statusText, tone) {
+    const status = tray.querySelector(".ps-fix-draft-status");
+    if (!status) return;
+    status.textContent = statusText;
+    status.dataset.tone = tone;
+  }
+
+  function createDraftTray(editor, initialText) {
+    removeDraftTray();
+
+    const tray = document.createElement("div");
+    tray.className = "ps-fix-draft-tray";
+    tray.dataset.editorId = getEditorId(editor);
+
+    const titleRow = document.createElement("div");
+    titleRow.className = "ps-fix-draft-header";
+    titleRow.innerHTML = '<div><div class="ps-fix-draft-title">AI draft armed</div><div class="ps-fix-draft-subtitle">Edit here, then press Enter / Send in Discord.</div></div><div class="ps-fix-draft-status" data-tone="ready">Ready for next send</div>';
+    tray.appendChild(titleRow);
+
+    const textarea = document.createElement("textarea");
+    textarea.className = "ps-fix-draft-textarea";
+    textarea.value = initialText;
+    textarea.spellcheck = false;
+    textarea.addEventListener("input", () => {
+      const nextValue = textarea.value.trim();
+      if (nextValue) {
+        updatePendingDraft(nextValue);
+        setDraftStatus(tray, "Ready for next send", "ready");
+      } else {
+        clearPendingDraft();
+        setDraftStatus(tray, "Draft cleared", "muted");
+      }
+    });
+    textarea.addEventListener("mousedown", (event) => event.stopPropagation());
+    textarea.addEventListener("click", (event) => event.stopPropagation());
+    tray.appendChild(textarea);
+
+    const note = document.createElement("div");
+    note.className = "ps-fix-draft-note";
+    note.textContent = "Discord's composer stays untouched; the next sent or edited message will use this draft instead.";
+    tray.appendChild(note);
+
+    const actions = document.createElement("div");
+    actions.className = "ps-fix-draft-actions";
+
+    const copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "ps-fix-draft-btn ps-fix-draft-btn-secondary";
+    copyBtn.textContent = "Copy";
+    copyBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const copied = await copyText(textarea.value.trim());
+      copyBtn.textContent = copied ? "Copied" : "Copy failed";
+      window.setTimeout(() => {
+        copyBtn.textContent = "Copy";
+      }, 1200);
+    });
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.className = "ps-fix-draft-btn ps-fix-draft-btn-ghost";
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      clearPendingDraft();
+    });
+
+    actions.appendChild(copyBtn);
+    actions.appendChild(cancelBtn);
+    tray.appendChild(actions);
+
+    document.body.appendChild(tray);
+    positionDraftTray(tray);
+    updatePendingDraft(initialText);
+    return tray;
   }
 
   function createPopup(options, editor, anchorButton) {
@@ -277,6 +430,7 @@
 
     const popup = document.createElement("div");
     popup.className = "ps-fix-popup";
+    popup.dataset.anchorEditorId = getEditorId(editor);
 
     const header = document.createElement("div");
     header.className = "ps-fix-popup-header";
@@ -288,7 +442,7 @@
       row.className = "ps-fix-option";
 
       const isTruncated = text.length > TRUNCATE_LENGTH;
-      const preview = isTruncated ? text.slice(0, TRUNCATE_LENGTH) + "…" : text;
+      const preview = isTruncated ? `${text.slice(0, TRUNCATE_LENGTH)}…` : text;
 
       const textSpan = document.createElement("span");
       textSpan.className = "ps-fix-option-text";
@@ -301,12 +455,13 @@
         dots.className = "ps-fix-expand-btn";
         dots.textContent = "•••";
         dots.title = "Show full reply";
-        dots.addEventListener("mousedown", (e) => {
-          e.preventDefault();
-          e.stopPropagation();
+        dots.addEventListener("mousedown", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
         });
-        dots.addEventListener("click", (e) => {
-          e.stopPropagation();
+        dots.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
           if (textSpan.textContent === text) {
             textSpan.textContent = preview;
             textSpan.classList.remove("ps-fix-expanded");
@@ -318,7 +473,6 @@
         row.appendChild(dots);
       }
 
-      // Prevent focus theft
       row.addEventListener("mousedown", (event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -328,37 +482,29 @@
         event.preventDefault();
         event.stopPropagation();
         removeExistingPopup();
-        setEditorText(editor, text);
+        createDraftTray(editor, text);
       });
 
       popup.appendChild(row);
     });
 
-    // Prevent the entire popup from stealing focus
-    popup.addEventListener("mousedown", (e) => {
-      e.preventDefault();
+    popup.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
     });
 
     document.body.appendChild(popup);
-    const btnRect = anchorButton.getBoundingClientRect();
-    popup.style.position = "fixed";
-    const popupLeft = Math.min(window.innerWidth - 348, Math.max(8, btnRect.left - 160));
-    popup.style.left = popupLeft + "px";
-    popup.style.bottom = (window.innerHeight - btnRect.top + 8) + "px";
-    popup.style.zIndex = "999999";
+    positionPopup(popup);
 
-    const closeHandler = (e) => {
-      if (!popup.contains(e.target) && e.target !== anchorButton) {
+    const closeHandler = (event) => {
+      if (!popup.contains(event.target) && event.target !== anchorButton) {
         removeExistingPopup();
         document.removeEventListener("mousedown", closeHandler, true);
       }
     };
-    setTimeout(() => document.addEventListener("mousedown", closeHandler, true), 50);
-
+    window.setTimeout(() => document.addEventListener("mousedown", closeHandler, true), 50);
     return popup;
   }
-
-  // ── Inject CSS ──
 
   function injectStyles() {
     if (document.getElementById("ps-fix-styles")) return;
@@ -384,10 +530,14 @@
       .ps-fix-btn.ps-success .ps-fix-icon { color: #57f287; }
       @keyframes ps-spin { to { transform: rotate(360deg); } }
 
+      .ps-fix-popup,
+      .ps-fix-draft-tray {
+        background: #1e1f22; border: 1px solid #2b2d31;
+        box-shadow: 0 8px 24px rgba(0,0,0,.6);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
       .ps-fix-popup {
-        background: #1e1f22; border: 1px solid #2b2d31; border-radius: 10px;
-        width: 340px; max-height: 320px; overflow-y: auto; padding: 6px;
-        box-shadow: 0 8px 24px rgba(0,0,0,.6); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        width: 340px; max-height: 320px; overflow-y: auto; padding: 6px; border-radius: 10px;
       }
       .ps-fix-popup-header {
         display: flex; align-items: center; gap: 6px; padding: 8px 10px 6px;
@@ -398,8 +548,7 @@
       .ps-fix-option {
         display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px;
         border-radius: 6px; cursor: pointer; transition: background 0.12s;
-        color: #dbdee1; font-size: 13px; line-height: 1.45;
-        user-select: none;
+        color: #dbdee1; font-size: 13px; line-height: 1.45; user-select: none;
       }
       .ps-fix-option:hover { background: #2b2d31; }
       .ps-fix-option-text { flex: 1; word-break: break-word; }
@@ -410,11 +559,34 @@
         line-height: 1; margin-top: 2px; transition: background 0.12s, color 0.12s;
       }
       .ps-fix-expand-btn:hover { background: #383a40; color: #fff; }
+
+      .ps-fix-draft-tray { padding: 12px; border-radius: 12px; }
+      .ps-fix-draft-header {
+        display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px;
+      }
+      .ps-fix-draft-title { color: #f2f3f5; font-size: 13px; font-weight: 700; }
+      .ps-fix-draft-subtitle { color: #949ba4; font-size: 12px; margin-top: 2px; }
+      .ps-fix-draft-status {
+        padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap;
+      }
+      .ps-fix-draft-status[data-tone="ready"] { color: #57f287; background: rgba(87, 242, 135, 0.12); }
+      .ps-fix-draft-status[data-tone="error"] { color: #ed4245; background: rgba(237, 66, 69, 0.14); }
+      .ps-fix-draft-status[data-tone="muted"] { color: #b5bac1; background: rgba(181, 186, 193, 0.12); }
+      .ps-fix-draft-textarea {
+        width: 100%; min-height: 120px; resize: vertical; border: 1px solid #2b2d31; border-radius: 10px;
+        background: #111214; color: #f2f3f5; padding: 12px; font-size: 13px; line-height: 1.5; outline: none;
+      }
+      .ps-fix-draft-textarea:focus { border-color: #5865f2; box-shadow: 0 0 0 1px rgba(88, 101, 242, 0.35); }
+      .ps-fix-draft-note { margin-top: 8px; color: #b5bac1; font-size: 11.5px; line-height: 1.4; }
+      .ps-fix-draft-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+      .ps-fix-draft-btn {
+        border: none; border-radius: 8px; padding: 8px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
+      }
+      .ps-fix-draft-btn-secondary { background: #5865f2; color: #fff; }
+      .ps-fix-draft-btn-ghost { background: #2b2d31; color: #dbdee1; }
     `;
     document.head.appendChild(style);
   }
-
-  // ── Button creation ──
 
   function createFixButton(editor) {
     const button = document.createElement("button");
@@ -448,7 +620,7 @@
         if (data.options && Array.isArray(data.options)) {
           createPopup(data.options, editor, button);
         } else if (data.fixed) {
-          await setEditorText(editor, data.fixed);
+          createDraftTray(editor, data.fixed);
           button.classList.add("ps-success");
           setTimeout(() => button.classList.remove("ps-success"), 1500);
         }
@@ -463,8 +635,6 @@
 
     return button;
   }
-
-  // ── Injection logic ──
 
   function isDiscordMessageEditor(editor) {
     const ariaLabel = (editor.getAttribute("aria-label") || "").toLowerCase();
@@ -519,22 +689,48 @@
       .filter(isVisible)
       .filter(isDiscordMessageEditor)
       .forEach(injectIntoToolbar);
+
+    scheduleFloatingLayout();
   }
 
-  // ── Observer ──
+  function handleDraftState(event) {
+    const detail = event.detail || {};
+    const tray = document.querySelector(".ps-fix-draft-tray");
+    if (!tray) return;
 
-  let debounceTimer;
+    if (!detail.active || detail.reason === "sent" || detail.reason === "cleared") {
+      removeDraftTray();
+      return;
+    }
+
+    const textarea = tray.querySelector(".ps-fix-draft-textarea");
+    if (textarea && document.activeElement !== textarea && detail.text && textarea.value !== detail.text) {
+      textarea.value = detail.text;
+    }
+
+    if (detail.reason === "error") {
+      setDraftStatus(tray, "Send failed — draft kept", "error");
+      return;
+    }
+
+    setDraftStatus(tray, "Ready for next send", "ready");
+  }
+
   const observer = new MutationObserver(() => {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(injectButtons, 150);
   });
 
   function init() {
+    ensurePageBridge();
     injectStyles();
-    console.log("[PropScholar Fix] v1.4 ready");
+    console.log("[PropScholar Fix] v1.5 workaround ready");
     injectButtons();
     observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-label", "class"] });
     document.addEventListener("focusin", injectButtons, true);
+    document.addEventListener(PAGE_DRAFT_STATE_EVENT, handleDraftState);
+    window.addEventListener("resize", scheduleFloatingLayout, { passive: true });
+    window.addEventListener("scroll", scheduleFloatingLayout, true);
     setInterval(injectButtons, 2000);
   }
 
