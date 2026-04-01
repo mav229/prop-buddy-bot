@@ -437,18 +437,44 @@
     header.innerHTML = '<span class="ps-fix-popup-icon">✦</span><span>Pick a reply</span>';
     popup.appendChild(header);
 
-    options.forEach((text) => {
+    const labels = ["⚡ Short", "📝 Detailed", "💛 Empathetic"];
+    options.forEach((text, idx) => {
       const row = document.createElement("div");
       row.className = "ps-fix-option";
 
       const isTruncated = text.length > TRUNCATE_LENGTH;
       const preview = isTruncated ? `${text.slice(0, TRUNCATE_LENGTH)}…` : text;
 
+      const labelSpan = document.createElement("span");
+      labelSpan.className = "ps-fix-option-label";
+      labelSpan.textContent = labels[idx] || "";
+
       const textSpan = document.createElement("span");
       textSpan.className = "ps-fix-option-text";
       textSpan.textContent = preview;
       textSpan.title = text;
-      row.appendChild(textSpan);
+
+      const textWrap = document.createElement("div");
+      textWrap.style.flex = "1";
+      textWrap.style.minWidth = "0";
+      textWrap.appendChild(labelSpan);
+      textWrap.appendChild(textSpan);
+      row.appendChild(textWrap);
+
+      // Copy button for every option
+      const copyBtn = document.createElement("button");
+      copyBtn.className = "ps-fix-copy-btn";
+      copyBtn.textContent = "📋";
+      copyBtn.title = "Copy to clipboard";
+      copyBtn.addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); });
+      copyBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const ok = await copyText(text);
+        copyBtn.textContent = ok ? "✅" : "❌";
+        setTimeout(() => { copyBtn.textContent = "📋"; }, 1200);
+      });
+      row.appendChild(copyBtn);
 
       if (isTruncated) {
         const dots = document.createElement("button");
@@ -559,6 +585,17 @@
         line-height: 1; margin-top: 2px; transition: background 0.12s, color 0.12s;
       }
       .ps-fix-expand-btn:hover { background: #383a40; color: #fff; }
+
+      .ps-fix-copy-btn {
+        flex-shrink: 0; background: none; border: none; cursor: pointer;
+        padding: 2px 4px; font-size: 14px; line-height: 1; margin-top: 1px;
+        opacity: 0.5; transition: opacity 0.15s;
+      }
+      .ps-fix-copy-btn:hover { opacity: 1; }
+      .ps-fix-option-label {
+        display: block; font-size: 10px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.5px; color: #949ba4; margin-bottom: 2px;
+      }
 
       .ps-fix-draft-tray { padding: 12px; border-radius: 12px; }
       .ps-fix-draft-header {
