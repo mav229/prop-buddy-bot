@@ -450,6 +450,21 @@
       textSpan.title = text;
       row.appendChild(textSpan);
 
+      // Copy button for every option
+      const copyBtn = document.createElement("button");
+      copyBtn.className = "ps-fix-copy-btn";
+      copyBtn.textContent = "📋";
+      copyBtn.title = "Copy to clipboard";
+      copyBtn.addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); });
+      copyBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const ok = await copyText(text);
+        copyBtn.textContent = ok ? "✅" : "❌";
+        setTimeout(() => { copyBtn.textContent = "📋"; }, 1200);
+      });
+      row.appendChild(copyBtn);
+
       if (isTruncated) {
         const dots = document.createElement("button");
         dots.className = "ps-fix-expand-btn";
