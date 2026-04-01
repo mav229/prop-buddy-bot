@@ -55,70 +55,31 @@
   function setEditorText(editor, text) {
     const newText = String(text || "");
 
-    // 1. Force focus onto the editor
+    // 1. Focus editor — required for execCommand
     editor.focus();
 
-    // Small delay to let Discord's focus handlers settle
-    return new Promise((resolve) => {
-      requestAnimationFrame(() => {
-        // 2. Select ALL content
-        const sel = window.getSelection();
-        const range = document.createRange();
-        range.selectNodeContents(editor);
-        sel.removeAllRanges();
-        sel.addRange(range);
+    // 2. Select all content using selectAllChildren (Slate-compatible)
+    const sel = document.getSelection();
+    sel.selectAllChildren(editor);
 
-        // 3. Delete existing content first
-        document.execCommand("delete", false);
+    // 3. Replace via execCommand — this is the ONLY method that
+    //    updates Slate.js internal state, not just the DOM
+    document.execCommand("insertText", false, newText);
 
-        // 4. Insert new text
-        const success = document.execCommand("insertText", false, newText);
+    // 4. Fire input event so Slate picks up the change
+    editor.dispatchEvent(new InputEvent("input", {
+      bubbles: true,
+      inputType: "insertText",
+      data: newText,
+    }));
 
-        if (!success) {
-          // Nuclear fallback: directly manipulate the DOM and fire events
-          // that Slate's onDOMBeforeInput handler will pick up
-          const slateNode = editor.querySelector('[data-slate-node="element"]') || editor;
-          const textNode = slateNode.querySelector('[data-slate-string="true"]');
+    // 5. Move caret to end
+    try {
+      sel.collapseToEnd();
+    } catch (e) { /* ignore */ }
 
-          if (textNode) {
-            textNode.textContent = newText;
-          } else {
-            editor.textContent = newText;
-          }
-
-          // Fire the events Slate listens to
-          editor.dispatchEvent(new InputEvent("beforeinput", {
-            bubbles: true,
-            cancelable: true,
-            inputType: "insertText",
-            data: newText,
-          }));
-          editor.dispatchEvent(new InputEvent("input", {
-            bubbles: true,
-            cancelable: false,
-            inputType: "insertText",
-            data: newText,
-          }));
-        }
-
-        // 5. Move caret to end
-        try {
-          const endRange = document.createRange();
-          endRange.selectNodeContents(editor);
-          endRange.collapse(false);
-          sel.removeAllRanges();
-          sel.addRange(endRange);
-        } catch (e) { /* ignore */ }
-
-        // 6. Verify
-        const result = getEditorText(editor);
-        const expected = newText.replace(/\r\n/g, "\n").replace(/\u200b/g, "").trim();
-        const ok = result.trim() === expected;
-
-        console.log("[PropScholar Fix] setText:", ok ? "✓" : "✗", "expected:", expected.slice(0, 40), "got:", result.slice(0, 40));
-        resolve(ok);
-      });
-    });
+    console.log("[PropScholar Fix] setText done:", newText.slice(0, 40));
+    return true;
   }
 
   async function requestReplyOptions(text) {
@@ -216,19 +177,14 @@
         event.stopPropagation();
       });
 
-      row.addEventListener("click", async (event) => {
+      row.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
 
         removeExistingPopup();
 
-        // Replace text — editor should still have focus since we prevented default on mousedown
-        const replaced = await setEditorText(editor, text);
-
-        if (!replaced) {
-          anchorButton.style.color = "#ed4245";
-          setTimeout(() => { anchorButton.style.color = ""; }, 2000);
-        }
+        // Replace text — editor still has focus thanks to mousedown preventDefault
+        setEditorText(editor, text);
       });
 
       popup.appendChild(row);
@@ -349,7 +305,7 @@
         if (data.options && Array.isArray(data.options)) {
           createPopup(data.options, editor, button);
         } else if (data.fixed) {
-          await setEditorText(editor, data.fixed);
+          setEditorText(editor, data.fixed);
           button.classList.add("ps-success");
           setTimeout(() => button.classList.remove("ps-success"), 1500);
         }
