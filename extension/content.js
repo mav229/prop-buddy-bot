@@ -575,6 +575,17 @@
       }
       .ps-fix-expand-btn:hover { background: #383a40; color: #fff; }
 
+      .ps-fix-copy-btn {
+        flex-shrink: 0; background: none; border: none; cursor: pointer;
+        padding: 2px 4px; font-size: 14px; line-height: 1; margin-top: 1px;
+        opacity: 0.5; transition: opacity 0.15s;
+      }
+      .ps-fix-copy-btn:hover { opacity: 1; }
+      .ps-fix-option-label {
+        display: block; font-size: 10px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.5px; color: #949ba4; margin-bottom: 2px;
+      }
+
       .ps-fix-draft-tray { padding: 12px; border-radius: 12px; }
       .ps-fix-draft-header {
         display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px;
