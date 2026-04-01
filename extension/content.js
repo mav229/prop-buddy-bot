@@ -305,7 +305,7 @@
         if (data.options && Array.isArray(data.options)) {
           createPopup(data.options, editor, button);
         } else if (data.fixed) {
-          await setEditorText(editor, data.fixed);
+          setEditorText(editor, data.fixed);
           button.classList.add("ps-success");
           setTimeout(() => button.classList.remove("ps-success"), 1500);
         }
