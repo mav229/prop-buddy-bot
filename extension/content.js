@@ -12,8 +12,11 @@
   ].join(", ");
   const TOOLBAR_LABEL_MATCHERS = ["emoji", "gif", "sticker", "gift", "apps"];
   const TRUNCATE_LENGTH = 80;
+  const PAGE_SET_TEXT_REQUEST_EVENT = "ps-fix:set-text-request";
+  const PAGE_SET_TEXT_RESPONSE_EVENT = "ps-fix:set-text-response";
 
   let editorIdCounter = 0;
+  let pageRequestCounter = 0;
 
   // ── Helpers ──
 
@@ -40,60 +43,189 @@
     return (editor.innerText || editor.textContent || "").replace(/\u200b/g, "").trim();
   }
 
-  // ── THE KEY FUNCTION: Replace editor text using clipboard paste ──
-  //
-  // Discord's Slate.js editor ONLY trusts paste events from the clipboard.
-  // execCommand("insertText") updates the DOM but NOT Slate's internal model,
-  // causing the old text to be sent. Clipboard paste is the nuclear option
-  // that actually works.
+  function ensurePageBridge() {
+    if (document.getElementById("ps-fix-page-bridge")) return;
+
+    const script = document.createElement("script");
+    script.id = "ps-fix-page-bridge";
+    script.textContent = `
+      (() => {
+        if (window.__PROP_SCHOLAR_FIX_PAGE_BRIDGE__) return;
+        window.__PROP_SCHOLAR_FIX_PAGE_BRIDGE__ = true;
+
+        const REQUEST_EVENT = ${JSON.stringify("ps-fix:set-text-request")};
+        const RESPONSE_EVENT = ${JSON.stringify("ps-fix:set-text-response")};
+
+        function getPlainText(editor) {
+          const slateStrings = editor.querySelectorAll('[data-slate-string="true"]');
+          if (slateStrings.length > 0) {
+            return Array.from(slateStrings)
+              .map((node) => node.textContent || '')
+              .join('\n')
+              .replace(/\u200b/g, '')
+              .trim();
+          }
+          return (editor.innerText || editor.textContent || '').replace(/\u200b/g, '').trim();
+        }
+
+        function focusEditor(editor) {
+          editor.focus();
+          editor.dispatchEvent(new Event('focus', { bubbles: false }));
+        }
+
+        function selectAll(editor) {
+          const selection = window.getSelection();
+          if (!selection) return;
+          const range = document.createRange();
+          range.selectNodeContents(editor);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+
+        function moveCaretToEnd(editor) {
+          const selection = window.getSelection();
+          if (!selection) return;
+          const range = document.createRange();
+          range.selectNodeContents(editor);
+          range.collapse(false);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+
+        function emitInputEvents(editor, inputType, data) {
+          try {
+            editor.dispatchEvent(new InputEvent('beforeinput', {
+              bubbles: true,
+              cancelable: true,
+              inputType,
+              data,
+            }));
+          } catch (_error) {}
+
+          try {
+            editor.dispatchEvent(new InputEvent('input', {
+              bubbles: true,
+              inputType,
+              data,
+            }));
+          } catch (_error) {
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+
+          editor.dispatchEvent(new Event('change', { bubbles: true }));
+          editor.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'End' }));
+        }
+
+        async function waitFrame() {
+          await new Promise((resolve) => requestAnimationFrame(resolve));
+        }
+
+        async function replaceEditorText(editor, text) {
+          const newText = String(text || '');
+          focusEditor(editor);
+          await waitFrame();
+
+          selectAll(editor);
+          document.execCommand('delete', false);
+          document.execCommand('insertText', false, newText);
+          emitInputEvents(editor, 'insertText', newText);
+          moveCaretToEnd(editor);
+          await waitFrame();
+
+          if (getPlainText(editor) === newText.trim()) return true;
+
+          focusEditor(editor);
+          selectAll(editor);
+
+          try {
+            const dataTransfer = new DataTransfer();
+            dataTransfer.setData('text/plain', newText);
+            editor.dispatchEvent(new ClipboardEvent('paste', {
+              bubbles: true,
+              cancelable: true,
+              clipboardData: dataTransfer,
+            }));
+            emitInputEvents(editor, 'insertFromPaste', newText);
+            moveCaretToEnd(editor);
+            await waitFrame();
+          } catch (_error) {}
+
+          return getPlainText(editor) === newText.trim();
+        }
+
+        document.addEventListener(REQUEST_EVENT, async (event) => {
+          const detail = event.detail || {};
+          const editor = document.querySelector('[data-ps-fix-editor-id="' + detail.editorId + '"]');
+
+          if (!editor) {
+            document.dispatchEvent(new CustomEvent(RESPONSE_EVENT, {
+              detail: { requestId: detail.requestId, ok: false, currentText: '', error: 'Editor not found' },
+            }));
+            return;
+          }
+
+          try {
+            const ok = await replaceEditorText(editor, detail.text);
+            document.dispatchEvent(new CustomEvent(RESPONSE_EVENT, {
+              detail: {
+                requestId: detail.requestId,
+                ok,
+                currentText: getPlainText(editor),
+                error: ok ? '' : 'Discord rejected the new text',
+              },
+            }));
+          } catch (error) {
+            document.dispatchEvent(new CustomEvent(RESPONSE_EVENT, {
+              detail: {
+                requestId: detail.requestId,
+                ok: false,
+                currentText: getPlainText(editor),
+                error: error instanceof Error ? error.message : String(error),
+              },
+            }));
+          }
+        });
+      })();
+    `;
+
+    (document.head || document.documentElement).appendChild(script);
+    script.remove();
+  }
 
   async function setEditorText(editor, text) {
+    ensurePageBridge();
+
     const newText = String(text || "");
+    const requestId = `ps-fix-request-${Date.now()}-${++pageRequestCounter}`;
 
-    // 1. Focus editor
-    editor.focus();
+    const result = await new Promise((resolve, reject) => {
+      const timeout = window.setTimeout(() => {
+        document.removeEventListener(PAGE_SET_TEXT_RESPONSE_EVENT, handleResponse);
+        reject(new Error("Timed out while updating the Discord editor"));
+      }, 2500);
 
-    // 2. Select all content
-    const sel = document.getSelection();
-    sel.selectAllChildren(editor);
-
-    // 3. Write to clipboard and paste
-    try {
-      await navigator.clipboard.writeText(newText);
-      document.execCommand("paste");
-    } catch (clipErr) {
-      // Clipboard API may be blocked — fall back to synthetic paste event
-      console.warn("[PropScholar Fix] Clipboard API blocked, using synthetic paste");
-
-      const dt = new DataTransfer();
-      dt.setData("text/plain", newText);
-
-      const pasteEvent = new ClipboardEvent("paste", {
-        bubbles: true,
-        cancelable: true,
-        clipboardData: dt,
-      });
-      editor.dispatchEvent(pasteEvent);
-
-      // If paste event didn't work either, try insertText as last resort
-      if (getEditorText(editor) !== newText) {
-        sel.selectAllChildren(editor);
-        document.execCommand("insertText", false, newText);
-        editor.dispatchEvent(new InputEvent("input", {
-          bubbles: true,
-          inputType: "insertFromPaste",
-          data: newText,
-        }));
+      function handleResponse(event) {
+        if (event.detail?.requestId !== requestId) return;
+        window.clearTimeout(timeout);
+        document.removeEventListener(PAGE_SET_TEXT_RESPONSE_EVENT, handleResponse);
+        resolve(event.detail);
       }
+
+      document.addEventListener(PAGE_SET_TEXT_RESPONSE_EVENT, handleResponse);
+      document.dispatchEvent(new CustomEvent(PAGE_SET_TEXT_REQUEST_EVENT, {
+        detail: {
+          requestId,
+          editorId: getEditorId(editor),
+          text: newText,
+        },
+      }));
+    });
+
+    if (!result.ok) {
+      throw new Error(result.error || "Discord editor rejected the replacement");
     }
 
-    // 4. Move caret to end
-    try {
-      const newSel = document.getSelection();
-      newSel.collapseToEnd();
-    } catch (e) { /* ignore */ }
-
-    console.log("[PropScholar Fix] setText done:", newText.slice(0, 40));
+    console.log("[PropScholar Fix] setText done:", result.currentText?.slice(0, 40) || newText.slice(0, 40));
     return true;
   }
 
