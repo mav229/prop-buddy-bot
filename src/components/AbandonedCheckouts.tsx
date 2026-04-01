@@ -4,7 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Download, RefreshCw, Search, ShoppingCart, Mail, Loader2 } from "lucide-react";
+import { Download, RefreshCw, Search, ShoppingCart, Mail, Loader2, Eye, Check } from "lucide-react";
+import { cartEmailTemplates, getTemplateById } from "@/lib/cartEmailTemplates";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface AbandonedUser {
   id: string;
@@ -28,6 +35,11 @@ export const AbandonedCheckouts = () => {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Template selection state
+  const [selectedTemplateId, setSelectedTemplateId] = useState(cartEmailTemplates[0].id);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState("");
+
   const fetchAbandoned = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
@@ -47,23 +59,17 @@ export const AbandonedCheckouts = () => {
     }
   }, []);
 
-  // Initial fetch + auto-refresh every 60s
   useEffect(() => {
     fetchAbandoned();
     intervalRef.current = setInterval(() => fetchAbandoned(true), 60000);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [fetchAbandoned]);
 
-  // Countdown timer
   useEffect(() => {
     countdownRef.current = setInterval(() => {
       setCountdown((c) => (c <= 1 ? 60 : c - 1));
     }, 1000);
-    return () => {
-      if (countdownRef.current) clearInterval(countdownRef.current);
-    };
+    return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
   }, []);
 
   useEffect(() => {
@@ -71,8 +77,8 @@ export const AbandonedCheckouts = () => {
       setFiltered(data);
     } else {
       const q = search.toLowerCase();
-      setFiltered(data.filter(u => 
-        u.name.toLowerCase().includes(q) || 
+      setFiltered(data.filter(u =>
+        u.name.toLowerCase().includes(q) ||
         u.email.toLowerCase().includes(q) ||
         u.phone.includes(q)
       ));
@@ -110,70 +116,29 @@ export const AbandonedCheckouts = () => {
     toast.success("Email list exported");
   };
 
+  const previewTemplate = (templateId: string) => {
+    const tpl = getTemplateById(templateId);
+    if (!tpl) return;
+    setPreviewHtml(tpl.buildHtml("John", 3));
+    setPreviewOpen(true);
+  };
+
   const sendReminder = async (user: AbandonedUser) => {
+    const tpl = getTemplateById(selectedTemplateId);
+    if (!tpl) return toast.error("Select a template first");
+
     setSendingEmail(user.id);
     try {
       const firstName = (user.name || "").split(" ")[0] || "there";
-      const html = `
-        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 620px; margin: 0 auto; padding: 0; background-color: #0a0e1a;">
-          <!-- Outer glow wrapper -->
-          <div style="padding: 40px 20px; background: linear-gradient(180deg, #0a0e1a 0%, #0d1525 50%, #0a0e1a 100%);">
-            <!-- Glass card -->
-            <div style="background: linear-gradient(145deg, rgba(20,30,60,0.85) 0%, rgba(12,18,36,0.95) 100%); border: 1px solid rgba(100,160,255,0.15); border-radius: 16px; padding: 40px 36px; position: relative; box-shadow: 0 0 60px rgba(60,130,255,0.08), 0 0 120px rgba(60,130,255,0.04), inset 0 1px 0 rgba(255,255,255,0.05);">
-              
-              <!-- Brand name -->
-              <div style="text-align: center; margin-bottom: 32px;">
-                <span style="font-size: 26px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px;">PropScholar</span>
-                <div style="width: 40px; height: 2px; background: linear-gradient(90deg, transparent, #4A90D9, transparent); margin: 8px auto 0;"></div>
-              </div>
-
-              <!-- Greeting -->
-              <h2 style="color: #ffffff; font-size: 24px; font-weight: 700; margin: 0 0 16px;">Hey ${firstName}! 👋</h2>
-              
-              <p style="color: #8b95a8; font-size: 15px; line-height: 1.8; margin: 0 0 12px;">
-                You were just one step away from leveling up your trading journey.
-              </p>
-              
-              <p style="color: #8b95a8; font-size: 15px; line-height: 1.8; margin: 0 0 32px;">
-                You still have <strong style="color: #4A90D9; font-size: 17px;">${user.cartItems} item${user.cartItems > 1 ? "s" : ""}</strong> waiting in your cart.
-              </p>
-
-              <!-- CTA Button -->
-              <div style="text-align: center; margin: 0 0 32px;">
-                <a href="https://propscholar.com" 
-                   style="background: linear-gradient(135deg, #2563eb 0%, #4A90D9 50%, #2563eb 100%); color: #ffffff; padding: 16px 48px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 16px; display: inline-block; letter-spacing: 0.3px; box-shadow: 0 4px 24px rgba(74,144,217,0.35), 0 0 40px rgba(74,144,217,0.15); border: 1px solid rgba(100,170,255,0.2);">
-                  Complete Your Purchase →
-                </a>
-              </div>
-
-              <!-- Divider -->
-              <div style="height: 1px; background: linear-gradient(90deg, transparent, rgba(100,160,255,0.2), transparent); margin: 28px 0;"></div>
-
-              <!-- Support text -->
-              <p style="color: #6b7589; font-size: 14px; line-height: 1.7; margin: 0 0 24px;">
-                Got questions? Just reply to this email — our team has your back.
-              </p>
-
-              <!-- Sign off -->
-              <p style="color: #4a5568; font-size: 13px; margin: 0;">
-                Warm regards,<br/>
-                <strong style="color: #8b95a8;">Team PropScholar</strong>
-              </p>
-            </div>
-          </div>
-        </div>
-      `;
+      const html = tpl.buildHtml(firstName, user.cartItems);
+      const subject = tpl.subject(user.name || "there");
 
       const res = await supabase.functions.invoke("send-smtp-email", {
-        body: {
-          to: user.email,
-          subject: `Hey ${user.name || "there"}, you left items in your cart! 🛒`,
-          html,
-        },
+        body: { to: user.email, subject, html },
       });
 
       if (res.error) throw res.error;
-      toast.success(`Reminder sent to ${user.email}`);
+      toast.success(`"${tpl.name}" sent to ${user.email}`);
     } catch (err: any) {
       console.error("Failed to send reminder:", err);
       toast.error("Failed to send reminder email");
@@ -202,11 +167,51 @@ export const AbandonedCheckouts = () => {
             </span>
             Live — refreshes in {countdown}s
           </div>
-          {lastRefresh && (
-            <div>Last: {lastRefresh.toLocaleTimeString()}</div>
-          )}
+          {lastRefresh && <div>Last: {lastRefresh.toLocaleTimeString()}</div>}
         </div>
       </div>
+
+      {/* Template Selector */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Email Template</h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {cartEmailTemplates.map((tpl) => (
+            <div
+              key={tpl.id}
+              onClick={() => setSelectedTemplateId(tpl.id)}
+              className={`relative cursor-pointer rounded-lg border-2 p-4 transition-all hover:shadow-md ${
+                selectedTemplateId === tpl.id
+                  ? "border-primary bg-primary/5 shadow-sm"
+                  : "border-border hover:border-muted-foreground/30"
+              }`}
+            >
+              {selectedTemplateId === tpl.id && (
+                <div className="absolute top-2 right-2">
+                  <Check className="w-4 h-4 text-primary" />
+                </div>
+              )}
+              <div className="font-medium text-sm mb-1">{tpl.name}</div>
+              <div className="text-xs text-muted-foreground mb-3 truncate">
+                {tpl.subject("User")}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs px-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  previewTemplate(tpl.id);
+                }}
+              >
+                <Eye className="w-3 h-3 mr-1" />
+                Preview
+              </Button>
+            </div>
+          ))}
+        </div>
+      </Card>
 
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
@@ -253,9 +258,7 @@ export const AbandonedCheckouts = () => {
               <div className="flex-1 min-w-0">
                 <div className="font-medium truncate">{user.name}</div>
                 <div className="text-sm text-muted-foreground truncate">{user.email}</div>
-                {user.phone && (
-                  <div className="text-xs text-muted-foreground">{user.phone}</div>
-                )}
+                {user.phone && <div className="text-xs text-muted-foreground">{user.phone}</div>}
               </div>
               <div className="flex items-center gap-4">
                 <div className="text-center">
@@ -273,6 +276,7 @@ export const AbandonedCheckouts = () => {
                   size="sm"
                   onClick={() => sendReminder(user)}
                   disabled={sendingEmail === user.id}
+                  title={`Send "${getTemplateById(selectedTemplateId)?.name}" to ${user.email}`}
                 >
                   {sendingEmail === user.id ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -285,6 +289,19 @@ export const AbandonedCheckouts = () => {
           ))}
         </div>
       )}
+
+      {/* Template Preview Dialog */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-[700px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Email Preview</DialogTitle>
+          </DialogHeader>
+          <div
+            className="rounded-lg overflow-hidden border"
+            dangerouslySetInnerHTML={{ __html: previewHtml }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
