@@ -437,18 +437,29 @@
     header.innerHTML = '<span class="ps-fix-popup-icon">✦</span><span>Pick a reply</span>';
     popup.appendChild(header);
 
-    options.forEach((text) => {
+    const labels = ["⚡ Short", "📝 Detailed", "💛 Empathetic"];
+    options.forEach((text, idx) => {
       const row = document.createElement("div");
       row.className = "ps-fix-option";
 
       const isTruncated = text.length > TRUNCATE_LENGTH;
       const preview = isTruncated ? `${text.slice(0, TRUNCATE_LENGTH)}…` : text;
 
+      const labelSpan = document.createElement("span");
+      labelSpan.className = "ps-fix-option-label";
+      labelSpan.textContent = labels[idx] || "";
+
       const textSpan = document.createElement("span");
       textSpan.className = "ps-fix-option-text";
       textSpan.textContent = preview;
       textSpan.title = text;
-      row.appendChild(textSpan);
+
+      const textWrap = document.createElement("div");
+      textWrap.style.flex = "1";
+      textWrap.style.minWidth = "0";
+      textWrap.appendChild(labelSpan);
+      textWrap.appendChild(textSpan);
+      row.appendChild(textWrap);
 
       // Copy button for every option
       const copyBtn = document.createElement("button");
