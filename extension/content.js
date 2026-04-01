@@ -177,19 +177,14 @@
         event.stopPropagation();
       });
 
-      row.addEventListener("click", async (event) => {
+      row.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
 
         removeExistingPopup();
 
-        // Replace text — editor should still have focus since we prevented default on mousedown
-        const replaced = await setEditorText(editor, text);
-
-        if (!replaced) {
-          anchorButton.style.color = "#ed4245";
-          setTimeout(() => { anchorButton.style.color = ""; }, 2000);
-        }
+        // Replace text — editor still has focus thanks to mousedown preventDefault
+        setEditorText(editor, text);
       });
 
       popup.appendChild(row);
