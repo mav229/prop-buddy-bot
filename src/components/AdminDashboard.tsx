@@ -283,6 +283,10 @@ export const AdminDashboard = () => {
             <EmailLogsView />
           </TabsContent>
 
+          <TabsContent value="ref-links">
+            <ReferenceLinksManager />
+          </TabsContent>
+
           <TabsContent value="conn-logs">
             <ConnectionLogsView />
           </TabsContent>
