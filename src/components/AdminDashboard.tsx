@@ -41,6 +41,7 @@ const navItems = [
   { value: "fullpage", label: "16:9", icon: Monitor },
   { value: "credits", label: "Credits", icon: Coins },
   { value: "abandoned", label: "Cart", icon: ShoppingCart },
+  { value: "email-logs", label: "Email Logs", icon: Send },
   { value: "conn-logs", label: "Logs", icon: PlugZap },
   { value: "discord", label: "Settings", icon: Settings },
 ];
