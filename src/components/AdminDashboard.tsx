@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { 
   Bot, LogOut, MessageSquare, Database, ArrowLeft, Brain, Users, 
-  LayoutDashboard, Settings, Code, Palette, Ticket, Menu, Mail, Headphones, Monitor, Coins, Zap, PlugZap, ShoppingCart, Send
+  LayoutDashboard, Settings, Code, Palette, Ticket, Menu, Mail, Headphones, Monitor, Coins, Zap, PlugZap, ShoppingCart, Send, LinkIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,6 +24,7 @@ import { AutoRepliesManager } from "./AutoRepliesManager";
 import { ConnectionLogsView } from "./ConnectionLogsView";
 import { AbandonedCheckouts } from "./AbandonedCheckouts";
 import { EmailLogsView } from "./EmailLogsView";
+import { ReferenceLinksManager } from "./ReferenceLinksManager";
 import { Link } from "react-router-dom";
 
 const navItems = [
@@ -42,6 +43,7 @@ const navItems = [
   { value: "credits", label: "Credits", icon: Coins },
   { value: "abandoned", label: "Cart", icon: ShoppingCart },
   { value: "email-logs", label: "Email Logs", icon: Send },
+  { value: "ref-links", label: "Ref Links", icon: LinkIcon },
   { value: "conn-logs", label: "Logs", icon: PlugZap },
   { value: "discord", label: "Settings", icon: Settings },
 ];
@@ -279,6 +281,10 @@ export const AdminDashboard = () => {
 
           <TabsContent value="email-logs">
             <EmailLogsView />
+          </TabsContent>
+
+          <TabsContent value="ref-links">
+            <ReferenceLinksManager />
           </TabsContent>
 
           <TabsContent value="conn-logs">

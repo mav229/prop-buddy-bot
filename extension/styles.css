@@ -1,4 +1,4 @@
-/* PropScholar Fix Button */
+/* PropScholar Fix Button — minimal external styles */
 .ps-fix-btn {
   display: flex;
   align-items: center;
@@ -79,7 +79,6 @@
   opacity: 1;
 }
 
-/* Success flash */
 .ps-fix-btn.ps-success {
   color: #23a55a !important;
 }
