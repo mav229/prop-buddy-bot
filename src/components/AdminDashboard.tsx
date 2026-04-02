@@ -23,6 +23,7 @@ import { CreditUsageCalendar } from "./CreditUsageCalendar";
 import { AutoRepliesManager } from "./AutoRepliesManager";
 import { ConnectionLogsView } from "./ConnectionLogsView";
 import { AbandonedCheckouts } from "./AbandonedCheckouts";
+import { EmailLogsView } from "./EmailLogsView";
 import { Link } from "react-router-dom";
 
 const navItems = [
