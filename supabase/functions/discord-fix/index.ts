@@ -25,22 +25,28 @@ serve(async (req) => {
 
     // Fetch reference links from DB
     let linksContext = "";
+    let knowledgeContext = "";
     try {
       const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
       const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
       if (supabaseUrl && supabaseKey) {
         const sb = createClient(supabaseUrl, supabaseKey);
-        const { data: links } = await sb
-          .from("mod_reference_links")
-          .select("title, url, keywords")
-          .eq("is_active", true);
+        
+        const [linksRes, kbRes] = await Promise.all([
+          sb.from("mod_reference_links").select("title, url, keywords").eq("is_active", true),
+          sb.from("knowledge_base").select("title, content, category"),
+        ]);
 
-        if (links && links.length > 0) {
-          linksContext = `\n\nYou have access to these reference links. If the user's message is related to any of these topics, append the most relevant link at the end of each variation using the format: [Title](URL)\n\nAvailable links:\n${links.map((l: any) => `- "${l.title}" (${l.url}) — keywords: ${(l.keywords || []).join(", ")}`).join("\n")}`;
+        if (linksRes.data && linksRes.data.length > 0) {
+          linksContext = `\n\nYou have access to these reference links. If the user's message is related to any of these topics, append the most relevant link at the end of each variation using the format: [Title](URL)\n\nAvailable links:\n${linksRes.data.map((l: any) => `- "${l.title}" (${l.url}) — keywords: ${(l.keywords || []).join(", ")}`).join("\n")}`;
+        }
+
+        if (kbRes.data && kbRes.data.length > 0) {
+          knowledgeContext = `\n\nYou also have access to PropScholar's knowledge base. Use this context to make responses more accurate and informed. Do NOT dump this info — only use what's relevant to the message being polished.\n\nKnowledge Base:\n${kbRes.data.map((k: any) => `[${k.category}] ${k.title}: ${k.content.substring(0, 300)}`).join("\n\n")}`;
         }
       }
     } catch (e) {
-      console.error("Failed to fetch reference links:", e);
+      console.error("Failed to fetch context data:", e);
     }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
