@@ -11,7 +11,6 @@
     '[data-slate-editor="true"][role="textbox"]',
   ].join(", ");
   const TOOLBAR_LABEL_MATCHERS = ["emoji", "gif", "sticker", "gift", "apps"];
-  const TRUNCATE_LENGTH = 80;
 
   let editorIdCounter = 0;
   let debounceTimer;
@@ -41,7 +40,6 @@
         .replace(/\u200b/g, "")
         .trim();
     }
-
     return (editor.innerText || editor.textContent || "")
       .replace(/\u200b/g, "")
       .trim();
@@ -56,17 +54,14 @@
             reject(new Error(runtimeError.message || "Extension message failed"));
             return;
           }
-
           if (!response) {
             reject(new Error("No response from extension background"));
             return;
           }
-
           if (!response.ok) {
             reject(new Error(response.error || "Reply generation failed"));
             return;
           }
-
           resolve(response.data);
         });
       });
@@ -98,14 +93,8 @@
     if (existing) existing.remove();
   }
 
-  function removeDraftTray() {
-    const existing = document.querySelector(".ps-fix-draft-tray");
-    if (existing) existing.remove();
-  }
-
   function closeFloatingUI() {
     removeExistingPopup();
-    removeDraftTray();
   }
 
   async function copyText(text) {
@@ -146,25 +135,11 @@
     if (!anchorButton) return;
 
     const btnRect = anchorButton.getBoundingClientRect();
-    const popupWidth = 360;
+    const popupWidth = 380;
     popup.style.position = "fixed";
     popup.style.left = `${Math.min(window.innerWidth - popupWidth - 8, Math.max(8, btnRect.left - 180))}px`;
     popup.style.bottom = `${window.innerHeight - btnRect.top + 8}px`;
     popup.style.zIndex = "999999";
-  }
-
-  function positionDraftTray(tray) {
-    const editorId = tray.dataset.editorId;
-    const editor = document.querySelector(`[data-ps-fix-editor-id="${editorId}"]`);
-    if (!editor) return;
-
-    const rect = editor.getBoundingClientRect();
-    const trayWidth = Math.min(420, window.innerWidth - 24);
-    tray.style.position = "fixed";
-    tray.style.width = `${trayWidth}px`;
-    tray.style.left = `${Math.min(window.innerWidth - trayWidth - 12, Math.max(12, rect.left))}px`;
-    tray.style.bottom = `${window.innerHeight - rect.top + 12}px`;
-    tray.style.zIndex = "999999";
   }
 
   function scheduleFloatingLayout() {
@@ -172,119 +147,26 @@
     floatingLayoutTimer = window.setTimeout(() => {
       const popup = document.querySelector(".ps-fix-popup");
       if (popup) positionPopup(popup);
-
-      const tray = document.querySelector(".ps-fix-draft-tray");
-      if (tray) positionDraftTray(tray);
     }, 20);
-  }
-
-  function setDraftStatus(tray, statusText, tone) {
-    const status = tray.querySelector(".ps-fix-draft-status");
-    if (!status) return;
-    status.textContent = statusText;
-    status.dataset.tone = tone;
   }
 
   function flashFixButton(button, tone) {
     if (!button) return;
-
     if (tone === "success") {
       button.classList.add("ps-success");
       window.setTimeout(() => button.classList.remove("ps-success"), 1200);
-      return;
-    }
-
-    if (tone === "error") {
+    } else if (tone === "error") {
       button.classList.add("ps-error");
       window.setTimeout(() => button.classList.remove("ps-error"), 1600);
     }
   }
 
-  function createDraftTray(editor, initialText, anchorButton) {
-    removeDraftTray();
-    removeExistingPopup();
-
-    const tray = document.createElement("div");
-    tray.className = "ps-fix-draft-tray";
-    tray.dataset.editorId = getEditorId(editor);
-
-    const titleRow = document.createElement("div");
-    titleRow.className = "ps-fix-draft-header";
-    titleRow.innerHTML = '<div><div class="ps-fix-draft-title">Edit before copying</div><div class="ps-fix-draft-subtitle">Optional — tweak the reply, then copy it.</div></div><div class="ps-fix-draft-status" data-tone="ready">Ready to copy</div>';
-    tray.appendChild(titleRow);
-
-    const textarea = document.createElement("textarea");
-    textarea.className = "ps-fix-draft-textarea";
-    textarea.value = initialText;
-    textarea.spellcheck = false;
-    textarea.addEventListener("input", () => {
-      const hasText = Boolean(textarea.value.trim());
-      setDraftStatus(tray, hasText ? "Ready to copy" : "Type something to copy", hasText ? "ready" : "muted");
-    });
-    textarea.addEventListener("mousedown", (event) => event.stopPropagation());
-    textarea.addEventListener("click", (event) => event.stopPropagation());
-    tray.appendChild(textarea);
-
-    const note = document.createElement("div");
-    note.className = "ps-fix-draft-note";
-    note.textContent = "Click Copy, then paste it into Discord.";
-    tray.appendChild(note);
-
-    const actions = document.createElement("div");
-    actions.className = "ps-fix-draft-actions";
-
-    const copyBtn = document.createElement("button");
-    copyBtn.type = "button";
-    copyBtn.className = "ps-fix-draft-btn ps-fix-draft-btn-secondary";
-    copyBtn.textContent = "Copy";
-    copyBtn.addEventListener("click", async (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-
-      const nextText = textarea.value.trim();
-      if (!nextText) {
-        setDraftStatus(tray, "Nothing to copy", "muted");
-        return;
-      }
-
-      const copied = await copyText(nextText);
-      if (copied) {
-        setDraftStatus(tray, "Copied to clipboard", "ready");
-        copyBtn.textContent = "Copied";
-        flashFixButton(anchorButton, "success");
-        window.setTimeout(removeDraftTray, 180);
-        return;
-      }
-
-      setDraftStatus(tray, "Copy failed — try again", "error");
-      copyBtn.textContent = "Copy failed";
-      flashFixButton(anchorButton, "error");
-      window.setTimeout(() => {
-        copyBtn.textContent = "Copy";
-      }, 1200);
-    });
-
-    const closeBtn = document.createElement("button");
-    closeBtn.type = "button";
-    closeBtn.className = "ps-fix-draft-btn ps-fix-draft-btn-ghost";
-    closeBtn.textContent = "Close";
-    closeBtn.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      removeDraftTray();
-    });
-
-    actions.appendChild(copyBtn);
-    actions.appendChild(closeBtn);
-    tray.appendChild(actions);
-
-    document.body.appendChild(tray);
-    positionDraftTray(tray);
-    window.requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-    });
-    return tray;
+  function showCopiedToast(popup, optionEl) {
+    // Brief green flash on the clicked option
+    optionEl.classList.add("ps-fix-option-copied");
+    window.setTimeout(() => {
+      removeExistingPopup();
+    }, 300);
   }
 
   function createPopup(options, editor, anchorButton) {
@@ -296,17 +178,15 @@
 
     const header = document.createElement("div");
     header.className = "ps-fix-popup-header";
-    header.innerHTML = '<span class="ps-fix-popup-icon">✦</span><div><div class="ps-fix-popup-title">Pick a reply</div><div class="ps-fix-popup-subtitle">Click any option to copy instantly.</div></div>';
+    header.innerHTML = '<span class="ps-fix-popup-icon">&#9670;</span><div><div class="ps-fix-popup-title">Pick a reply</div><div class="ps-fix-popup-subtitle">Click to copy</div></div>';
     popup.appendChild(header);
 
-    const labels = ["⚡ Short", "📝 Detailed", "💛 Empathetic"];
+    const labels = ["Short", "Detailed", "Empathetic"];
+    const labelColors = ["#5865f2", "#3ba55d", "#faa61a"];
 
     options.forEach((text, idx) => {
       const row = document.createElement("div");
       row.className = "ps-fix-option";
-
-      const isTruncated = text.length > TRUNCATE_LENGTH;
-      const preview = isTruncated ? `${text.slice(0, TRUNCATE_LENGTH)}…` : text;
 
       const textWrap = document.createElement("div");
       textWrap.className = "ps-fix-option-main";
@@ -314,60 +194,16 @@
       const labelSpan = document.createElement("span");
       labelSpan.className = "ps-fix-option-label";
       labelSpan.textContent = labels[idx] || "";
+      labelSpan.style.color = labelColors[idx] || "#949ba4";
 
       const textSpan = document.createElement("span");
       textSpan.className = "ps-fix-option-text";
-      textSpan.textContent = preview;
+      textSpan.textContent = text;
       textSpan.title = text;
 
       textWrap.appendChild(labelSpan);
       textWrap.appendChild(textSpan);
       row.appendChild(textWrap);
-
-      const actions = document.createElement("div");
-      actions.className = "ps-fix-option-actions";
-
-      const editBtn = document.createElement("button");
-      editBtn.type = "button";
-      editBtn.className = "ps-fix-edit-btn";
-      editBtn.textContent = "Edit";
-      editBtn.title = "Edit before copying";
-      editBtn.addEventListener("mousedown", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-      });
-      editBtn.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        createDraftTray(editor, text, anchorButton);
-      });
-      actions.appendChild(editBtn);
-
-      if (isTruncated) {
-        const dots = document.createElement("button");
-        dots.type = "button";
-        dots.className = "ps-fix-expand-btn";
-        dots.textContent = "•••";
-        dots.title = "Show full reply";
-        dots.addEventListener("mousedown", (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-        });
-        dots.addEventListener("click", (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          if (textSpan.textContent === text) {
-            textSpan.textContent = preview;
-            textSpan.classList.remove("ps-fix-expanded");
-          } else {
-            textSpan.textContent = text;
-            textSpan.classList.add("ps-fix-expanded");
-          }
-        });
-        actions.appendChild(dots);
-      }
-
-      row.appendChild(actions);
 
       row.addEventListener("mousedown", (event) => {
         event.preventDefault();
@@ -380,14 +216,11 @@
 
         const copied = await copyText(text);
         if (copied) {
-          removeExistingPopup();
+          showCopiedToast(popup, row);
           flashFixButton(anchorButton, "success");
-          return;
+        } else {
+          flashFixButton(anchorButton, "error");
         }
-
-        flashFixButton(anchorButton, "error");
-        const tray = createDraftTray(editor, text, anchorButton);
-        setDraftStatus(tray, "Clipboard blocked — edit and copy manually", "error");
       });
 
       popup.appendChild(row);
@@ -433,17 +266,14 @@
         color: #b5bac1;
         transition: color 0.15s, transform 0.1s;
       }
-
       .ps-fix-btn:hover {
         color: #fff;
         transform: scale(1.1);
       }
-
       .ps-fix-icon {
         font-size: 20px;
         line-height: 1;
       }
-
       .ps-fix-tooltip {
         display: none;
         position: absolute;
@@ -459,59 +289,45 @@
         pointer-events: none;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
       }
-
       .ps-fix-btn:hover .ps-fix-tooltip {
         display: block;
       }
-
       .ps-fix-btn.ps-loading .ps-fix-icon {
         animation: ps-spin 0.8s linear infinite;
       }
-
       .ps-fix-btn.ps-success .ps-fix-icon {
         color: #57f287;
       }
-
       .ps-fix-btn.ps-error .ps-fix-icon {
         color: #ed4245;
       }
-
       @keyframes ps-spin {
-        to {
-          transform: rotate(360deg);
-        }
+        to { transform: rotate(360deg); }
       }
 
-      .ps-fix-popup,
-      .ps-fix-draft-tray {
+      .ps-fix-popup {
         background: #1e1f22;
         border: 1px solid #2b2d31;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      }
-
-      .ps-fix-popup {
-        width: 360px;
-        max-height: 340px;
+        width: 380px;
+        max-height: 400px;
         overflow-y: auto;
-        padding: 6px;
+        padding: 4px;
         border-radius: 10px;
       }
 
       .ps-fix-popup-header {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         gap: 8px;
-        padding: 8px 10px 8px;
+        padding: 10px 12px 6px;
         color: #b5bac1;
       }
-
       .ps-fix-popup-icon {
         font-size: 14px;
         color: #5865f2;
-        margin-top: 2px;
       }
-
       .ps-fix-popup-title {
         color: #f2f3f5;
         font-size: 12px;
@@ -519,196 +335,51 @@
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
-
       .ps-fix-popup-subtitle {
         color: #949ba4;
         font-size: 11px;
-        margin-top: 2px;
+        margin-top: 1px;
       }
 
       .ps-fix-option {
         display: flex;
         align-items: flex-start;
-        justify-content: space-between;
-        gap: 10px;
         padding: 10px 12px;
         border-radius: 6px;
         cursor: pointer;
-        transition: background 0.12s;
+        transition: background 0.12s, outline 0.12s;
         color: #dbdee1;
         font-size: 13px;
-        line-height: 1.45;
+        line-height: 1.5;
         user-select: none;
       }
-
       .ps-fix-option:hover {
         background: #2b2d31;
+      }
+      .ps-fix-option:active {
+        background: #383a40;
+      }
+      .ps-fix-option-copied {
+        background: rgba(87, 242, 135, 0.15) !important;
+        transition: background 0.1s;
       }
 
       .ps-fix-option-main {
         flex: 1;
         min-width: 0;
       }
-
       .ps-fix-option-label {
         display: block;
         font-size: 10px;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: #949ba4;
-        margin-bottom: 2px;
+        letter-spacing: 0.6px;
+        margin-bottom: 3px;
       }
-
       .ps-fix-option-text {
         display: block;
         word-break: break-word;
-      }
-
-      .ps-fix-option-text.ps-fix-expanded {
         white-space: pre-wrap;
-      }
-
-      .ps-fix-option-actions {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        flex-shrink: 0;
-        margin-top: 1px;
-      }
-
-      .ps-fix-edit-btn {
-        flex-shrink: 0;
-        background: #2b2d31;
-        border: none;
-        color: #dbdee1;
-        cursor: pointer;
-        padding: 4px 10px;
-        border-radius: 999px;
-        font-size: 11px;
-        font-weight: 700;
-        line-height: 1;
-        transition: background 0.12s, color 0.12s;
-      }
-
-      .ps-fix-edit-btn:hover,
-      .ps-fix-expand-btn:hover {
-        background: #383a40;
-        color: #fff;
-      }
-
-      .ps-fix-expand-btn {
-        flex-shrink: 0;
-        background: #2b2d31;
-        border: none;
-        color: #b5bac1;
-        cursor: pointer;
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-size: 12px;
-        line-height: 1;
-        margin-top: 1px;
-        transition: background 0.12s, color 0.12s;
-      }
-
-      .ps-fix-draft-tray {
-        padding: 12px;
-        border-radius: 12px;
-      }
-
-      .ps-fix-draft-header {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 12px;
-        margin-bottom: 10px;
-      }
-
-      .ps-fix-draft-title {
-        color: #f2f3f5;
-        font-size: 13px;
-        font-weight: 700;
-      }
-
-      .ps-fix-draft-subtitle {
-        color: #949ba4;
-        font-size: 12px;
-        margin-top: 2px;
-      }
-
-      .ps-fix-draft-status {
-        padding: 4px 8px;
-        border-radius: 999px;
-        font-size: 11px;
-        font-weight: 700;
-        white-space: nowrap;
-      }
-
-      .ps-fix-draft-status[data-tone="ready"] {
-        color: #57f287;
-        background: rgba(87, 242, 135, 0.12);
-      }
-
-      .ps-fix-draft-status[data-tone="error"] {
-        color: #ed4245;
-        background: rgba(237, 66, 69, 0.14);
-      }
-
-      .ps-fix-draft-status[data-tone="muted"] {
-        color: #b5bac1;
-        background: rgba(181, 186, 193, 0.12);
-      }
-
-      .ps-fix-draft-textarea {
-        width: 100%;
-        min-height: 120px;
-        resize: vertical;
-        border: 1px solid #2b2d31;
-        border-radius: 10px;
-        background: #111214;
-        color: #f2f3f5;
-        padding: 12px;
-        font-size: 13px;
-        line-height: 1.5;
-        outline: none;
-      }
-
-      .ps-fix-draft-textarea:focus {
-        border-color: #5865f2;
-        box-shadow: 0 0 0 1px rgba(88, 101, 242, 0.35);
-      }
-
-      .ps-fix-draft-note {
-        margin-top: 8px;
-        color: #b5bac1;
-        font-size: 11.5px;
-        line-height: 1.4;
-      }
-
-      .ps-fix-draft-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 8px;
-        margin-top: 10px;
-      }
-
-      .ps-fix-draft-btn {
-        border: none;
-        border-radius: 8px;
-        padding: 8px 12px;
-        font-size: 12px;
-        font-weight: 700;
-        cursor: pointer;
-      }
-
-      .ps-fix-draft-btn-secondary {
-        background: #5865f2;
-        color: #fff;
-      }
-
-      .ps-fix-draft-btn-ghost {
-        background: #2b2d31;
-        color: #dbdee1;
       }
     `;
 
@@ -721,7 +392,7 @@
     button.className = "ps-fix-btn";
     button.dataset.editorId = getEditorId(editor);
     button.setAttribute("aria-label", "PropScholar Fix");
-    button.innerHTML = '<span class="ps-fix-icon">✦</span><span class="ps-fix-tooltip">PropScholar Fix</span>';
+    button.innerHTML = '<span class="ps-fix-icon">&#10022;</span><span class="ps-fix-tooltip">PropScholar Fix</span>';
 
     button.addEventListener("mousedown", (event) => {
       event.preventDefault();
@@ -731,7 +402,7 @@
       event.preventDefault();
       event.stopPropagation();
 
-      if (document.querySelector(".ps-fix-popup") || document.querySelector(".ps-fix-draft-tray")) {
+      if (document.querySelector(".ps-fix-popup")) {
         closeFloatingUI();
         return;
       }
@@ -748,13 +419,7 @@
           createPopup(data.options, editor, button);
         } else if (data.fixed) {
           const copied = await copyText(data.fixed);
-          if (copied) {
-            flashFixButton(button, "success");
-          } else {
-            const tray = createDraftTray(editor, data.fixed, button);
-            setDraftStatus(tray, "Clipboard blocked — copy manually", "error");
-            flashFixButton(button, "error");
-          }
+          flashFixButton(button, copied ? "success" : "error");
         }
       } catch (error) {
         console.error("[PropScholar Fix]", error);
@@ -791,7 +456,6 @@
         if (TOOLBAR_LABEL_MATCHERS.some((matcher) => label.includes(matcher)) && isVisible(btn)) return btn;
       }
     }
-
     return null;
   }
 
@@ -832,7 +496,7 @@
 
   function init() {
     injectStyles();
-    console.log("[PropScholar Fix] v1.6 copy-first flow ready");
+    console.log("[PropScholar Fix] v2.0 — click to copy");
     injectButtons();
     observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-label", "class"] });
     document.addEventListener("focusin", injectButtons, true);
