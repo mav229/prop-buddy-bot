@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { 
   Bot, LogOut, MessageSquare, Database, ArrowLeft, Brain, Users, 
-  LayoutDashboard, Settings, Code, Palette, Ticket, Menu, Mail, Headphones, Monitor, Coins, Zap, PlugZap, ShoppingCart
+  LayoutDashboard, Settings, Code, Palette, Ticket, Menu, Mail, Headphones, Monitor, Coins, Zap, PlugZap, ShoppingCart, Send
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,6 +23,7 @@ import { CreditUsageCalendar } from "./CreditUsageCalendar";
 import { AutoRepliesManager } from "./AutoRepliesManager";
 import { ConnectionLogsView } from "./ConnectionLogsView";
 import { AbandonedCheckouts } from "./AbandonedCheckouts";
+import { EmailLogsView } from "./EmailLogsView";
 import { Link } from "react-router-dom";
 
 const navItems = [
@@ -40,6 +41,7 @@ const navItems = [
   { value: "fullpage", label: "16:9", icon: Monitor },
   { value: "credits", label: "Credits", icon: Coins },
   { value: "abandoned", label: "Cart", icon: ShoppingCart },
+  { value: "email-logs", label: "Email Logs", icon: Send },
   { value: "conn-logs", label: "Logs", icon: PlugZap },
   { value: "discord", label: "Settings", icon: Settings },
 ];
@@ -273,6 +275,10 @@ export const AdminDashboard = () => {
 
           <TabsContent value="abandoned">
             <AbandonedCheckouts />
+          </TabsContent>
+
+          <TabsContent value="email-logs">
+            <EmailLogsView />
           </TabsContent>
 
           <TabsContent value="conn-logs">

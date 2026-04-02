@@ -1,4 +1,5 @@
 import { SMTPClient } from "npm:emailjs@4.0.3";
+import { createClient } from "npm:@supabase/supabase-js@2.49.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,7 +21,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { to, subject, body, html } = await req.json();
+    const { to, subject, body, html, templateId, recipientName } = await req.json();
 
     if (!to || !subject || (!body && !html)) {
       return new Response(
@@ -37,6 +38,22 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Generate tracking ID
+    const trackingId = crypto.randomUUID();
+    const trackerBase = `${Deno.env.get("SUPABASE_URL")}/functions/v1/email-tracker`;
+
+    // Inject tracking pixel and click tracking into HTML
+    let finalHtml = html || "";
+    if (finalHtml) {
+      // Replace propscholar.com links with click tracking
+      finalHtml = finalHtml.replace(
+        /href="https:\/\/propscholar\.com"/g,
+        `href="${trackerBase}?id=${trackingId}&action=click"`
+      );
+      // Add tracking pixel before closing div
+      finalHtml += `<img src="${trackerBase}?id=${trackingId}&action=open" width="1" height="1" style="display:none;" />`;
+    }
+
     const client = new SMTPClient({
       user: "team@propscholar.in",
       password,
@@ -50,12 +67,29 @@ Deno.serve(async (req) => {
       to,
       subject,
       text: body || "",
-      attachment: html
-        ? [{ data: html, alternative: true }]
+      attachment: finalHtml
+        ? [{ data: finalHtml, alternative: true }]
         : undefined,
     });
 
     console.log("Email sent:", message);
+
+    // Log to email_logs
+    try {
+      const sb = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+      await sb.from("email_logs").insert({
+        recipient_email: to,
+        recipient_name: recipientName || null,
+        template_id: templateId || "manual",
+        tracking_id: trackingId,
+        source: "manual",
+      });
+    } catch (logErr) {
+      console.error("Failed to log email:", logErr);
+    }
 
     return new Response(
       JSON.stringify({ success: true, message: "Email sent successfully" }),

@@ -134,7 +134,7 @@ export const AbandonedCheckouts = () => {
       const subject = tpl.subject(user.name || "there");
 
       const res = await supabase.functions.invoke("send-smtp-email", {
-        body: { to: user.email, subject, html },
+        body: { to: user.email, subject, html, templateId: tpl.id, recipientName: user.name },
       });
 
       if (res.error) throw res.error;
