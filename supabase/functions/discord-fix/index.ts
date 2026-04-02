@@ -77,7 +77,7 @@ Rules:
 - For very short inputs (1-4 words), keep the SHORT version very close to the original
 - Do NOT expand short greetings or slang into a different phrase
 - If the intent is ambiguous, preserve the original wording and only make minimal polish changes
-- If a relevant reference link is available, include it naturally at the end${linksContext}
+- If a relevant reference link is available, include it naturally at the end${linksContext}${knowledgeContext}
 
 Return EXACTLY this JSON format, nothing else:
 {"options":["short version","detailed version","empathetic version"]}`,
