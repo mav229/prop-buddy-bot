@@ -25,30 +25,15 @@ const cleanCard = (content: string) => `
 
 const ctaButton = `
 <div style="text-align: center; margin: 32px 0 0;">
-  <a href="https://propscholar.com" style="background: #111827; color: #ffffff; padding: 14px 44px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px; display: inline-block; letter-spacing: 0.3px;">
+  <a href="https://propscholar.com" style="background: #4A90D9; color: #ffffff; padding: 14px 44px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px; display: inline-block; letter-spacing: 0.3px;">
     Complete Your Purchase
   </a>
 </div>`;
 
 export const cartEmailTemplates: CartEmailTemplate[] = [
   {
-    id: "urgency",
-    name: "Urgency",
-    subject: (name) => `${name}, your cart won't wait forever ⏰`,
-    buildHtml: (firstName, cartItems) => cleanCard(`
-      <h2 style="color: #111827; font-size: 24px; font-weight: 700; margin: 0 0 20px;">Time's Running Out, ${firstName}.</h2>
-      <p style="color: #4b5563; font-size: 15px; line-height: 1.8; margin: 0 0 12px;">
-        Your <strong style="color: #111827;">${cartItems} item${cartItems > 1 ? "s" : ""}</strong> ${cartItems > 1 ? "are" : "is"} still in your cart — but stock is limited and we can't hold ${cartItems > 1 ? "them" : "it"} forever.
-      </p>
-      <p style="color: #4b5563; font-size: 15px; line-height: 1.8; margin: 0 0 8px;">
-        Others are eyeing the same picks. Don't let someone else grab what's yours.
-      </p>
-      ${ctaButton}
-    `),
-  },
-  {
     id: "friendly-nudge",
-    name: "Friendly Reminder",
+    name: "Friendly Nudge",
     subject: (name) => `Hey ${name}, you left something behind 👋`,
     buildHtml: (firstName, cartItems) => cleanCard(`
       <h2 style="color: #111827; font-size: 24px; font-weight: 700; margin: 0 0 20px;">Hey ${firstName},</h2>
@@ -72,6 +57,51 @@ export const cartEmailTemplates: CartEmailTemplate[] = [
       </p>
       <p style="color: #4b5563; font-size: 15px; line-height: 1.8; margin: 0 0 8px;">
         Winners don't leave things half-done. Your future self will thank you.
+      </p>
+      ${ctaButton}
+    `),
+  },
+  {
+    id: "smooth-closer",
+    name: "Smooth Closer",
+    subject: (name) => `${name}, your picks are still saved ✨`,
+    buildHtml: (firstName, cartItems) => cleanCard(`
+      <h2 style="color: #111827; font-size: 24px; font-weight: 700; margin: 0 0 20px;">Good news, ${firstName}.</h2>
+      <p style="color: #4b5563; font-size: 15px; line-height: 1.8; margin: 0 0 12px;">
+        We saved your <strong style="color: #111827;">${cartItems} item${cartItems > 1 ? "s" : ""}</strong> so you don't have to start over. Smart choices deserve a smooth checkout.
+      </p>
+      <p style="color: #4b5563; font-size: 15px; line-height: 1.8; margin: 0 0 8px;">
+        One click and ${cartItems > 1 ? "they're" : "it's"} yours. Easy as that.
+      </p>
+      ${ctaButton}
+    `),
+  },
+  {
+    id: "hype-king",
+    name: "Hype King",
+    subject: (name) => `${name}, you've got great taste 🔥`,
+    buildHtml: (firstName, cartItems) => cleanCard(`
+      <h2 style="color: #111827; font-size: 24px; font-weight: 700; margin: 0 0 20px;">Real talk, ${firstName}.</h2>
+      <p style="color: #4b5563; font-size: 15px; line-height: 1.8; margin: 0 0 12px;">
+        Those <strong style="color: #111827;">${cartItems} item${cartItems > 1 ? "s" : ""}</strong> you picked? Absolute fire. You clearly know what you want — now go get it.
+      </p>
+      <p style="color: #4b5563; font-size: 15px; line-height: 1.8; margin: 0 0 8px;">
+        The best traders don't hesitate. Lock it in and level up.
+      </p>
+      ${ctaButton}
+    `),
+  },
+  {
+    id: "chill-vibes",
+    name: "Chill Vibes",
+    subject: (name) => `Just checking in, ${name} 🙌`,
+    buildHtml: (firstName, cartItems) => cleanCard(`
+      <h2 style="color: #111827; font-size: 24px; font-weight: 700; margin: 0 0 20px;">Quick check-in, ${firstName}.</h2>
+      <p style="color: #4b5563; font-size: 15px; line-height: 1.8; margin: 0 0 12px;">
+        No pressure at all — just wanted to let you know your <strong style="color: #111827;">${cartItems} item${cartItems > 1 ? "s are" : " is"}</strong> still in your cart whenever you're ready.
+      </p>
+      <p style="color: #4b5563; font-size: 15px; line-height: 1.8; margin: 0 0 8px;">
+        We're here if you need anything. Take your time, we've got you.
       </p>
       ${ctaButton}
     `),
