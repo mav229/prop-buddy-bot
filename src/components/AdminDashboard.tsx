@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { 
   Bot, LogOut, MessageSquare, Database, ArrowLeft, Brain, Users, 
-  LayoutDashboard, Settings, Code, Palette, Ticket, Menu, Mail, Headphones, Monitor, Coins, Zap, PlugZap, ShoppingCart
+  LayoutDashboard, Settings, Code, Palette, Ticket, Menu, Mail, Headphones, Monitor, Coins, Zap, PlugZap, ShoppingCart, Send
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
