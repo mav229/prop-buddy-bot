@@ -277,6 +277,10 @@ export const AdminDashboard = () => {
             <AbandonedCheckouts />
           </TabsContent>
 
+          <TabsContent value="email-logs">
+            <EmailLogsView />
+          </TabsContent>
+
           <TabsContent value="conn-logs">
             <ConnectionLogsView />
           </TabsContent>
