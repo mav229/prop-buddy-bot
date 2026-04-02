@@ -94,7 +94,7 @@ export const cartEmailTemplates: CartEmailTemplate[] = [
   {
     id: "chill-vibes",
     name: "Chill Vibes",
-    subject: (name) => `Just checking in, ${name} 🙌`,
+    subject: (name) => `${name}, your journey to big payouts starts here 🙌`,
     buildHtml: (firstName, cartItems) => cleanCard(`
       <h2 style="color: #111827; font-size: 24px; font-weight: 700; margin: 0 0 20px;">Quick check-in, ${firstName}.</h2>
       <p style="color: #4b5563; font-size: 15px; line-height: 1.8; margin: 0 0 12px;">
