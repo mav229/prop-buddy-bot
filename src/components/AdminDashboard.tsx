@@ -24,6 +24,7 @@ import { AutoRepliesManager } from "./AutoRepliesManager";
 import { ConnectionLogsView } from "./ConnectionLogsView";
 import { AbandonedCheckouts } from "./AbandonedCheckouts";
 import { EmailLogsView } from "./EmailLogsView";
+import { ReferenceLinksManager } from "./ReferenceLinksManager";
 import { Link } from "react-router-dom";
 
 const navItems = [
