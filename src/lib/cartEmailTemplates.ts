@@ -79,7 +79,7 @@ export const cartEmailTemplates: CartEmailTemplate[] = [
   {
     id: "hype-king",
     name: "Hype King",
-    subject: (name) => `${name}, you've got great taste 🔥`,
+    subject: (name) => `${name}, start your trading journey now 🔥`,
     buildHtml: (firstName, cartItems) => cleanCard(`
       <h2 style="color: #111827; font-size: 24px; font-weight: 700; margin: 0 0 20px;">Real talk, ${firstName}.</h2>
       <p style="color: #4b5563; font-size: 15px; line-height: 1.8; margin: 0 0 12px;">
