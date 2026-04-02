@@ -296,6 +296,45 @@ export type Database = {
         }
         Relationships: []
       }
+      email_logs: {
+        Row: {
+          clicked_at: string | null
+          created_at: string
+          id: string
+          opened_at: string | null
+          recipient_email: string
+          recipient_name: string | null
+          sent_at: string
+          source: string
+          template_id: string
+          tracking_id: string
+        }
+        Insert: {
+          clicked_at?: string | null
+          created_at?: string
+          id?: string
+          opened_at?: string | null
+          recipient_email: string
+          recipient_name?: string | null
+          sent_at?: string
+          source?: string
+          template_id: string
+          tracking_id?: string
+        }
+        Update: {
+          clicked_at?: string | null
+          created_at?: string
+          id?: string
+          opened_at?: string | null
+          recipient_email?: string
+          recipient_name?: string | null
+          sent_at?: string
+          source?: string
+          template_id?: string
+          tracking_id?: string
+        }
+        Relationships: []
+      }
       knowledge_base: {
         Row: {
           category: string
