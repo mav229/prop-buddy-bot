@@ -335,6 +335,66 @@ export type Database = {
         }
         Relationships: []
       }
+      extension_tone_presets: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          prompt_instructions: string
+          sort_order: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          prompt_instructions: string
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          prompt_instructions?: string
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      extension_usage_logs: {
+        Row: {
+          created_at: string
+          id: string
+          input_length: number
+          response_time_ms: number | null
+          success: boolean | null
+          tone_selected: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          input_length: number
+          response_time_ms?: number | null
+          success?: boolean | null
+          tone_selected?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          input_length?: number
+          response_time_ms?: number | null
+          success?: boolean | null
+          tone_selected?: string | null
+        }
+        Relationships: []
+      }
       knowledge_base: {
         Row: {
           category: string
