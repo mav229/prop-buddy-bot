@@ -1,4 +1,4 @@
-// PropScholar Fix — Content Script for Discord
+// PropScholar Fix — Content Script for Discord v3.0
 (function () {
   "use strict";
 
@@ -11,11 +11,82 @@
     '[data-slate-editor="true"][role="textbox"]',
   ].join(", ");
   const TOOLBAR_LABEL_MATCHERS = ["emoji", "gif", "sticker", "gift", "apps"];
+  const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+  const PINNED_STORAGE_KEY = "ps-fix-pinned";
 
   let editorIdCounter = 0;
   let debounceTimer;
   let floatingLayoutTimer;
 
+  // ── Cache helpers ──
+  function hashText(str) {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) {
+      h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+    }
+    return "ps-cache-" + h;
+  }
+
+  function getCached(text) {
+    try {
+      const key = hashText(text);
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      const entry = JSON.parse(raw);
+      if (Date.now() - entry.ts > CACHE_TTL) {
+        localStorage.removeItem(key);
+        return null;
+      }
+      return { ...entry, cached: true };
+    } catch { return null; }
+  }
+
+  function setCache(text, data) {
+    try {
+      const key = hashText(text);
+      localStorage.setItem(key, JSON.stringify({ ...data, ts: Date.now() }));
+    } catch {}
+  }
+
+  // ── Pinned responses ──
+  function getPinned() {
+    try {
+      return JSON.parse(localStorage.getItem(PINNED_STORAGE_KEY) || "[]");
+    } catch { return []; }
+  }
+
+  function savePinned(list) {
+    try {
+      localStorage.setItem(PINNED_STORAGE_KEY, JSON.stringify(list.slice(0, 20)));
+    } catch {}
+  }
+
+  function togglePin(text) {
+    const pinned = getPinned();
+    const idx = pinned.indexOf(text);
+    if (idx >= 0) {
+      pinned.splice(idx, 1);
+    } else {
+      pinned.unshift(text);
+    }
+    savePinned(pinned);
+    return idx < 0; // true if newly pinned
+  }
+
+  function isPinned(text) {
+    return getPinned().includes(text);
+  }
+
+  // ── Context capture ──
+  function captureContext() {
+    try {
+      const msgs = document.querySelectorAll('[class*="messageContent"]');
+      const recent = Array.from(msgs).slice(-3).map(el => (el.textContent || "").trim()).filter(Boolean);
+      return recent.length > 0 ? recent : undefined;
+    } catch { return undefined; }
+  }
+
+  // ── Utility ──
   function isVisible(el) {
     if (!el || !(el instanceof HTMLElement)) return false;
     const rect = el.getBoundingClientRect();
@@ -45,10 +116,10 @@
       .trim();
   }
 
-  async function requestReplyOptions(text) {
+  async function requestReplyOptions(text, context) {
     if (typeof chrome !== "undefined" && chrome.runtime?.id) {
       return await new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage({ type: "ps-fix-generate", text }, (response) => {
+        chrome.runtime.sendMessage({ type: "ps-fix-generate", text, context }, (response) => {
           const runtimeError = chrome.runtime.lastError;
           if (runtimeError) {
             reject(new Error(runtimeError.message || "Extension message failed"));
@@ -77,7 +148,7 @@
         apikey: ANON_KEY,
         Authorization: `Bearer ${ANON_KEY}`,
       },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, context }),
     });
 
     if (!response.ok) {
@@ -162,14 +233,24 @@
   }
 
   function showCopiedToast(popup, optionEl) {
-    // Brief green flash on the clicked option
     optionEl.classList.add("ps-fix-option-copied");
     window.setTimeout(() => {
       removeExistingPopup();
     }, 300);
   }
 
-  function createPopup(options, editor, anchorButton) {
+  // Log which tone was selected
+  function logToneSelected(label) {
+    try {
+      if (typeof chrome !== "undefined" && chrome.runtime?.id) {
+        chrome.runtime.sendMessage({ type: "ps-fix-log-tone", tone: label });
+      }
+    } catch {}
+  }
+
+  const TONE_COLORS = ["#5865f2", "#3ba55d", "#faa61a", "#eb459e", "#ed4245"];
+
+  function createPopup(options, labels, editor, anchorButton, isCached) {
     removeExistingPopup();
 
     const popup = document.createElement("div");
@@ -178,11 +259,9 @@
 
     const header = document.createElement("div");
     header.className = "ps-fix-popup-header";
-    header.innerHTML = '<span class="ps-fix-popup-icon">&#9670;</span><div><div class="ps-fix-popup-title">Pick a reply</div><div class="ps-fix-popup-subtitle">Click to copy</div></div>';
+    const cachedBadge = isCached ? '<span class="ps-cached-badge">cached</span>' : '';
+    header.innerHTML = `<span class="ps-fix-popup-icon">&#9670;</span><div><div class="ps-fix-popup-title">Pick a reply ${cachedBadge}</div><div class="ps-fix-popup-subtitle">Click to copy</div></div>`;
     popup.appendChild(header);
-
-    const labels = ["Short", "Detailed", "Empathetic"];
-    const labelColors = ["#5865f2", "#3ba55d", "#faa61a"];
 
     options.forEach((text, idx) => {
       const row = document.createElement("div");
@@ -194,7 +273,7 @@
       const labelSpan = document.createElement("span");
       labelSpan.className = "ps-fix-option-label";
       labelSpan.textContent = labels[idx] || "";
-      labelSpan.style.color = labelColors[idx] || "#949ba4";
+      labelSpan.style.color = TONE_COLORS[idx % TONE_COLORS.length];
 
       const textSpan = document.createElement("span");
       textSpan.className = "ps-fix-option-text";
@@ -204,6 +283,21 @@
       textWrap.appendChild(labelSpan);
       textWrap.appendChild(textSpan);
       row.appendChild(textWrap);
+
+      // Pin button
+      const pinBtn = document.createElement("button");
+      pinBtn.className = "ps-pin-btn" + (isPinned(text) ? " ps-pinned" : "");
+      pinBtn.innerHTML = "&#9733;";
+      pinBtn.title = isPinned(text) ? "Unpin" : "Pin for reuse";
+      pinBtn.addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); });
+      pinBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const nowPinned = togglePin(text);
+        pinBtn.classList.toggle("ps-pinned", nowPinned);
+        pinBtn.title = nowPinned ? "Unpin" : "Pin for reuse";
+      });
+      row.appendChild(pinBtn);
 
       row.addEventListener("mousedown", (event) => {
         event.preventDefault();
@@ -216,6 +310,7 @@
 
         const copied = await copyText(text);
         if (copied) {
+          logToneSelected(labels[idx] || "unknown");
           showCopiedToast(popup, row);
           flashFixButton(anchorButton, "success");
         } else {
@@ -225,6 +320,56 @@
 
       popup.appendChild(row);
     });
+
+    // Show pinned section if any
+    const pinned = getPinned();
+    if (pinned.length > 0) {
+      const divider = document.createElement("div");
+      divider.className = "ps-fix-divider";
+      divider.innerHTML = '<span>Pinned</span>';
+      popup.appendChild(divider);
+
+      pinned.slice(0, 5).forEach((text) => {
+        const row = document.createElement("div");
+        row.className = "ps-fix-option ps-fix-pinned-item";
+
+        const textWrap = document.createElement("div");
+        textWrap.className = "ps-fix-option-main";
+
+        const textSpan = document.createElement("span");
+        textSpan.className = "ps-fix-option-text";
+        textSpan.textContent = text;
+        textSpan.title = text;
+        textWrap.appendChild(textSpan);
+        row.appendChild(textWrap);
+
+        const unpinBtn = document.createElement("button");
+        unpinBtn.className = "ps-pin-btn ps-pinned";
+        unpinBtn.innerHTML = "&#9733;";
+        unpinBtn.title = "Unpin";
+        unpinBtn.addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); });
+        unpinBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          togglePin(text);
+          row.remove();
+        });
+        row.appendChild(unpinBtn);
+
+        row.addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); });
+        row.addEventListener("click", async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const copied = await copyText(text);
+          if (copied) {
+            showCopiedToast(popup, row);
+            flashFixButton(anchorButton, "success");
+          }
+        });
+
+        popup.appendChild(row);
+      });
+    }
 
     popup.addEventListener("mousedown", (event) => {
       event.preventDefault();
@@ -311,7 +456,7 @@
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         width: 380px;
-        max-height: 400px;
+        max-height: 440px;
         overflow-y: auto;
         padding: 4px;
         border-radius: 10px;
@@ -334,11 +479,25 @@
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
       }
       .ps-fix-popup-subtitle {
         color: #949ba4;
         font-size: 11px;
         margin-top: 1px;
+      }
+
+      .ps-cached-badge {
+        font-size: 9px;
+        background: #2b2d31;
+        color: #949ba4;
+        padding: 1px 6px;
+        border-radius: 4px;
+        text-transform: lowercase;
+        font-weight: 500;
+        letter-spacing: 0;
       }
 
       .ps-fix-option {
@@ -347,11 +506,12 @@
         padding: 10px 12px;
         border-radius: 6px;
         cursor: pointer;
-        transition: background 0.12s, outline 0.12s;
+        transition: background 0.12s;
         color: #dbdee1;
         font-size: 13px;
         line-height: 1.5;
         user-select: none;
+        gap: 6px;
       }
       .ps-fix-option:hover {
         background: #2b2d31;
@@ -381,6 +541,53 @@
         word-break: break-word;
         white-space: pre-wrap;
       }
+
+      .ps-pin-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #4e5058;
+        font-size: 14px;
+        padding: 2px 4px;
+        border-radius: 4px;
+        flex-shrink: 0;
+        margin-top: 2px;
+        transition: color 0.15s;
+      }
+      .ps-pin-btn:hover {
+        color: #faa61a;
+      }
+      .ps-pin-btn.ps-pinned {
+        color: #faa61a;
+      }
+
+      .ps-fix-divider {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px 4px;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #949ba4;
+      }
+      .ps-fix-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #2b2d31;
+      }
+
+      .ps-fix-pinned-item {
+        opacity: 0.85;
+      }
+
+      .ps-fix-error-msg {
+        padding: 10px 12px;
+        color: #ed4245;
+        font-size: 12px;
+      }
     `;
 
     document.head.appendChild(style);
@@ -392,7 +599,7 @@
     button.className = "ps-fix-btn";
     button.dataset.editorId = getEditorId(editor);
     button.setAttribute("aria-label", "PropScholar Fix");
-    button.innerHTML = '<span class="ps-fix-icon">&#10022;</span><span class="ps-fix-tooltip">PropScholar Fix</span>';
+    button.innerHTML = '<span class="ps-fix-icon">&#10022;</span><span class="ps-fix-tooltip">PropScholar Fix (Ctrl+Shift+F)</span>';
 
     button.addEventListener("mousedown", (event) => {
       event.preventDefault();
@@ -401,35 +608,49 @@
     button.addEventListener("click", async (event) => {
       event.preventDefault();
       event.stopPropagation();
-
-      if (document.querySelector(".ps-fix-popup")) {
-        closeFloatingUI();
-        return;
-      }
-
-      const text = getEditorText(editor);
-      if (!text) return;
-
-      button.classList.add("ps-loading");
-
-      try {
-        const data = await requestReplyOptions(text);
-
-        if (data.options && Array.isArray(data.options)) {
-          createPopup(data.options, editor, button);
-        } else if (data.fixed) {
-          const copied = await copyText(data.fixed);
-          flashFixButton(button, copied ? "success" : "error");
-        }
-      } catch (error) {
-        console.error("[PropScholar Fix]", error);
-        flashFixButton(button, "error");
-      } finally {
-        button.classList.remove("ps-loading");
-      }
+      await triggerFix(editor, button);
     });
 
     return button;
+  }
+
+  async function triggerFix(editor, button) {
+    if (document.querySelector(".ps-fix-popup")) {
+      closeFloatingUI();
+      return;
+    }
+
+    const text = getEditorText(editor);
+    if (!text) return;
+
+    // Check cache first
+    const cached = getCached(text);
+    if (cached) {
+      const labels = cached.labels || ["Short", "Detailed", "Empathetic"];
+      createPopup(cached.options, labels, editor, button, true);
+      return;
+    }
+
+    button.classList.add("ps-loading");
+
+    try {
+      const context = captureContext();
+      const data = await requestReplyOptions(text, context);
+
+      if (data.options && Array.isArray(data.options)) {
+        const labels = data.labels || ["Short", "Detailed", "Empathetic"];
+        setCache(text, { options: data.options, labels });
+        createPopup(data.options, labels, editor, button, false);
+      } else if (data.fixed) {
+        const copied = await copyText(data.fixed);
+        flashFixButton(button, copied ? "success" : "error");
+      }
+    } catch (error) {
+      console.error("[PropScholar Fix]", error);
+      flashFixButton(button, "error");
+    } finally {
+      button.classList.remove("ps-loading");
+    }
   }
 
   function isDiscordMessageEditor(editor) {
@@ -489,6 +710,21 @@
     scheduleFloatingLayout();
   }
 
+  // ── Keyboard shortcut ──
+  document.addEventListener("keydown", (e) => {
+    if (e.ctrlKey && e.shiftKey && e.key === "F") {
+      e.preventDefault();
+      const editors = Array.from(document.querySelectorAll(EDITOR_SELECTOR)).filter(isVisible).filter(isDiscordMessageEditor);
+      if (editors.length === 0) return;
+      const editor = editors[editors.length - 1]; // focused/last editor
+      const editorId = getEditorId(editor);
+      const button = document.querySelector(`.ps-fix-btn[data-editor-id="${editorId}"]`);
+      if (button) {
+        triggerFix(editor, button);
+      }
+    }
+  }, true);
+
   const observer = new MutationObserver(() => {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(injectButtons, 150);
@@ -496,7 +732,7 @@
 
   function init() {
     injectStyles();
-    console.log("[PropScholar Fix] v2.0 — click to copy");
+    console.log("[PropScholar Fix] v3.0 — production");
     injectButtons();
     observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-label", "class"] });
     document.addEventListener("focusin", injectButtons, true);

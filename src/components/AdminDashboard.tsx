@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { 
   Bot, LogOut, MessageSquare, Database, ArrowLeft, Brain, Users, 
-  LayoutDashboard, Settings, Code, Palette, Ticket, Menu, Mail, Headphones, Monitor, Coins, Zap, PlugZap, ShoppingCart, Send, LinkIcon
+  LayoutDashboard, Settings, Code, Palette, Ticket, Menu, Mail, Headphones, Monitor, Coins, Zap, PlugZap, ShoppingCart, Send, LinkIcon, Puzzle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -25,6 +25,8 @@ import { ConnectionLogsView } from "./ConnectionLogsView";
 import { AbandonedCheckouts } from "./AbandonedCheckouts";
 import { EmailLogsView } from "./EmailLogsView";
 import { ReferenceLinksManager } from "./ReferenceLinksManager";
+import { ExtensionAnalytics } from "./ExtensionAnalytics";
+import { TonePresetsManager } from "./TonePresetsManager";
 import { Link } from "react-router-dom";
 
 const navItems = [
@@ -44,6 +46,7 @@ const navItems = [
   { value: "abandoned", label: "Cart", icon: ShoppingCart },
   { value: "email-logs", label: "Email Logs", icon: Send },
   { value: "ref-links", label: "Ref Links", icon: LinkIcon },
+  { value: "extension", label: "Extension", icon: Puzzle },
   { value: "conn-logs", label: "Logs", icon: PlugZap },
   { value: "discord", label: "Settings", icon: Settings },
 ];
@@ -285,6 +288,13 @@ export const AdminDashboard = () => {
 
           <TabsContent value="ref-links">
             <ReferenceLinksManager />
+          </TabsContent>
+
+          <TabsContent value="extension">
+            <div className="space-y-8">
+              <ExtensionAnalytics />
+              <TonePresetsManager />
+            </div>
           </TabsContent>
 
           <TabsContent value="conn-logs">

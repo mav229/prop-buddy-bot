@@ -27,6 +27,12 @@
       font-weight: 700;
       color: #fff;
     }
+    .version {
+      font-size: 10px;
+      color: #5865f2;
+      font-weight: 600;
+      margin-top: 2px;
+    }
     .desc {
       font-size: 12.5px;
       color: #949ba4;
@@ -64,6 +70,34 @@
       color: #b5bac1;
       line-height: 1.4;
     }
+    .features {
+      margin-top: 12px;
+      background: #2b2d31;
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .feature-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #949ba4;
+      margin-bottom: 8px;
+    }
+    .feature-item {
+      font-size: 11.5px;
+      color: #b5bac1;
+      line-height: 1.5;
+      padding: 2px 0;
+    }
+    .kbd {
+      background: #383a40;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-family: monospace;
+      color: #dbdee1;
+    }
     .footer {
       margin-top: 14px;
       text-align: center;
@@ -76,9 +110,12 @@
 <body>
   <div class="header">
     <img src="icon.png" alt="PropScholar">
-    <h1>PropScholar Fix</h1>
+    <div>
+      <h1>PropScholar Fix</h1>
+      <div class="version">v3.0</div>
+    </div>
   </div>
-  <p class="desc">AI-powered message polisher for Discord moderators. Clean up your replies before sending.</p>
+  <p class="desc">AI-powered message polisher for Discord moderators with smart context awareness.</p>
   <div class="steps">
     <div class="step">
       <span class="step-num">1</span>
@@ -86,12 +123,19 @@
     </div>
     <div class="step">
       <span class="step-num">2</span>
-      <span class="step-text">Click the <b>✦</b> button in the toolbar</span>
+      <span class="step-text">Click <b>&#10022;</b> or press <span class="kbd">Ctrl+Shift+F</span></span>
     </div>
     <div class="step">
       <span class="step-num">3</span>
-      <span class="step-text">Pick 1 of 3 AI replies, expand with <b>•••</b> if needed, then send.</span>
+      <span class="step-text">Pick a variation — it's copied instantly</span>
     </div>
+  </div>
+  <div class="features">
+    <div class="feature-title">What's new</div>
+    <div class="feature-item">&#x2022; Smart caching — instant repeats</div>
+    <div class="feature-item">&#x2022; Pin favourite responses</div>
+    <div class="feature-item">&#x2022; Conversation context awareness</div>
+    <div class="feature-item">&#x2022; Admin-configurable tone presets</div>
   </div>
   <p class="footer">propscholar.com</p>
 </body>
