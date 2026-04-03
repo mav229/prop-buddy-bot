@@ -11,8 +11,10 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startTime = Date.now();
+
   try {
-    const { text } = await req.json();
+    const { text, context } = await req.json();
     if (!text || typeof text !== "string" || text.trim().length === 0) {
       return new Response(JSON.stringify({ error: "No text provided" }), {
         status: 400,
@@ -23,18 +25,21 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    // Fetch reference links from DB
     let linksContext = "";
     let knowledgeContext = "";
+    let tonePresets: { name: string; prompt_instructions: string }[] = [];
+    let sb: ReturnType<typeof createClient> | null = null;
+
     try {
       const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
       const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
       if (supabaseUrl && supabaseKey) {
-        const sb = createClient(supabaseUrl, supabaseKey);
-        
-        const [linksRes, kbRes] = await Promise.all([
+        sb = createClient(supabaseUrl, supabaseKey);
+
+        const [linksRes, kbRes, tonesRes] = await Promise.all([
           sb.from("mod_reference_links").select("title, url, keywords").eq("is_active", true),
           sb.from("knowledge_base").select("title, content, category"),
+          sb.from("extension_tone_presets").select("name, prompt_instructions").eq("is_active", true).order("sort_order"),
         ]);
 
         if (linksRes.data && linksRes.data.length > 0) {
@@ -44,9 +49,33 @@ serve(async (req) => {
         if (kbRes.data && kbRes.data.length > 0) {
           knowledgeContext = `\n\nYou also have access to PropScholar's knowledge base. Use this context to make responses more accurate and informed. Do NOT dump this info — only use what's relevant to the message being polished.\n\nKnowledge Base:\n${kbRes.data.map((k: any) => `[${k.category}] ${k.title}: ${k.content.substring(0, 300)}`).join("\n\n")}`;
         }
+
+        if (tonesRes.data && tonesRes.data.length > 0) {
+          tonePresets = tonesRes.data;
+        }
       }
     } catch (e) {
       console.error("Failed to fetch context data:", e);
+    }
+
+    // Fallback to defaults if no presets configured
+    if (tonePresets.length === 0) {
+      tonePresets = [
+        { name: "Short", prompt_instructions: "Rewrite concisely — minimal words, direct, professional." },
+        { name: "Detailed", prompt_instructions: "Rewrite with more context and detail — thorough, professional." },
+        { name: "Empathetic", prompt_instructions: "Rewrite with warmth and empathy — understanding, supportive." },
+      ];
+    }
+
+    const toneCount = tonePresets.length;
+    const toneInstructions = tonePresets
+      .map((t, i) => `${i + 1}. ${t.name.toUpperCase()} — ${t.prompt_instructions}`)
+      .join("\n");
+
+    // Build conversation context if provided
+    let conversationContext = "";
+    if (context && Array.isArray(context) && context.length > 0) {
+      conversationContext = `\n\nConversation context (previous messages in the channel for reference):\n${context.slice(-3).map((m: string) => `> ${m}`).join("\n")}\n\nThe moderator is responding to the above conversation.`;
     }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -62,10 +91,8 @@ serve(async (req) => {
             role: "system",
             content: `You are a message polisher for PropScholar Discord moderators.
 
-Your job: Take a casually typed Discord message and rewrite it into THREE variations with different tones:
-1. SHORT — concise, minimal, to-the-point version
-2. DETAILED — expanded, thorough, professional version with more context
-3. EMPATHETIC — warm, understanding, supportive version
+Your job: Take a casually typed Discord message and rewrite it into ${toneCount} variations with different tones:
+${toneInstructions}
 
 Rules:
 - Keep proper grammar and punctuation
@@ -77,10 +104,10 @@ Rules:
 - For very short inputs (1-4 words), keep the SHORT version very close to the original
 - Do NOT expand short greetings or slang into a different phrase
 - If the intent is ambiguous, preserve the original wording and only make minimal polish changes
-- If a relevant reference link is available, include it naturally at the end${linksContext}${knowledgeContext}
+- If a relevant reference link is available, include it naturally at the end${linksContext}${knowledgeContext}${conversationContext}
 
 Return EXACTLY this JSON format, nothing else:
-{"options":["short version","detailed version","empathetic version"]}`,
+{"options":[${tonePresets.map(() => '"variation"').join(",")}],"labels":[${tonePresets.map((t) => `"${t.name}"`).join(",")}]}`,
           },
           { role: "user", content: text },
         ],
@@ -90,6 +117,15 @@ Return EXACTLY this JSON format, nothing else:
     if (!response.ok) {
       const errText = await response.text();
       console.error("AI error:", response.status, errText);
+
+      // Log failure
+      if (sb) {
+        sb.from("extension_usage_logs").insert({
+          input_length: text.length,
+          response_time_ms: Date.now() - startTime,
+          success: false,
+        }).then(() => {});
+      }
 
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limited, try again in a moment" }), {
@@ -109,20 +145,33 @@ Return EXACTLY this JSON format, nothing else:
     if (!raw) throw new Error("No response from AI");
 
     let options: string[];
+    let labels: string[];
     try {
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error("No JSON found");
       const parsed = JSON.parse(jsonMatch[0]);
       options = parsed.options;
+      labels = parsed.labels || tonePresets.map((t) => t.name);
       if (!Array.isArray(options) || options.length < 1) throw new Error("Invalid options");
     } catch {
       options = [raw];
+      labels = tonePresets.map((t) => t.name);
     }
 
-    while (options.length < 3) options.push(options[0]);
-    options = options.slice(0, 3);
+    while (options.length < toneCount) options.push(options[0]);
+    options = options.slice(0, toneCount);
+    labels = labels.slice(0, toneCount);
 
-    return new Response(JSON.stringify({ options }), {
+    // Log success
+    if (sb) {
+      sb.from("extension_usage_logs").insert({
+        input_length: text.length,
+        response_time_ms: Date.now() - startTime,
+        success: true,
+      }).then(() => {});
+    }
+
+    return new Response(JSON.stringify({ options, labels }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
