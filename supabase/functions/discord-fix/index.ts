@@ -82,6 +82,7 @@ serve(async (req) => {
     // Fallback defaults — only 2 tones (no Short)
     if (tonePresets.length === 0) {
       tonePresets = [
+        { name: "Short", prompt_instructions: "Rewrite as short and direct — minimal words, clear point, no fluff." },
         { name: "Balanced", prompt_instructions: "Rewrite with clarity and professionalism — clean, well-structured, moderate length." },
         { name: "Detailed", prompt_instructions: "Rewrite with more context and detail — thorough, professional, comprehensive." },
       ];
