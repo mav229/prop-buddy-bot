@@ -291,11 +291,12 @@ export const AdminDashboard = () => {
             <ReferenceLinksManager />
           </TabsContent>
 
+          <TabsContent value="tones">
+            <TonePresetsManager />
+          </TabsContent>
+
           <TabsContent value="extension">
-            <div className="space-y-8">
-              <ExtensionAnalytics />
-              <TonePresetsManager />
-            </div>
+            <ExtensionAnalytics />
           </TabsContent>
 
           <TabsContent value="conn-logs">
