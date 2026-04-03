@@ -263,7 +263,8 @@
     header.innerHTML = `<span class="ps-fix-popup-icon">&#9670;</span><div><div class="ps-fix-popup-title">Pick a reply ${cachedBadge}</div><div class="ps-fix-popup-subtitle">Click to copy</div></div>`;
     popup.appendChild(header);
 
-    options.forEach((text, idx) => {
+    options.forEach((rawText, idx) => {
+      const text = typeof rawText === "object" && rawText !== null ? (rawText.message || rawText.text || rawText.variation || JSON.stringify(rawText)) : String(rawText);
       const row = document.createElement("div");
       row.className = "ps-fix-option";
 

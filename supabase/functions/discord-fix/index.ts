@@ -104,7 +104,8 @@ ${toneInstructions}
 
 Rules: Keep grammar/punctuation. Keep Discord formatting. No emojis unless original has them. Professional, no fluff. Don't change links/@mentions/#channels/code. Match original language. For very short inputs keep close to original. If ambiguous, preserve original wording.${linksContext}${knowledgeContext}${conversationContext}
 
-Return JSON only: {"options":[${tonePresets.map(() => '"variation"').join(",")}],"labels":[${tonePresets.map((t) => `"${t.name}"`).join(",")}]}`;
+Return JSON only: {"options":[${tonePresets.map(() => '"string text here"').join(",")}],"labels":[${tonePresets.map((t) => `"${t.name}"`).join(",")}]}
+Each option MUST be a plain string, NOT an object.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
