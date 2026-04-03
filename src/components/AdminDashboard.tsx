@@ -46,6 +46,7 @@ const navItems = [
   { value: "abandoned", label: "Cart", icon: ShoppingCart },
   { value: "email-logs", label: "Email Logs", icon: Send },
   { value: "ref-links", label: "Ref Links", icon: LinkIcon },
+  { value: "tones", label: "Tones", icon: Puzzle },
   { value: "extension", label: "Extension", icon: Puzzle },
   { value: "conn-logs", label: "Logs", icon: PlugZap },
   { value: "discord", label: "Settings", icon: Settings },
@@ -290,11 +291,12 @@ export const AdminDashboard = () => {
             <ReferenceLinksManager />
           </TabsContent>
 
+          <TabsContent value="tones">
+            <TonePresetsManager />
+          </TabsContent>
+
           <TabsContent value="extension">
-            <div className="space-y-8">
-              <ExtensionAnalytics />
-              <TonePresetsManager />
-            </div>
+            <ExtensionAnalytics />
           </TabsContent>
 
           <TabsContent value="conn-logs">
