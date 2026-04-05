@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
+  const supabase = createClient(supabaseUrl, serviceRoleKey!);
   const dbName = Deno.env.get("MONGO_DB_NAME") || "test";
 
   let client: MongoClient | null = null;
