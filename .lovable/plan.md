@@ -1,95 +1,86 @@
 
 
-# PropScholar Fix Extension — Production Upgrade Plan
+# Hall of Fame Page — Full Code with API Key
 
-## Current State
-- Extension v2.0 with click-to-copy workflow, 3 AI variations (Short/Detailed/Empathetic)
-- Backend: `discord-fix` edge function using Gemini 2.5 Flash Lite, fetching `mod_reference_links` + `knowledge_base` for context
-- MutationObserver + 2s interval for button injection
-- No caching, no usage analytics, no response history
+This is a simple code fix — you just need to replace `YOUR_API_KEY` with the actual anon key in your fetch URL.
 
-## Upgrades
+Here's the full corrected code:
 
-### 1. Response Caching (reduce API calls + latency)
-- Cache AI responses in `localStorage` keyed by a hash of the input text
-- TTL of 30 minutes — same message typed again returns instant results
-- Show a subtle "cached" indicator so mods know it's a previous result
-- Reduces credit consumption significantly for repeated/similar messages
+```tsx
+import Link from "next/link";
+import Image from "next/image";
 
-### 2. Usage Analytics Table
-- New `extension_usage_logs` table: `id`, `created_at`, `input_text_length`, `response_time_ms`, `template_used` (which of the 3 was copied), `success`
-- Log each generation from the edge function (no PII, just metrics)
-- Add a simple analytics card in the Admin Dashboard showing daily usage, avg response time, most-picked tone
+async function getCertificates() {
+  try {
+    const res = await fetch(
+      "https://pcvkjrxrlibhyyxldbzs.supabase.co/rest/v1/hall_of_fame_certificates?select=*&apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjdmtqcnhybGliaHl5eGxkYnpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4ODE5MTgsImV4cCI6MjA4MjQ1NzkxOH0.Ix2sX2oONBKUY-V7PVAnY7FO33TXvm_imZvMuCk849E",
+      {
+        next: { revalidate: 3600 },
+      }
+    );
+    if (!res.ok) {
+      console.error("Fetch failed:", res.status);
+      return [];
+    }
+    return await res.json();
+  } catch (error) {
+    console.error("Fetch error:", error);
+    return [];
+  }
+}
 
-### 3. Conversation Context Mode
-- Allow mods to select/highlight previous messages in the channel before clicking Fix
-- Send the context (last 2-3 messages) along with the mod's draft so the AI generates contextually aware replies
-- This dramatically improves response quality for ongoing conversations
+export default async function FundedTradersPage() {
+  const certificates = (await getCertificates()) || [];
 
-### 4. Custom Tone Presets (Admin-Configurable)
-- New `extension_tone_presets` table: `id`, `name`, `description`, `prompt_instructions`, `is_active`, `sort_order`
-- Admin can define custom tones beyond Short/Detailed/Empathetic (e.g., "Formal Warning", "Welcome Message", "Technical Support")
-- Edge function fetches active presets and dynamically builds the system prompt
-- Extension UI adapts to show however many tones are configured (up to 5)
+  return (
+    <main className="min-h-screen bg-black text-white p-6">
+      <div className="text-center mb-12">
+        <h1 className="text-5xl font-bold mb-3">Scholar Traders</h1>
+        <p className="text-white/50">Funded Traders at PropScholar</p>
+      </div>
 
-### 5. Favorite/Pin Responses
-- Store frequently used polished messages locally so mods can reuse them
-- Add a small "pin" icon on each response; pinned items accessible from the popup menu
-- Great for repetitive mod tasks (welcome messages, rule reminders)
+      {certificates.length === 0 && (
+        <p className="text-center text-white/40">Certificates loading...</p>
+      )}
 
-### 6. Keyboard Shortcut
-- Register `Ctrl+Shift+F` (configurable) as a shortcut to trigger Fix without clicking
-- Much faster workflow for power users
-
-### 7. Rate Limit Protection + Offline Graceful Degradation
-- Show remaining daily quota in the popup header
-- Queue requests if rate-limited instead of failing silently
-- Show a clear "Rate limited — try in X seconds" message
-
-### 8. Manifest v3 + Version Bump
-- Update manifest version to 2.0.0
-- Update popup.html instructions to reflect new features
-
-## Technical Details
-
-### New Database Tables
-```sql
--- Usage analytics
-CREATE TABLE extension_usage_logs (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  created_at timestamptz NOT NULL DEFAULT now(),
-  input_length int NOT NULL,
-  response_time_ms int,
-  tone_selected text, -- 'short', 'detailed', 'empathetic', or custom
-  success boolean DEFAULT true
-);
-
--- Custom tone presets
-CREATE TABLE extension_tone_presets (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name text NOT NULL,
-  description text,
-  prompt_instructions text NOT NULL,
-  is_active boolean DEFAULT true,
-  sort_order int DEFAULT 0,
-  created_at timestamptz DEFAULT now()
-);
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {certificates.map((cert: any) => {
+          const isAchievement = cert.certificate_type === "achievement";
+          return (
+            <Link
+              key={cert.account_number}
+              href={`/funded-traders/${cert.account_number}`}
+              className="border border-white/10 rounded-xl overflow-hidden hover:border-yellow-400/40 transition group"
+            >
+              <div className="relative aspect-[2000/1414]">
+                <Image
+                  src={cert.certificate_url}
+                  alt={`${cert.user_name} PropScholar ${
+                    isAchievement ? "Funded Trader" : "Phase 1"
+                  } Certificate`}
+                  fill
+                  className="object-cover group-hover:scale-105 transition"
+                />
+              </div>
+              <div className="p-3">
+                <h2 className="font-semibold text-sm">{cert.user_name}</h2>
+                <p className="text-xs text-white/40">
+                  {isAchievement ? "Funded Trader" : "Phase 1"}
+                </p>
+                <p className="text-[10px] text-white/25 mt-1 line-clamp-2">
+                  {isAchievement
+                    ? `${cert.user_name} earned a funded account after successfully completing the PropScholar evaluation.`
+                    : `${cert.user_name} completed Phase 1 of the PropScholar evaluation.`}
+                </p>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </main>
+  );
+}
 ```
 
-### Files Changed
-- `extension/content.js` — caching layer, keyboard shortcut, pin system, dynamic tones
-- `extension/background.js` — keyboard shortcut registration, analytics logging
-- `extension/manifest.json` — version bump, commands registration
-- `extension/popup.html` — updated instructions, pinned responses view
-- `supabase/functions/discord-fix/index.ts` — dynamic tone presets, usage logging, context mode
-- `src/components/AdminDashboard.tsx` — new "Extension" analytics tab
-- New: `src/components/ExtensionAnalytics.tsx` — usage charts
-- New: `src/components/TonePresetsManager.tsx` — CRUD for custom tones
-
-### Execution Order
-1. Create database tables + RLS policies
-2. Update edge function (dynamic tones, analytics, context)
-3. Update extension files (caching, shortcuts, pins, dynamic UI)
-4. Add admin dashboard components
-5. Rebuild extension zip
+The only change is line 7 — `YOUR_API_KEY` replaced with the actual anon key. This is a publishable key so it's safe to use in client/server code. The `revalidate: 3600` means Next.js will re-fetch every hour, matching your cron sync schedule.
 
