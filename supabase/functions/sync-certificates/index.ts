@@ -34,8 +34,18 @@ Deno.serve(async (req) => {
   const authHeader = req.headers.get("Authorization") || "";
   const apikeyHeader = req.headers.get("apikey") || "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || "";
   const token = authHeader.replace("Bearer ", "");
+  
+  console.log("Auth debug:", { 
+    hasAuthHeader: !!authHeader, 
+    hasApikey: !!apikeyHeader,
+    hasServiceKey: !!serviceRoleKey,
+    hasAnonKey: !!anonKey,
+    tokenLen: token.length,
+    apikeyLen: apikeyHeader.length,
+  });
+  
   const isAuthorized = 
     (token && (token === serviceRoleKey || token === anonKey)) ||
     (apikeyHeader && (apikeyHeader === serviceRoleKey || apikeyHeader === anonKey));
