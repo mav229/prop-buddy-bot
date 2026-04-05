@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.discord-role-cron]
 verify_jwt = false
+
+[functions.sync-certificates]
+verify_jwt = false
