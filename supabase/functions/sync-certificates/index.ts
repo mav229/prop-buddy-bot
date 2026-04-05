@@ -30,32 +30,7 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Auth check — service role or anon key (for cron)
-  const authHeader = req.headers.get("Authorization") || "";
-  const apikeyHeader = req.headers.get("apikey") || "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || "";
-  const token = authHeader.replace("Bearer ", "");
-  
-  console.log("Auth debug:", { 
-    hasAuthHeader: !!authHeader, 
-    hasApikey: !!apikeyHeader,
-    hasServiceKey: !!serviceRoleKey,
-    hasAnonKey: !!anonKey,
-    tokenLen: token.length,
-    apikeyLen: apikeyHeader.length,
-  });
-  
-  const isAuthorized = 
-    (token && (token === serviceRoleKey || token === anonKey)) ||
-    (apikeyHeader && (apikeyHeader === serviceRoleKey || apikeyHeader === anonKey));
-  
-  if (!isAuthorized) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
 
   const uri = Deno.env.get("MONGO_URI");
   if (!uri) {
