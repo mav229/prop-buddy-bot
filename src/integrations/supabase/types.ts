@@ -395,6 +395,57 @@ export type Database = {
         }
         Relationships: []
       }
+      hall_of_fame_certificates: {
+        Row: {
+          account_number: string | null
+          certificate_type: string
+          certificate_url: string
+          created_at: string
+          id: string
+          mongo_collection: string
+          mongo_source_id: string
+          payout_amount: number | null
+          phase: string | null
+          slug: string
+          status: string | null
+          synced_at: string
+          updated_at: string
+          user_name: string
+        }
+        Insert: {
+          account_number?: string | null
+          certificate_type?: string
+          certificate_url: string
+          created_at?: string
+          id?: string
+          mongo_collection?: string
+          mongo_source_id: string
+          payout_amount?: number | null
+          phase?: string | null
+          slug: string
+          status?: string | null
+          synced_at?: string
+          updated_at?: string
+          user_name: string
+        }
+        Update: {
+          account_number?: string | null
+          certificate_type?: string
+          certificate_url?: string
+          created_at?: string
+          id?: string
+          mongo_collection?: string
+          mongo_source_id?: string
+          payout_amount?: number | null
+          phase?: string | null
+          slug?: string
+          status?: string | null
+          synced_at?: string
+          updated_at?: string
+          user_name?: string
+        }
+        Relationships: []
+      }
       knowledge_base: {
         Row: {
           category: string
