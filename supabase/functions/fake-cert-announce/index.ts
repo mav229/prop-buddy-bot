@@ -233,6 +233,82 @@ async function saveConfig(supabase: any, config: any) {
     .upsert({ id: "fake_cert_config", config }, { onConflict: "id" });
 }
 
+// --- Order auto config ---
+async function getOrderAutoConfig(supabase: any) {
+  const { data } = await supabase
+    .from("widget_config")
+    .select("config")
+    .eq("id", "fake_order_config")
+    .maybeSingle();
+  return data?.config || {};
+}
+
+async function saveOrderAutoConfig(supabase: any, config: any) {
+  await supabase
+    .from("widget_config")
+    .upsert({ id: "fake_order_config", config }, { onConflict: "id" });
+}
+
+// --- Build a fake order ---
+function buildFakeOrder() {
+  const customerName = randomIndianOrderName();
+  const accountSize = randomAccountSize();
+  const paymentMethod = randomOrderPayment();
+  return { customer_name: customerName, account_size: accountSize, payment_method: paymentMethod };
+}
+
+// --- Send order embed to Discord ---
+async function sendOrderEmbed(
+  botToken: string,
+  channelIds: string[],
+  order: { customer_name: string; account_size: string; payment_method: string }
+) {
+  const embed = {
+    title: "🛒 New Order Confirmed!",
+    description: `**${order.customer_name}** has purchased a PropScholar account!`,
+    color: 0x3b82f6,
+    fields: [
+      { name: "Customer", value: order.customer_name, inline: true },
+      { name: "Account Size", value: order.account_size, inline: true },
+      { name: "Payment Method", value: order.payment_method, inline: true },
+    ],
+    footer: { text: "PropScholar Orders" },
+    timestamp: new Date().toISOString(),
+  };
+
+  for (const channelId of channelIds) {
+    try {
+      const res = await fetch(
+        `https://discord.com/api/v10/channels/${channelId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bot ${botToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ embeds: [embed] }),
+        }
+      );
+      if (!res.ok) {
+        console.error(`Discord order failed ch:${channelId} (${res.status}):`, await res.text());
+      } else {
+        console.log(`Fake order sent for ${order.customer_name} to ${channelId}`);
+      }
+    } catch (e) {
+      console.error(`Discord order error ch:${channelId}:`, e);
+    }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+}
+
+// --- Random delay in ms: completely random between min/max minutes with non-round seconds ---
+function randomDelayMs(minMinutes: number, maxMinutes: number): number {
+  const minMs = minMinutes * 60 * 1000;
+  const maxMs = maxMinutes * 60 * 1000;
+  // Truly random, not rounded
+  return minMs + Math.floor(Math.random() * (maxMs - minMs)) + Math.floor(Math.random() * 59000) + Math.floor(Math.random() * 999);
+}
+
 // --- Discord embed sender ---
 async function sendDiscordEmbed(
   botToken: string,
