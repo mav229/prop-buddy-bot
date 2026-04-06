@@ -211,7 +211,9 @@ export const DiscordOrders = () => {
                         {formatDate(order.createdAt)}
                       </TableCell>
                       <TableCell className="text-right">
-                        {pushedIds.has(order._id) ? (
+                        {order.status.toLowerCase() === "pending" ? (
+                          <span className="text-xs text-muted-foreground">Pending</span>
+                        ) : pushedIds.has(order._id) ? (
                           <Check className="w-4 h-4 text-emerald-400 ml-auto" />
                         ) : (
                           <Button
