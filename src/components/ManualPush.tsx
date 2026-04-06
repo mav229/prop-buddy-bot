@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Send, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -12,7 +13,8 @@ export const ManualPush = () => {
   const [name, setName] = useState("");
   const [certType, setCertType] = useState<"completion" | "achievement">("completion");
   const [sending, setSending] = useState(false);
-  const [lastSent, setLastSent] = useState<{ name: string; type: string; url: string } | null>(null);
+  const [saveToHall, setSaveToHall] = useState(true);
+  const [lastSent, setLastSent] = useState<{ name: string; type: string; url: string; saved?: boolean } | null>(null);
 
   const handleSend = async () => {
     if (!name.trim()) {
@@ -23,13 +25,13 @@ export const ManualPush = () => {
     setSending(true);
     try {
       const { data, error } = await supabase.functions.invoke("fake-cert-announce", {
-        body: { action: "manual_push", name: name.trim(), cert_type: certType },
+        body: { action: "manual_push", name: name.trim(), cert_type: certType, save_to_hall: saveToHall },
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      setLastSent({ name: data.sent, type: data.type, url: data.certificate_url });
+      setLastSent({ name: data.sent, type: data.type, url: data.certificate_url, saved: data.saved_to_hall });
       toast.success(`Certificate sent for ${data.sent}`);
       setName("");
     } catch (err: any) {
@@ -79,6 +81,13 @@ export const ManualPush = () => {
                 </Label>
               </div>
             </RadioGroup>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox id="save-hall" checked={saveToHall} onCheckedChange={(v) => setSaveToHall(!!v)} />
+            <Label htmlFor="save-hall" className="cursor-pointer font-normal text-sm">
+              Also save to Hall of Fame (certificates page)
+            </Label>
           </div>
 
           <Button onClick={handleSend} disabled={sending || !name.trim()} className="w-full">

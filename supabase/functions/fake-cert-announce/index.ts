@@ -348,11 +348,34 @@ Deno.serve(async (req) => {
 
     await sendDiscordEmbed(botToken, channelIds, cert);
 
+    // Also save to hall_of_fame_certificates if requested
+    let saved_to_hall = false;
+    if (body.save_to_hall !== false) {
+      const slug = userName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      const { error: insertErr } = await supabase.from("hall_of_fame_certificates").insert({
+        user_name: userName,
+        account_number: accountNumber,
+        certificate_url: certificateUrl,
+        certificate_type: certType,
+        phase: cert.phase,
+        slug: `${slug}-${Date.now()}`,
+        mongo_source_id: `manual-${Date.now()}`,
+        mongo_collection: "manual_push",
+        status: "active",
+      });
+      if (insertErr) {
+        console.error("Failed to save to hall_of_fame:", insertErr);
+      } else {
+        saved_to_hall = true;
+      }
+    }
+
     return new Response(JSON.stringify({
       success: true,
       sent: cert.user_name,
       type: cert.certificate_type,
       certificate_url: cert.certificate_url,
+      saved_to_hall,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
