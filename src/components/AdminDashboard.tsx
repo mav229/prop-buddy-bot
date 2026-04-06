@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { 
   Bot, LogOut, MessageSquare, Database, ArrowLeft, Brain, Users, 
-  LayoutDashboard, Settings, Code, Palette, Ticket, Menu, Mail, Headphones, Monitor, Coins, Zap, PlugZap, ShoppingCart, Send, LinkIcon, Puzzle
+  LayoutDashboard, Settings, Code, Palette, Ticket, Menu, Mail, Headphones, Monitor, Coins, Zap, PlugZap, ShoppingCart, Send, LinkIcon, Puzzle, Crosshair
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -27,6 +27,7 @@ import { EmailLogsView } from "./EmailLogsView";
 import { ReferenceLinksManager } from "./ReferenceLinksManager";
 import { ExtensionAnalytics } from "./ExtensionAnalytics";
 import { TonePresetsManager } from "./TonePresetsManager";
+import { ManualPush } from "./ManualPush";
 import { Link } from "react-router-dom";
 
 const navItems = [
@@ -47,6 +48,7 @@ const navItems = [
   { value: "email-logs", label: "Email Logs", icon: Send },
   { value: "ref-links", label: "Ref Links", icon: LinkIcon },
   { value: "tones", label: "Tones", icon: Puzzle },
+  { value: "manual-push", label: "Manual Push", icon: Crosshair },
   { value: "extension", label: "Extension", icon: Puzzle },
   { value: "conn-logs", label: "Logs", icon: PlugZap },
   { value: "discord", label: "Settings", icon: Settings },
@@ -297,6 +299,10 @@ export const AdminDashboard = () => {
 
           <TabsContent value="extension">
             <ExtensionAnalytics />
+          </TabsContent>
+
+          <TabsContent value="manual-push">
+            <ManualPush />
           </TabsContent>
 
           <TabsContent value="conn-logs">

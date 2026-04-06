@@ -317,6 +317,45 @@ Deno.serve(async (req) => {
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
+  // Manual push: admin specifies name and cert type
+  if (body?.action === "manual_push") {
+    const userName = body.name?.trim();
+    const certType = body.cert_type === "achievement" ? "achievement" : "completion";
+    if (!userName) {
+      return new Response(JSON.stringify({ error: "Name is required" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const channelIds = await getChannelIds(supabase);
+    if (!botToken || channelIds.length === 0) {
+      return new Response(JSON.stringify({ error: "Bot or channels not configured" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const accountNumber = randomAccountNumber();
+    const publicId = await ensureTemplateUploaded(certType);
+    const certificateUrl = generateCertificateUrl(publicId, userName, certType);
+
+    const cert = {
+      user_name: userName,
+      account_number: accountNumber,
+      certificate_url: certificateUrl,
+      certificate_type: certType,
+      phase: certType === "achievement" ? "funded" : "phase-1",
+    };
+
+    await sendDiscordEmbed(botToken, channelIds, cert);
+
+    return new Response(JSON.stringify({
+      success: true,
+      sent: cert.user_name,
+      type: cert.certificate_type,
+      certificate_url: cert.certificate_url,
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
+
   // --- CRON tick: check if it's time to post ---
   const cfg = await getConfig(supabase);
 
