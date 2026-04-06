@@ -285,16 +285,23 @@ Deno.serve(async (req) => {
       const sampleDoc = await db.collection("credentialkeys").findOne({});
       const sampleWithCert = await db.collection("credentialkeys").findOne({ completionCertificateUrl: { $exists: true } });
       // Check alternate field names
-      const withCertUrl2 = await db.collection("credentialkeys").countDocuments({ certificate_url: { $exists: true, $ne: null } });
-      const withCertUrl3 = await db.collection("credentialkeys").countDocuments({ certificateUrl: { $exists: true, $ne: null } });
+      const withNestedCert = await db.collection("credentialkeys").countDocuments({ "credentials.completionCertificateUrl": { $exists: true, $ne: null } });
+      const sampleNested = await db.collection("credentialkeys").findOne({ "credentials.completionCertificateUrl": { $exists: true } });
+      const nestedCreds = sampleNested?.credentials?.filter((c: any) => c.completionCertificateUrl) || [];
 
       return new Response(JSON.stringify({
         totalCredKeys,
         withCompletionCertificateUrl: withCertUrl,
-        withCertificateUrl: withCertUrl3,
-        withCertificate_url: withCertUrl2,
+        withNestedCompletionCertificateUrl: withNestedCert,
         sampleDocFields: sampleDoc ? Object.keys(sampleDoc) : [],
         sampleWithCertFields: sampleWithCert ? Object.keys(sampleWithCert) : [],
+        sampleNestedCert: nestedCreds.length > 0 ? Object.keys(nestedCreds[0]) : [],
+        sampleNestedCertData: nestedCreds.length > 0 ? {
+          phase: nestedCreds[0].phase,
+          loginId: nestedCreds[0].loginId,
+          credentialStatus: nestedCreds[0].credentialStatus,
+          hasUrl: !!nestedCreds[0].completionCertificateUrl,
+        } : null,
       }, null, 2), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     } finally {
       if (mc) try { await mc.close(); } catch (_) {}
