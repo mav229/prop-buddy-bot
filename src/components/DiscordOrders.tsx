@@ -4,19 +4,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, RefreshCw, ChevronLeft, ChevronRight, ShoppingBag } from "lucide-react";
+import { Loader2, RefreshCw, ChevronLeft, ChevronRight, ShoppingBag, Send } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Order {
   _id: string;
+  orderNumber: string;
   customerName: string;
-  accountSize: string;
+  email: string;
+  phone: string;
   paymentMethod: string;
   status: string;
   amount: number;
-  email: string;
+  currency: string;
+  itemCount: number;
+  discordUserId: string | null;
+  discordUsername: string | null;
   createdAt: string;
-  _rawKeys?: string[];
   _raw?: Record<string, unknown>;
 }
 
@@ -26,6 +30,7 @@ export const DiscordOrders = () => {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [showRaw, setShowRaw] = useState(false);
+  const [pushingId, setPushingId] = useState<string | null>(null);
   const pageSize = 25;
 
   const fetchOrders = async () => {
@@ -53,15 +58,21 @@ export const DiscordOrders = () => {
   const formatDate = (d: string) => {
     if (!d) return "—";
     try {
-      return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
     } catch {
       return d;
     }
   };
 
+  const formatAmount = (amount: number, currency: string) => {
+    if (!amount) return "—";
+    if (currency === "USD") return `$${amount.toLocaleString()}`;
+    return `${amount.toLocaleString()} ${currency}`;
+  };
+
   const getStatusBadge = (status: string) => {
     const s = status.toLowerCase();
-    if (s === "completed" || s === "paid" || s === "fulfilled") {
+    if (s === "confirmed" || s === "completed" || s === "paid" || s === "fulfilled") {
       return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">{status}</Badge>;
     }
     if (s === "pending" || s === "processing") {
@@ -71,6 +82,27 @@ export const DiscordOrders = () => {
       return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">{status}</Badge>;
     }
     return <Badge variant="outline">{status || "—"}</Badge>;
+  };
+
+  const handleManualPush = async (order: Order) => {
+    setPushingId(order._id);
+    try {
+      const { data, error } = await supabase.functions.invoke("fake-cert-announce", {
+        body: {
+          action: "manual_push",
+          name: order.customerName || "Unknown",
+          cert_type: "achievement",
+          save_to_hall: true,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "Pushed!", description: `Certificate sent for ${order.customerName}` });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to push", variant: "destructive" });
+    } finally {
+      setPushingId(null);
+    }
   };
 
   return (
@@ -91,7 +123,6 @@ export const DiscordOrders = () => {
         </div>
       </div>
 
-      {/* Schema debug view */}
       {showRaw && orders.length > 0 && (
         <Card className="border-yellow-500/30 bg-yellow-500/5">
           <CardHeader className="pb-2">
@@ -117,48 +148,79 @@ export const DiscordOrders = () => {
               <p>No orders found</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Account Size</TableHead>
-                  <TableHead>Payment Method</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {orders.map((order) => (
-                  <TableRow key={order._id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium text-foreground">{order.customerName || "—"}</p>
-                        {order.email && (
-                          <p className="text-xs text-muted-foreground">{order.email}</p>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-medium">{order.accountSize || "—"}</span>
-                    </TableCell>
-                    <TableCell>{order.paymentMethod || "—"}</TableCell>
-                    <TableCell>{getStatusBadge(order.status)}</TableCell>
-                    <TableCell>
-                      {order.amount ? `$${Number(order.amount).toFixed(2)}` : "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {formatDate(order.createdAt)}
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Order #</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Discord</TableHead>
+                    <TableHead>Payment</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Items</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {orders.map((order) => (
+                    <TableRow key={order._id}>
+                      <TableCell className="font-mono text-xs">{order.orderNumber || "—"}</TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium text-foreground">{order.customerName || "—"}</p>
+                          {order.email && (
+                            <p className="text-xs text-muted-foreground">{order.email}</p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {order.discordUserId ? (
+                          <div>
+                            <p className="text-xs font-medium text-foreground">{order.discordUsername || "—"}</p>
+                            <p className="text-[10px] text-muted-foreground font-mono">{order.discordUserId}</p>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm capitalize">{order.paymentMethod || "—"}</span>
+                      </TableCell>
+                      <TableCell>{getStatusBadge(order.status)}</TableCell>
+                      <TableCell className="font-medium">
+                        {formatAmount(order.amount, order.currency)}
+                      </TableCell>
+                      <TableCell className="text-center">{order.itemCount}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs">
+                        {formatDate(order.createdAt)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleManualPush(order)}
+                          disabled={pushingId === order._id}
+                          className="h-7 px-2 text-xs"
+                          title="Push certificate to Discord"
+                        >
+                          {pushingId === order._id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Send className="w-3.5 h-3.5" />
+                          )}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
