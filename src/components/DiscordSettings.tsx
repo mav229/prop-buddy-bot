@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bot, ExternalLink, Loader2, CheckCircle, AlertCircle, DatabaseBackup, Bell, Save } from "lucide-react";
+import { Bot, ExternalLink, Loader2, CheckCircle, AlertCircle, DatabaseBackup, Bell, Save, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,8 +12,10 @@ export const DiscordSettings = () => {
   const [loading, setLoading] = useState(false);
   const [registering, setRegistering] = useState(false);
   const [backingUp, setBackingUp] = useState(false);
-  const [certChannelId, setCertChannelId] = useState("");
+  const [certChannelId1, setCertChannelId1] = useState("");
+  const [certChannelId2, setCertChannelId2] = useState("");
   const [savingChannel, setSavingChannel] = useState(false);
+  const [triggering, setTriggering] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -23,8 +25,10 @@ export const DiscordSettings = () => {
         .select("config")
         .eq("id", "cert_announce_channel")
         .maybeSingle();
-      if (data?.config && typeof data.config === "object" && "channel_id" in (data.config as Record<string, unknown>)) {
-        setCertChannelId((data.config as Record<string, string>).channel_id || "");
+      if (data?.config && typeof data.config === "object") {
+        const cfg = data.config as Record<string, string>;
+        setCertChannelId1(cfg.channel_id_1 || cfg.channel_id || "");
+        setCertChannelId2(cfg.channel_id_2 || "");
       }
     };
     loadChannelConfig();
@@ -37,14 +41,35 @@ export const DiscordSettings = () => {
         .from("widget_config")
         .upsert({
           id: "cert_announce_channel",
-          config: { channel_id: certChannelId.trim() },
+          config: { channel_id_1: certChannelId1.trim(), channel_id_2: certChannelId2.trim() },
         }, { onConflict: "id" });
       if (error) throw error;
-      toast({ title: "Saved", description: "Certificate announcement channel updated." });
+      toast({ title: "Saved", description: "Certificate announcement channels updated." });
     } catch (e) {
       toast({ variant: "destructive", title: "Error", description: e instanceof Error ? e.message : "Failed to save" });
     } finally {
       setSavingChannel(false);
+    }
+  };
+
+  const handleManualTrigger = async () => {
+    setTriggering(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-certificates`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "manual_announce" }),
+      });
+      const data = await res.json();
+      if (!res.ok || data?.error) throw new Error(data?.error || "Failed");
+      toast({
+        title: "Announcement sent!",
+        description: `Sent ${data.announced || 0} certificate(s) to Discord.`,
+      });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Error", description: e instanceof Error ? e.message : "Failed to trigger" });
+    } finally {
+      setTriggering(false);
     }
   };
 
@@ -224,31 +249,48 @@ export const DiscordSettings = () => {
       {/* Certificate Announcements Channel */}
       <div className="glass-panel p-6 space-y-4">
         <div className="flex items-center gap-3">
-          <Bell className="w-5 h-5 text-amber-400" />
+          <Bell className="w-5 h-5 text-primary" />
           <div>
             <h3 className="font-display font-semibold">Certificate Announcements</h3>
             <p className="text-sm text-muted-foreground">
-              New Phase 1 &amp; Phase 2 certificates will be announced with a rich embed in this Discord channel.
+              New certificates will be announced with a rich embed in these Discord channels.
             </p>
           </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="cert-channel">Discord Channel ID</Label>
-          <div className="flex items-center gap-2">
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="cert-channel-1">Channel 1 (Primary)</Label>
             <Input
-              id="cert-channel"
-              value={certChannelId}
-              onChange={(e) => setCertChannelId(e.target.value)}
+              id="cert-channel-1"
+              value={certChannelId1}
+              onChange={(e) => setCertChannelId1(e.target.value)}
               placeholder="e.g., 1234567890123456789"
               className="font-mono text-sm"
             />
-            <Button onClick={handleSaveChannel} disabled={savingChannel} variant="secondary" size="sm">
-              {savingChannel ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            </Button>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cert-channel-2">Channel 2 (Optional)</Label>
+            <Input
+              id="cert-channel-2"
+              value={certChannelId2}
+              onChange={(e) => setCertChannelId2(e.target.value)}
+              placeholder="e.g., 9876543210987654321"
+              className="font-mono text-sm"
+            />
           </div>
           <p className="text-xs text-muted-foreground">
             Right-click a Discord channel → Copy Channel ID (enable Developer Mode in Discord settings first).
           </p>
+          <div className="flex items-center gap-2 pt-2">
+            <Button onClick={handleSaveChannel} disabled={savingChannel} variant="secondary" size="sm">
+              {savingChannel ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Save className="w-4 h-4 mr-1.5" />}
+              Save Channels
+            </Button>
+            <Button onClick={handleManualTrigger} disabled={triggering} variant="premium" size="sm">
+              {triggering ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Send className="w-4 h-4 mr-1.5" />}
+              Send Latest Certificates
+            </Button>
+          </div>
         </div>
       </div>
 

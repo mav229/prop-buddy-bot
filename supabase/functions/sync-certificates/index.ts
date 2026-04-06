@@ -25,10 +25,29 @@ function makeSlug(
   return `${type}-${base}-${suffix}`;
 }
 
-// --- Discord embed sender ---
-async function sendDiscordEmbed(
+// --- Helper to get channel IDs from config ---
+async function getChannelIds(supabase: any): Promise<string[]> {
+  try {
+    const { data } = await supabase
+      .from("widget_config")
+      .select("config")
+      .eq("id", "cert_announce_channel")
+      .maybeSingle();
+    if (!data?.config || typeof data.config !== "object") return [];
+    const cfg = data.config as Record<string, string>;
+    const ids: string[] = [];
+    if (cfg.channel_id_1 || cfg.channel_id) ids.push(cfg.channel_id_1 || cfg.channel_id);
+    if (cfg.channel_id_2) ids.push(cfg.channel_id_2);
+    return ids.filter(Boolean);
+  } catch (_) {
+    return [];
+  }
+}
+
+// --- Discord embed sender (sends to all configured channels) ---
+async function announceToDiscord(
   botToken: string,
-  channelId: string,
+  channelIds: string[],
   cert: {
     user_name: string;
     account_number: string | null;
@@ -39,10 +58,8 @@ async function sendDiscordEmbed(
   }
 ) {
   const isAchievement = cert.certificate_type === "achievement";
-  const color = isAchievement ? 0xfbbf24 : 0x22c55e; // gold vs green
-  const title = isAchievement
-    ? `🏆 New Funded Trader!`
-    : `✅ Phase 1 Completed!`;
+  const color = isAchievement ? 0xfbbf24 : 0x22c55e;
+  const title = isAchievement ? `🏆 New Funded Trader!` : `✅ Phase 1 Completed!`;
   const description = isAchievement
     ? `**${cert.user_name}** has earned a funded account after successfully completing the PropScholar evaluation!`
     : `**${cert.user_name}** has successfully completed Phase 1 of the PropScholar evaluation!`;
@@ -66,26 +83,29 @@ async function sendDiscordEmbed(
     timestamp: new Date().toISOString(),
   };
 
-  try {
-    const res = await fetch(
-      `https://discord.com/api/v10/channels/${channelId}/messages`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bot ${botToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ embeds: [embed] }),
+  for (const channelId of channelIds) {
+    try {
+      const res = await fetch(
+        `https://discord.com/api/v10/channels/${channelId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bot ${botToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ embeds: [embed] }),
+        }
+      );
+      if (!res.ok) {
+        const text = await res.text();
+        console.error(`Discord embed failed ch:${channelId} (${res.status}):`, text);
+      } else {
+        console.log(`Announced ${cert.user_name} to channel ${channelId}`);
       }
-    );
-    if (!res.ok) {
-      const text = await res.text();
-      console.error(`Discord embed failed (${res.status}):`, text);
-    } else {
-      console.log(`Discord announcement sent for ${cert.user_name}`);
+    } catch (e) {
+      console.error(`Discord embed error ch:${channelId}:`, e);
     }
-  } catch (e) {
-    console.error("Discord embed error:", e);
+    await new Promise((r) => setTimeout(r, 500));
   }
 }
 
@@ -194,33 +214,35 @@ Deno.serve(async (req) => {
   // Test mode: send a sample embed without syncing
   let body: any = {};
   try { body = await req.json(); } catch (_) {}
-  if (body?.action === "test_announce") {
+  // Special actions
+  if (body?.action === "manual_announce") {
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN") || "";
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     const sb = createClient(supabaseUrl, serviceRoleKey);
-    const { data: channelConfig } = await sb
-      .from("widget_config")
-      .select("config")
-      .eq("id", "cert_announce_channel")
-      .maybeSingle();
-    const channelId = (channelConfig?.config as Record<string, string>)?.channel_id || "";
-    if (!botToken || !channelId) {
-      return new Response(JSON.stringify({ error: "Bot token or channel not configured" }), {
+    const channelIds = await getChannelIds(sb);
+    if (!botToken || channelIds.length === 0) {
+      return new Response(JSON.stringify({ error: "Bot token or channels not configured" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const testType = body.type || "completion"; // "completion" or "achievement"
-    const sampleCert = {
-      user_name: body.user_name || "Sample Trader",
-      account_number: body.account_number || "123456",
-      certificate_url: body.certificate_url || "https://res.cloudinary.com/dghzfr1qj/image/upload/v1733745493/certificates/sample.png",
-      certificate_type: testType,
-      phase: testType === "achievement" ? "funded" : "phase-1",
-      slug: "test-sample",
-    };
-    await sendDiscordEmbed(botToken, channelId, sampleCert);
-    return new Response(JSON.stringify({ success: true, message: `Test ${testType} announcement sent` }), {
+    // Get the latest 3 certificates
+    const { data: latestCerts } = await sb
+      .from("hall_of_fame_certificates")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(3);
+    if (!latestCerts || latestCerts.length === 0) {
+      return new Response(JSON.stringify({ error: "No certificates found" }), {
+        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    let announced = 0;
+    for (const cert of latestCerts) {
+      await announceToDiscord(botToken, channelIds, cert);
+      announced++;
+    }
+    return new Response(JSON.stringify({ success: true, announced }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
@@ -265,17 +287,7 @@ Deno.serve(async (req) => {
 
     // 2. Load Discord config
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN") || "";
-    let announceChannelId = "";
-    try {
-      const { data: channelConfig } = await supabase
-        .from("widget_config")
-        .select("config")
-        .eq("id", "cert_announce_channel")
-        .maybeSingle();
-      if (channelConfig?.config && typeof channelConfig.config === "object") {
-        announceChannelId = (channelConfig.config as Record<string, string>).channel_id || "";
-      }
-    } catch (_) {}
+    const channelIds = await getChannelIds(supabase);
 
     // 3. Upsert into Supabase
     let inserted = 0;
@@ -338,12 +350,10 @@ Deno.serve(async (req) => {
     }
 
     // 4. Send Discord announcements for NEW certs only
-    if (botToken && announceChannelId && newCerts.length > 0) {
-      console.log(`Sending ${newCerts.length} Discord announcements to channel ${announceChannelId}`);
+    if (botToken && channelIds.length > 0 && newCerts.length > 0) {
+      console.log(`Sending ${newCerts.length} certs to ${channelIds.length} channels`);
       for (const cert of newCerts) {
-        await sendDiscordEmbed(botToken, announceChannelId, cert);
-        // Small delay to avoid rate limits
-        await new Promise((r) => setTimeout(r, 1000));
+        await announceToDiscord(botToken, channelIds, cert);
       }
     }
 
