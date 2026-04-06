@@ -247,6 +247,41 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Debug: check what's in credentialkeys
+  if (body?.action === "debug") {
+    const uri = Deno.env.get("MONGO_URI");
+    if (!uri) return new Response(JSON.stringify({ error: "no MONGO_URI" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const dbName = Deno.env.get("MONGO_DB_NAME") || "test";
+    let mc: MongoClient | null = null;
+    try {
+      mc = new MongoClient(uri);
+      await mc.connect();
+      const db = mc.db(dbName);
+
+      // Count total credentialkeys
+      const totalCredKeys = await db.collection("credentialkeys").countDocuments();
+      // Count with completionCertificateUrl
+      const withCertUrl = await db.collection("credentialkeys").countDocuments({ completionCertificateUrl: { $exists: true, $ne: null } });
+      // Sample one doc to see field names
+      const sampleDoc = await db.collection("credentialkeys").findOne({});
+      const sampleWithCert = await db.collection("credentialkeys").findOne({ completionCertificateUrl: { $exists: true } });
+      // Check alternate field names
+      const withCertUrl2 = await db.collection("credentialkeys").countDocuments({ certificate_url: { $exists: true, $ne: null } });
+      const withCertUrl3 = await db.collection("credentialkeys").countDocuments({ certificateUrl: { $exists: true, $ne: null } });
+
+      return new Response(JSON.stringify({
+        totalCredKeys,
+        withCompletionCertificateUrl: withCertUrl,
+        withCertificateUrl: withCertUrl3,
+        withCertificate_url: withCertUrl2,
+        sampleDocFields: sampleDoc ? Object.keys(sampleDoc) : [],
+        sampleWithCertFields: sampleWithCert ? Object.keys(sampleWithCert) : [],
+      }, null, 2), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    } finally {
+      if (mc) try { await mc.close(); } catch (_) {}
+    }
+  }
+
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
   const uri = Deno.env.get("MONGO_URI");
   if (!uri) {
