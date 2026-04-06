@@ -584,7 +584,7 @@ Deno.serve(async (req) => {
   if (body?.action === "order_auto_toggle") {
     const cfg = await getOrderAutoConfig(supabase);
     const newEnabled = body.enabled !== undefined ? !!body.enabled : !cfg.enabled;
-    const nextMs = randomDelayMs(7, 45);
+    const nextMs = randomDelayMs(5, 120);
     const nextRun = new Date(Date.now() + nextMs).toISOString();
     await saveOrderAutoConfig(supabase, { ...cfg, enabled: newEnabled, next_run: newEnabled ? nextRun : cfg.next_run });
     return new Response(JSON.stringify({ success: true, enabled: newEnabled, next_run: newEnabled ? nextRun : cfg.next_run }), {
@@ -611,7 +611,7 @@ Deno.serve(async (req) => {
     const fakeOrder = buildFakeOrder();
     await sendOrderEmbed(botToken, channelIds, fakeOrder);
     const cfg = await getOrderAutoConfig(supabase);
-    const nextMs = randomDelayMs(7, 45);
+    const nextMs = randomDelayMs(5, 120);
     const nextRun = new Date(Date.now() + nextMs).toISOString();
     await saveOrderAutoConfig(supabase, { ...cfg, last_run: new Date().toISOString(), next_run: nextRun });
     return new Response(JSON.stringify({
@@ -653,7 +653,7 @@ Deno.serve(async (req) => {
     if (now >= nextRun && botToken && channelIds.length > 0) {
       const fakeOrder = buildFakeOrder();
       await sendOrderEmbed(botToken, channelIds, fakeOrder);
-      const nextMs = randomDelayMs(7, 45);
+      const nextMs = randomDelayMs(5, 120);
       const nextRunTime = new Date(now + nextMs).toISOString();
       await saveOrderAutoConfig(supabase, { ...orderCfg, enabled: true, last_run: new Date().toISOString(), next_run: nextRunTime });
       results.order = { sent: fakeOrder.customer_name, account_size: fakeOrder.account_size, next_run: nextRunTime };
