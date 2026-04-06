@@ -317,6 +317,74 @@ Deno.serve(async (req) => {
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
+  // Order confirmation: send purchase notification to Discord
+  if (body?.action === "order_confirm") {
+    const customerName = body.customer_name?.trim();
+    const accountSize = body.account_size?.trim() || "N/A";
+    const paymentMethod = body.payment_method?.trim() || "N/A";
+    const orderNumber = body.order_number?.trim() || "";
+    const amount = body.amount || 0;
+    const discordUsername = body.discord_username || null;
+
+    if (!customerName) {
+      return new Response(JSON.stringify({ error: "Customer name is required" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const channelIds = await getChannelIds(supabase);
+    if (!botToken || channelIds.length === 0) {
+      return new Response(JSON.stringify({ error: "Bot or channels not configured" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const embed = {
+      title: "🛒 New Order Confirmed!",
+      description: `**${customerName}** has purchased a PropScholar account!`,
+      color: 0x3b82f6, // blue
+      fields: [
+        { name: "Customer", value: customerName, inline: true },
+        { name: "Account Size", value: accountSize, inline: true },
+        { name: "Payment Method", value: paymentMethod, inline: true },
+        ...(amount ? [{ name: "Amount", value: `$${Number(amount).toLocaleString()}`, inline: true }] : []),
+        ...(orderNumber ? [{ name: "Order #", value: orderNumber, inline: true }] : []),
+        ...(discordUsername ? [{ name: "Discord", value: discordUsername, inline: true }] : []),
+      ],
+      footer: { text: "PropScholar Orders" },
+      timestamp: new Date().toISOString(),
+    };
+
+    for (const channelId of channelIds) {
+      try {
+        const res = await fetch(
+          `https://discord.com/api/v10/channels/${channelId}/messages`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bot ${botToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ embeds: [embed] }),
+          }
+        );
+        if (!res.ok) {
+          console.error(`Discord order confirm failed ch:${channelId} (${res.status}):`, await res.text());
+        }
+      } catch (e) {
+        console.error(`Discord order confirm error ch:${channelId}:`, e);
+      }
+      await new Promise((r) => setTimeout(r, 500));
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      sent: customerName,
+      account_size: accountSize,
+      payment_method: paymentMethod,
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
+
   // Manual push: admin specifies name and cert type
   if (body?.action === "manual_push") {
     const userName = body.name?.trim();

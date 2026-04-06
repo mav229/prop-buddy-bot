@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, RefreshCw, ChevronLeft, ChevronRight, ShoppingBag, Send } from "lucide-react";
+import { Loader2, RefreshCw, ChevronLeft, ChevronRight, ShoppingBag, Send, Check } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Order {
@@ -31,6 +31,7 @@ export const DiscordOrders = () => {
   const [page, setPage] = useState(0);
   const [showRaw, setShowRaw] = useState(false);
   const [pushingId, setPushingId] = useState<string | null>(null);
+  const [pushedIds, setPushedIds] = useState<Set<string>>(new Set());
   const pageSize = 25;
 
   const fetchOrders = async () => {
@@ -84,20 +85,33 @@ export const DiscordOrders = () => {
     return <Badge variant="outline">{status || "—"}</Badge>;
   };
 
-  const handleManualPush = async (order: Order) => {
+  // Extract account size from raw order items
+  const getAccountSize = (order: Order): string => {
+    const raw = order._raw as any;
+    if (!raw?.items?.length) return "—";
+    // Show total price of first item as account indicator, or item count
+    const firstItem = raw.items[0];
+    return `$${firstItem.price || 0}`;
+  };
+
+  const handlePushToDiscord = async (order: Order) => {
     setPushingId(order._id);
     try {
       const { data, error } = await supabase.functions.invoke("fake-cert-announce", {
         body: {
-          action: "manual_push",
-          name: order.customerName || "Unknown",
-          cert_type: "achievement",
-          save_to_hall: true,
+          action: "order_confirm",
+          customer_name: order.customerName,
+          account_size: getAccountSize(order),
+          payment_method: order.paymentMethod,
+          order_number: order.orderNumber,
+          amount: order.amount,
+          discord_username: order.discordUsername,
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toast({ title: "Pushed!", description: `Certificate sent for ${order.customerName}` });
+      setPushedIds(prev => new Set(prev).add(order._id));
+      toast({ title: "Sent!", description: `Order confirmation pushed to Discord for ${order.customerName}` });
     } catch (err: any) {
       toast({ title: "Error", description: err.message || "Failed to push", variant: "destructive" });
     } finally {
@@ -155,12 +169,12 @@ export const DiscordOrders = () => {
                     <TableHead>Order #</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Discord</TableHead>
+                    <TableHead>Account Size</TableHead>
                     <TableHead>Payment</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Amount</TableHead>
-                    <TableHead>Items</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="text-right">Push</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -185,6 +199,7 @@ export const DiscordOrders = () => {
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </TableCell>
+                      <TableCell className="font-medium">{getAccountSize(order)}</TableCell>
                       <TableCell>
                         <span className="text-sm capitalize">{order.paymentMethod || "—"}</span>
                       </TableCell>
@@ -192,25 +207,28 @@ export const DiscordOrders = () => {
                       <TableCell className="font-medium">
                         {formatAmount(order.amount, order.currency)}
                       </TableCell>
-                      <TableCell className="text-center">{order.itemCount}</TableCell>
                       <TableCell className="text-muted-foreground text-xs">
                         {formatDate(order.createdAt)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleManualPush(order)}
-                          disabled={pushingId === order._id}
-                          className="h-7 px-2 text-xs"
-                          title="Push certificate to Discord"
-                        >
-                          {pushingId === order._id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Send className="w-3.5 h-3.5" />
-                          )}
-                        </Button>
+                        {pushedIds.has(order._id) ? (
+                          <Check className="w-4 h-4 text-emerald-400 ml-auto" />
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handlePushToDiscord(order)}
+                            disabled={pushingId === order._id}
+                            className="h-7 px-2 text-xs"
+                            title="Push order to Discord"
+                          >
+                            {pushingId === order._id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Send className="w-3.5 h-3.5" />
+                            )}
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
