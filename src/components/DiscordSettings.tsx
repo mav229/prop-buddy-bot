@@ -12,8 +12,10 @@ export const DiscordSettings = () => {
   const [loading, setLoading] = useState(false);
   const [registering, setRegistering] = useState(false);
   const [backingUp, setBackingUp] = useState(false);
-  const [certChannelId, setCertChannelId] = useState("");
+  const [certChannelId1, setCertChannelId1] = useState("");
+  const [certChannelId2, setCertChannelId2] = useState("");
   const [savingChannel, setSavingChannel] = useState(false);
+  const [triggering, setTriggering] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
