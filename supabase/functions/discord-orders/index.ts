@@ -1,19 +1,41 @@
 import { MongoClient } from "npm:mongodb@6.12.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+async function isAdmin(req: Request): Promise<boolean> {
+  // Check service role key first
+  const authHeader = req.headers.get("Authorization");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (authHeader && serviceRoleKey && authHeader.includes(serviceRoleKey)) {
+    return true;
+  }
+
+  // Check if user is admin via Supabase auth
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+  if (!authHeader) return false;
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  const { data } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
+  return data === true;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Require service role key
-  const authHeader = req.headers.get("Authorization");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!authHeader || !serviceRoleKey || !authHeader.includes(serviceRoleKey)) {
+  if (!(await isAdmin(req))) {
     return new Response(
       JSON.stringify({ error: "Unauthorized" }),
       { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -33,23 +55,12 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const action = body.action || "list";
+    const limit = Math.min(body.limit || 50, 200);
+    const skip = body.skip || 0;
 
     client = new MongoClient(uri);
     await client.connect();
     const db = client.db(dbName);
-
-    if (action === "schema_sample") {
-      // Return a sample order to discover field names
-      const sample = await db.collection("orders").findOne({}, { sort: { _id: -1 } });
-      return new Response(JSON.stringify({ sample }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Fetch recent orders
-    const limit = Math.min(body.limit || 50, 200);
-    const skip = body.skip || 0;
 
     const orders = await db.collection("orders")
       .find({})
@@ -58,48 +69,30 @@ Deno.serve(async (req) => {
       .limit(limit)
       .toArray();
 
-    // Also get total count
     const total = await db.collection("orders").countDocuments({});
 
-    // Map orders to extract relevant fields
-    // We'll try common field name patterns
+    // Map orders - include all raw fields so we can discover the schema on first load
     const mapped = orders.map((order: any) => {
-      // Customer name
-      const customerName = order.customerName || order.customer_name || order.userName || order.user_name || order.name || order.buyerName || order.fullName || "";
-
-      // Account size - could be in variant, product name, or a dedicated field
-      const accountSize = order.accountSize || order.account_size || order.variantName || order.variant_name || order.productName || order.product_name || order.title || "";
-
-      // Payment method
-      const paymentMethod = order.paymentMethod || order.payment_method || order.gateway || order.paymentGateway || order.payment_gateway || order.method || "";
-
-      // Status
-      const status = order.status || order.orderStatus || order.order_status || "";
-
-      // Amount
-      const amount = order.amount || order.total || order.totalAmount || order.price || 0;
-
-      // Date
-      const createdAt = order.createdAt || order.created_at || order.date || order.orderDate || "";
-
-      // Email
-      const email = order.email || order.customerEmail || order.customer_email || order.userEmail || "";
-
       return {
         _id: order._id?.toString(),
-        customerName,
-        accountSize,
-        paymentMethod,
-        status,
-        amount,
-        email,
-        createdAt,
-        // Include raw keys for debugging schema
+        // Customer name - try common patterns
+        customerName: order.customerName || order.customer_name || order.userName || order.user_name || order.name || order.buyerName || order.fullName || order.customer?.name || "",
+        // Account size
+        accountSize: order.accountSize || order.account_size || order.variantName || order.variant_name || order.variant?.name || order.productName || order.product_name || order.product?.name || order.title || "",
+        // Payment method
+        paymentMethod: order.paymentMethod || order.payment_method || order.gateway || order.paymentGateway || order.payment_gateway || order.method || "",
+        // Extra useful fields
+        status: order.status || order.orderStatus || "",
+        amount: order.amount || order.total || order.totalAmount || order.price || 0,
+        email: order.email || order.customerEmail || order.customer_email || order.userEmail || "",
+        createdAt: order.createdAt || order.created_at || order.date || "",
+        // Raw keys for schema discovery
         _rawKeys: Object.keys(order),
+        _raw: order,
       };
     });
 
-    return new Response(JSON.stringify({ orders: mapped, total, rawSample: orders[0] ? Object.keys(orders[0]) : [] }), {
+    return new Response(JSON.stringify({ orders: mapped, total }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
