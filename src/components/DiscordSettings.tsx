@@ -37,7 +37,21 @@ export const DiscordSettings = () => {
         setCertChannelId2(cfg.channel_id_2 || "");
       }
     };
+    const loadFakeConfig = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fake-cert-announce`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "status" }),
+        });
+        const data = await res.json();
+        setFakeEnabled(!!data.enabled);
+        setFakeLastRun(data.last_run || null);
+        setFakeNextRun(data.next_run || null);
+      } catch (_) {}
+    };
     loadChannelConfig();
+    loadFakeConfig();
   }, []);
 
   const handleSaveChannel = async () => {
