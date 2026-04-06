@@ -1,5 +1,6 @@
 import { Monitor } from "lucide-react";
 import { KnowledgeBaseManager } from "./KnowledgeBaseManager";
+import { DiscordOrders } from "./DiscordOrders";
 import { ChatHistoryView } from "./ChatHistoryView";
 import { DiscordSettings } from "./DiscordSettings";
 import { DiscordMemoryView } from "./DiscordMemoryView";
