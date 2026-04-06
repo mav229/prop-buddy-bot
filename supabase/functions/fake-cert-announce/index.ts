@@ -41,8 +41,95 @@ function randomName(): string {
 }
 
 function randomAccountNumber(): string {
-  // Generate a realistic 9-digit account number starting with 279
   return `279${Math.floor(100000 + Math.random() * 900000)}`;
+}
+
+// --- Template URLs ---
+const TEMPLATE_URLS = {
+  achievement: "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/cert-templates/achievement-blank.png",
+  completion: "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/cert-templates/completion-blank.png",
+};
+
+// --- Generate certificate image with name using AI ---
+async function generateCertificateImage(
+  supabase: any,
+  userName: string,
+  certType: "achievement" | "completion"
+): Promise<string | null> {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey) {
+    console.error("LOVABLE_API_KEY not set, skipping image generation");
+    return null;
+  }
+
+  const templateUrl = TEMPLATE_URLS[certType];
+  const nameUpper = userName.toUpperCase();
+
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-image",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Add the name "${nameUpper}" to this certificate in the empty name field area (the dark rectangle/area below "PROUDLY PRESENTED TO"). The name should be in white color, bold, centered in that area, matching the certificate's style. Do not change anything else on the certificate.`,
+              },
+              {
+                type: "image_url",
+                image_url: { url: templateUrl },
+              },
+            ],
+          },
+        ],
+        modalities: ["image", "text"],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("AI image gen failed:", response.status, await response.text());
+      return null;
+    }
+
+    const data = await response.json();
+    const imageData = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+
+    if (!imageData) {
+      console.error("No image in AI response");
+      return null;
+    }
+
+    // Upload to storage
+    const base64 = imageData.replace(/^data:image\/\w+;base64,/, "");
+    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    const fileName = `fake-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("generated-certs")
+      .upload(fileName, bytes, { contentType: "image/png", upsert: true });
+
+    if (uploadError) {
+      console.error("Upload error:", uploadError);
+      return null;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("generated-certs")
+      .getPublicUrl(fileName);
+
+    console.log(`Generated cert image for ${userName}: ${urlData.publicUrl}`);
+    return urlData.publicUrl;
+  } catch (e) {
+    console.error("Cert image generation error:", e);
+    return null;
+  }
 }
 
 // --- Channel IDs from config ---
@@ -64,7 +151,6 @@ async function getChannelIds(supabase: any): Promise<string[]> {
   }
 }
 
-// --- Get the fake announce config (enabled, last_run, next_run) ---
 async function getConfig(supabase: any) {
   const { data } = await supabase
     .from("widget_config")
@@ -135,6 +221,39 @@ async function sendDiscordEmbed(
   }
 }
 
+// --- Build a fake cert with AI-generated image ---
+async function buildFakeCert(supabase: any) {
+  const isAchievement = Math.random() < 0.2;
+  const certType = isAchievement ? "achievement" : "completion";
+  const userName = randomName();
+  const accountNumber = randomAccountNumber();
+
+  // Generate image with name overlaid
+  const generatedUrl = await generateCertificateImage(supabase, userName, certType);
+
+  // Fallback: use a random real cert if AI generation fails
+  let certificateUrl = generatedUrl;
+  if (!certificateUrl) {
+    const { data: realCerts } = await supabase
+      .from("hall_of_fame_certificates")
+      .select("certificate_url")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    const certUrls = realCerts?.map((c: any) => c.certificate_url) || [];
+    certificateUrl = certUrls.length > 0
+      ? certUrls[Math.floor(Math.random() * certUrls.length)]
+      : TEMPLATE_URLS[certType];
+  }
+
+  return {
+    user_name: userName,
+    account_number: accountNumber,
+    certificate_url: certificateUrl,
+    certificate_type: certType,
+    phase: isAchievement ? "funded" : "phase-1",
+  };
+}
+
 // --- Main handler ---
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -176,34 +295,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Pick a random real cert image
-    const { data: realCerts } = await supabase
-      .from("hall_of_fame_certificates")
-      .select("certificate_url")
-      .order("created_at", { ascending: false })
-      .limit(50);
-
-    const certUrls = realCerts?.map((c: any) => c.certificate_url) || [];
-    const randomUrl = certUrls.length > 0
-      ? certUrls[Math.floor(Math.random() * certUrls.length)]
-      : "https://res.cloudinary.com/dzozyqlqr/image/upload/v1769658381/certificates/279459834.png";
-
-    // 80% Phase 1, 20% Achievement
-    const isAchievement = Math.random() < 0.2;
-
-    const fakeCert = {
-      user_name: randomName(),
-      account_number: randomAccountNumber(),
-      certificate_url: randomUrl,
-      certificate_type: isAchievement ? "achievement" : "completion",
-      phase: isAchievement ? "funded" : "phase-1",
-    };
-
+    const fakeCert = await buildFakeCert(supabase);
     await sendDiscordEmbed(botToken, channelIds, fakeCert);
 
-    // Schedule next
     const cfg = await getConfig(supabase);
-    const nextDelay = 30 + Math.floor(Math.random() * 150); // 30-180 min
+    const nextDelay = 30 + Math.floor(Math.random() * 150);
     const nextRun = new Date(Date.now() + nextDelay * 60 * 1000).toISOString();
     await saveConfig(supabase, { ...cfg, last_run: new Date().toISOString(), next_run: nextRun });
 
@@ -211,6 +307,7 @@ Deno.serve(async (req) => {
       success: true,
       sent: fakeCert.user_name,
       type: fakeCert.certificate_type,
+      generated_image: !!fakeCert.certificate_url?.includes("generated-certs"),
       next_run: nextRun,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
@@ -244,31 +341,9 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Pick random real cert image
-  const { data: realCerts } = await supabase
-    .from("hall_of_fame_certificates")
-    .select("certificate_url")
-    .order("created_at", { ascending: false })
-    .limit(50);
-
-  const certUrls = realCerts?.map((c: any) => c.certificate_url) || [];
-  const randomUrl = certUrls.length > 0
-    ? certUrls[Math.floor(Math.random() * certUrls.length)]
-    : "https://res.cloudinary.com/dzozyqlqr/image/upload/v1769658381/certificates/279459834.png";
-
-  const isAchievement = Math.random() < 0.2;
-
-  const fakeCert = {
-    user_name: randomName(),
-    account_number: randomAccountNumber(),
-    certificate_url: randomUrl,
-    certificate_type: isAchievement ? "achievement" : "completion",
-    phase: isAchievement ? "funded" : "phase-1",
-  };
-
+  const fakeCert = await buildFakeCert(supabase);
   await sendDiscordEmbed(botToken, channelIds, fakeCert);
 
-  // Schedule next: 30-180 minutes from now
   const nextDelay = 30 + Math.floor(Math.random() * 150);
   const nextRunTime = new Date(now + nextDelay * 60 * 1000).toISOString();
   await saveConfig(supabase, {
