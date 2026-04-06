@@ -25,7 +25,7 @@ export const ManualPush = () => {
     setSending(true);
     try {
       const { data, error } = await supabase.functions.invoke("fake-cert-announce", {
-        body: { action: "manual_push", name: name.trim(), cert_type: certType },
+        body: { action: "manual_push", name: name.trim(), cert_type: certType, save_to_hall: saveToHall },
       });
 
       if (error) throw error;
