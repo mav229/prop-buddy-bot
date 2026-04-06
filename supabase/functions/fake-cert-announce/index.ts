@@ -45,7 +45,7 @@ function randomAccountNumber(): string {
 }
 
 // --- Cloudinary config ---
-const CLOUDINARY_CLOUD = "dzozyqlqr";
+const CLOUDINARY_CLOUD = "dcg7tqfyg";
 
 // Public IDs for uploaded blank templates (will be set after first upload)
 const TEMPLATE_PUBLIC_IDS = {
