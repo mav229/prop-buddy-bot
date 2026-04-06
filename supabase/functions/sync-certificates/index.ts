@@ -287,17 +287,7 @@ Deno.serve(async (req) => {
 
     // 2. Load Discord config
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN") || "";
-    let announceChannelId = "";
-    try {
-      const { data: channelConfig } = await supabase
-        .from("widget_config")
-        .select("config")
-        .eq("id", "cert_announce_channel")
-        .maybeSingle();
-      if (channelConfig?.config && typeof channelConfig.config === "object") {
-        announceChannelId = (channelConfig.config as Record<string, string>).channel_id || "";
-      }
-    } catch (_) {}
+    const channelIds = await getChannelIds(supabase);
 
     // 3. Upsert into Supabase
     let inserted = 0;
