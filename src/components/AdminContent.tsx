@@ -1,5 +1,6 @@
 import { Monitor } from "lucide-react";
 import { KnowledgeBaseManager } from "./KnowledgeBaseManager";
+import { DiscordOrders } from "./DiscordOrders";
 import { ChatHistoryView } from "./ChatHistoryView";
 import { DiscordSettings } from "./DiscordSettings";
 import { DiscordMemoryView } from "./DiscordMemoryView";
@@ -91,6 +92,8 @@ export const AdminContent = ({ activeTab }: AdminContentProps) => {
       return <TonePresetsManager />;
     case "manual-push":
       return <ManualPush />;
+    case "orders":
+      return <DiscordOrders />;
     case "extension":
       return <ExtensionAnalytics />;
     case "conn-logs":

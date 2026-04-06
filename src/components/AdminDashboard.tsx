@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { 
   Bot, LogOut, MessageSquare, Database, Brain, Users, 
-  LayoutDashboard, Settings, Code, Palette, Ticket, Menu, Mail, Headphones, Monitor, Coins, Zap, PlugZap, ShoppingCart, Send, LinkIcon, Puzzle, Crosshair
+  LayoutDashboard, Settings, Code, Palette, Ticket, Menu, Mail, Headphones, Monitor, Coins, Zap, PlugZap, ShoppingCart, Send, LinkIcon, Puzzle, Crosshair, PackageCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -28,6 +28,7 @@ const navItems = [
   { value: "ref-links", label: "Ref Links", icon: LinkIcon },
   { value: "tones", label: "Tones", icon: Puzzle },
   { value: "manual-push", label: "Manual Push", icon: Crosshair },
+  { value: "orders", label: "Orders", icon: PackageCheck },
   { value: "extension", label: "Extension", icon: Puzzle },
   { value: "conn-logs", label: "Logs", icon: PlugZap },
   { value: "discord", label: "Settings", icon: Settings },
