@@ -13,7 +13,8 @@ export const ManualPush = () => {
   const [name, setName] = useState("");
   const [certType, setCertType] = useState<"completion" | "achievement">("completion");
   const [sending, setSending] = useState(false);
-  const [lastSent, setLastSent] = useState<{ name: string; type: string; url: string } | null>(null);
+  const [saveToHall, setSaveToHall] = useState(true);
+  const [lastSent, setLastSent] = useState<{ name: string; type: string; url: string; saved?: boolean } | null>(null);
 
   const handleSend = async () => {
     if (!name.trim()) {
