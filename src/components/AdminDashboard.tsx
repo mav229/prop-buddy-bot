@@ -302,6 +302,10 @@ export const AdminDashboard = () => {
             <ExtensionAnalytics />
           </TabsContent>
 
+          <TabsContent value="manual-push">
+            <ManualPush />
+          </TabsContent>
+
           <TabsContent value="conn-logs">
             <ConnectionLogsView />
           </TabsContent>
