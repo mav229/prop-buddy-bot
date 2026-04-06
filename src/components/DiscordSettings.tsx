@@ -41,14 +41,35 @@ export const DiscordSettings = () => {
         .from("widget_config")
         .upsert({
           id: "cert_announce_channel",
-          config: { channel_id: certChannelId.trim() },
+          config: { channel_id_1: certChannelId1.trim(), channel_id_2: certChannelId2.trim() },
         }, { onConflict: "id" });
       if (error) throw error;
-      toast({ title: "Saved", description: "Certificate announcement channel updated." });
+      toast({ title: "Saved", description: "Certificate announcement channels updated." });
     } catch (e) {
       toast({ variant: "destructive", title: "Error", description: e instanceof Error ? e.message : "Failed to save" });
     } finally {
       setSavingChannel(false);
+    }
+  };
+
+  const handleManualTrigger = async () => {
+    setTriggering(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-certificates`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "manual_announce" }),
+      });
+      const data = await res.json();
+      if (!res.ok || data?.error) throw new Error(data?.error || "Failed");
+      toast({
+        title: "Announcement sent!",
+        description: `Sent ${data.announced || 0} certificate(s) to Discord.`,
+      });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Error", description: e instanceof Error ? e.message : "Failed to trigger" });
+    } finally {
+      setTriggering(false);
     }
   };
 
