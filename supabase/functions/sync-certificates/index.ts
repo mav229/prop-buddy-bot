@@ -336,12 +336,7 @@ Deno.serve(async (req) => {
 
     const credKeys = await db
       .collection("credentialkeys")
-      .find({
-        $or: [
-          { completionCertificateUrl: { $exists: true, $ne: null } },
-          { "credentials.completionCertificateUrl": { $exists: true, $ne: null } },
-        ],
-      })
+      .find({})
       .toArray();
 
     const certificates = [
