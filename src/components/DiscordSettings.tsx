@@ -25,8 +25,10 @@ export const DiscordSettings = () => {
         .select("config")
         .eq("id", "cert_announce_channel")
         .maybeSingle();
-      if (data?.config && typeof data.config === "object" && "channel_id" in (data.config as Record<string, unknown>)) {
-        setCertChannelId((data.config as Record<string, string>).channel_id || "");
+      if (data?.config && typeof data.config === "object") {
+        const cfg = data.config as Record<string, string>;
+        setCertChannelId1(cfg.channel_id_1 || cfg.channel_id || "");
+        setCertChannelId2(cfg.channel_id_2 || "");
       }
     };
     loadChannelConfig();
