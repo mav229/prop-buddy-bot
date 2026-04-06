@@ -49,6 +49,7 @@ const navItems = [
   { value: "email-logs", label: "Email Logs", icon: Send },
   { value: "ref-links", label: "Ref Links", icon: LinkIcon },
   { value: "tones", label: "Tones", icon: Puzzle },
+  { value: "manual-push", label: "Manual Push", icon: Crosshair },
   { value: "extension", label: "Extension", icon: Puzzle },
   { value: "conn-logs", label: "Logs", icon: PlugZap },
   { value: "discord", label: "Settings", icon: Settings },
