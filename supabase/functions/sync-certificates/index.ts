@@ -30,6 +30,15 @@ function normalizePhase(phase: unknown): string | null {
   return phase.trim().toLowerCase().replace(/_/g, "-");
 }
 
+// Parse "Name (email@example.com)" format from assignedTo
+function parseAssignedTo(val: unknown): { name: string | null; email: string | null } {
+  if (typeof val !== "string" || !val.trim()) return { name: null, email: null };
+  const match = val.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+  if (match) return { name: match[1].trim(), email: match[2].trim().toLowerCase() };
+  if (val.includes("@")) return { name: null, email: val.trim().toLowerCase() };
+  return { name: val.trim(), email: null };
+}
+
 // --- Helper to get channel IDs from config ---
 async function getChannelIds(supabase: any): Promise<string[]> {
   try {
@@ -154,15 +163,14 @@ async function extractCredKeyCerts(credKeys: any[], db: any) {
       doc.account_number?.toString?.() ||
       "";
 
+    // Parse name directly from assignedTo string "Name (email)"
     if (doc.assignedTo) {
-      try {
-        const user = await db.collection("users").findOne({ _id: doc.assignedTo });
-        if (user) {
-          userName =
-            user.displayName || user.name || user.firstName ||
-            user.username || user.email?.split("@")[0] || "Trader";
-        }
-      } catch (_) {}
+      const parsed = parseAssignedTo(doc.assignedTo);
+      if (parsed.name) {
+        userName = parsed.name;
+      } else if (parsed.email) {
+        userName = parsed.email.split("@")[0];
+      }
     }
 
     if (certUrl) {
@@ -192,19 +200,12 @@ async function extractCredKeyCerts(credKeys: any[], db: any) {
           "";
         let credUserName = "Trader";
         if (cred.assignedTo) {
-          try {
-            const user = await db.collection("users").findOne({
-              $or: [
-                { _id: cred.assignedTo },
-                { email: cred.assignedTo?.toString?.()?.toLowerCase?.() },
-              ],
-            });
-            if (user) {
-              credUserName =
-                user.displayName || user.name || user.firstName ||
-                user.email?.split("@")[0] || "Trader";
-            }
-          } catch (_) {}
+          const parsed = parseAssignedTo(cred.assignedTo);
+          if (parsed.name) {
+            credUserName = parsed.name;
+          } else if (parsed.email) {
+            credUserName = parsed.email.split("@")[0];
+          }
         }
         certs.push({
           user_name: credUserName,
@@ -268,7 +269,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Debug: check what's in credentialkeys
+  // Debug: inspect assignedTo and user lookup
   if (body?.action === "debug") {
     const uri = Deno.env.get("MONGO_URI");
     if (!uri) return new Response(JSON.stringify({ error: "no MONGO_URI" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -279,31 +280,61 @@ Deno.serve(async (req) => {
       await mc.connect();
       const db = mc.db(dbName);
 
-      // Count total credentialkeys
-      const totalCredKeys = await db.collection("credentialkeys").countDocuments();
-      // Count with completionCertificateUrl
-      const withCertUrl = await db.collection("credentialkeys").countDocuments({ completionCertificateUrl: { $exists: true, $ne: null } });
-      // Sample one doc to see field names
-      const sampleDoc = await db.collection("credentialkeys").findOne({});
-      const sampleWithCert = await db.collection("credentialkeys").findOne({ completionCertificateUrl: { $exists: true } });
-      // Check alternate field names
-      const withNestedCert = await db.collection("credentialkeys").countDocuments({ "credentials.completionCertificateUrl": { $exists: true, $ne: null } });
+      // Get a sample credentialkey doc with nested certs
       const sampleNested = await db.collection("credentialkeys").findOne({ "credentials.completionCertificateUrl": { $exists: true } });
+      const parentFields = sampleNested ? Object.keys(sampleNested) : [];
+      const parentKey = sampleNested?.key;
+      const parentAssignedTo = sampleNested?.assignedTo;
+      const parentUserId = sampleNested?.userId || sampleNested?.user || sampleNested?.owner;
+
+      // Check nested cred assignedTo
       const nestedCreds = sampleNested?.credentials?.filter((c: any) => c.completionCertificateUrl) || [];
+      const nestedSample = nestedCreds[0] || {};
+      const nestedFields = Object.keys(nestedSample);
+      const nestedAssignedTo = nestedSample.assignedTo;
+
+      // Try looking up user by the key field (might be email)
+      let userByKey = null;
+      if (parentKey) {
+        userByKey = await db.collection("users").findOne({
+          $or: [
+            { email: parentKey },
+            { email: parentKey.toString().toLowerCase() },
+          ],
+        });
+      }
+
+      // Try looking up by parent assignedTo
+      let userByAssignedTo = null;
+      if (parentAssignedTo) {
+        const { ObjectId } = await import("npm:mongodb@6.12.0");
+        let oid: any = parentAssignedTo;
+        try { oid = new ObjectId(parentAssignedTo.toString()); } catch (_) {}
+        userByAssignedTo = await db.collection("users").findOne({
+          $or: [
+            { _id: oid },
+            { _id: parentAssignedTo },
+            { email: parentAssignedTo.toString().toLowerCase() },
+          ],
+        });
+      }
+
+      // Sample users collection fields
+      const sampleUser = await db.collection("users").findOne({});
+      const userFields = sampleUser ? Object.keys(sampleUser) : [];
 
       return new Response(JSON.stringify({
-        totalCredKeys,
-        withCompletionCertificateUrl: withCertUrl,
-        withNestedCompletionCertificateUrl: withNestedCert,
-        sampleDocFields: sampleDoc ? Object.keys(sampleDoc) : [],
-        sampleWithCertFields: sampleWithCert ? Object.keys(sampleWithCert) : [],
-        sampleNestedCert: nestedCreds.length > 0 ? Object.keys(nestedCreds[0]) : [],
-        sampleNestedCertData: nestedCreds.length > 0 ? {
-          phase: nestedCreds[0].phase,
-          loginId: nestedCreds[0].loginId,
-          credentialStatus: nestedCreds[0].credentialStatus,
-          hasUrl: !!nestedCreds[0].completionCertificateUrl,
-        } : null,
+        parentFields,
+        parentKey: parentKey?.toString?.() || null,
+        parentAssignedTo: parentAssignedTo?.toString?.() || null,
+        parentUserId: parentUserId?.toString?.() || null,
+        nestedFields,
+        nestedAssignedTo: nestedAssignedTo?.toString?.() || null,
+        userByKeyFound: !!userByKey,
+        userByKeyName: userByKey ? (userByKey.displayName || userByKey.name || userByKey.firstName || userByKey.email) : null,
+        userByAssignedToFound: !!userByAssignedTo,
+        userByAssignedToName: userByAssignedTo ? (userByAssignedTo.displayName || userByAssignedTo.name || userByAssignedTo.firstName || userByAssignedTo.email) : null,
+        userFields,
       }, null, 2), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     } finally {
       if (mc) try { await mc.close(); } catch (_) {}
