@@ -1,34 +1,13 @@
 import { useState } from "react";
 import { 
-  Bot, LogOut, MessageSquare, Database, ArrowLeft, Brain, Users, 
+  Bot, LogOut, MessageSquare, Database, Brain, Users, 
   LayoutDashboard, Settings, Code, Palette, Ticket, Menu, Mail, Headphones, Monitor, Coins, Zap, PlugZap, ShoppingCart, Send, LinkIcon, Puzzle, Crosshair
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/useAuth";
-import { KnowledgeBaseManager } from "./KnowledgeBaseManager";
-import { ChatHistoryView } from "./ChatHistoryView";
-import { DiscordSettings } from "./DiscordSettings";
-import { DiscordMemoryView } from "./DiscordMemoryView";
-import { TrainingCenter } from "./TrainingCenter";
-import { AnalyticsDashboard } from "./AnalyticsDashboard";
-import { EmbedCustomization } from "./EmbedCustomization";
-import { WidgetCustomizer } from "./WidgetCustomizer";
-import { CouponsManager } from "./CouponsManager";
-import { LeadsManager } from "./LeadsManager";
-import { TicketsManager } from "./TicketsManager";
-import { FullpageUsageLogs } from "./FullpageUsageLogs";
-import { CreditUsageCalendar } from "./CreditUsageCalendar";
-import { AutoRepliesManager } from "./AutoRepliesManager";
-import { ConnectionLogsView } from "./ConnectionLogsView";
-import { AbandonedCheckouts } from "./AbandonedCheckouts";
-import { EmailLogsView } from "./EmailLogsView";
-import { ReferenceLinksManager } from "./ReferenceLinksManager";
-import { ExtensionAnalytics } from "./ExtensionAnalytics";
-import { TonePresetsManager } from "./TonePresetsManager";
-import { ManualPush } from "./ManualPush";
-import { Link } from "react-router-dom";
+import { AdminContent } from "./AdminContent";
 
 const navItems = [
   { value: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -68,252 +47,133 @@ export const AdminDashboard = () => {
     setMobileMenuOpen(false);
   };
 
-  const MobileNav = () => (
-    <div className="flex flex-col gap-1 p-2">
-      {navItems.map((item) => (
-        <button
-          key={item.value}
-          onClick={() => handleTabChange(item.value)}
-          className={`flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
-            activeTab === item.value
-              ? "bg-foreground text-background"
-              : "hover:bg-card/50 text-foreground"
-          }`}
-        >
-          <item.icon className="w-5 h-5" />
-          <span className="font-medium">{item.label}</span>
-        </button>
-      ))}
+  const NavList = () => (
+    <div className="flex flex-col gap-0.5 px-3">
+      {navItems.map((item) => {
+        const isActive = activeTab === item.value;
+        return (
+          <button
+            key={item.value}
+            onClick={() => handleTabChange(item.value)}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm transition-all duration-150 ${
+              isActive
+                ? "bg-primary/10 text-primary font-medium"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <item.icon className={`w-[18px] h-[18px] shrink-0 ${isActive ? "text-primary" : ""}`} />
+            <span>{item.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border/50 bg-card/30 backdrop-blur-xl px-4 sm:px-6 py-4 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3 sm:gap-4">
-            {/* Mobile menu button */}
+    <div className="min-h-screen h-screen flex bg-background overflow-hidden">
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:flex flex-col w-56 border-r border-border/40 bg-sidebar-background shrink-0">
+        {/* Logo */}
+        <div className="flex items-center gap-3 px-5 py-5 border-b border-border/40">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+            <Bot className="w-4 h-4 text-primary-foreground" />
+          </div>
+          <div>
+            <h1 className="text-sm font-semibold tracking-tight text-foreground">PropScholar</h1>
+            <p className="text-[11px] text-muted-foreground">Admin Panel</p>
+          </div>
+        </div>
+
+        {/* Nav */}
+        <ScrollArea className="flex-1 py-3">
+          <NavList />
+        </ScrollArea>
+
+        {/* User + Sign Out */}
+        <div className="border-t border-border/40 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-xs font-medium text-foreground shrink-0">
+              {user?.email?.charAt(0).toUpperCase() || "A"}
+            </div>
+            <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+          </div>
+          <Button
+            variant="ghost"
+            onClick={handleSignOut}
+            className="w-full justify-start text-muted-foreground hover:text-foreground h-9 px-3 text-sm"
+            size="sm"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign Out
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top Bar (mobile header + desktop page title) */}
+        <header className="flex items-center justify-between border-b border-border/40 bg-sidebar-background px-4 lg:px-8 h-14 shrink-0">
+          {/* Mobile menu */}
+          <div className="lg:hidden">
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="lg:hidden">
+                <Button variant="ghost" size="icon" className="h-9 w-9">
                   <Menu className="w-5 h-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-72 p-0">
-                <div className="flex items-center gap-3 p-4 border-b border-border/50">
-                  <div className="w-10 h-10 rounded-xl bg-foreground flex items-center justify-center">
-                    <Bot className="w-5 h-5 text-background" />
+              <SheetContent side="left" className="w-64 p-0 bg-sidebar-background border-border/40">
+                <div className="flex items-center gap-3 px-5 py-5 border-b border-border/40">
+                  <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                    <Bot className="w-4 h-4 text-primary-foreground" />
                   </div>
                   <div>
-                    <h1 className="font-display text-lg font-bold">Command Center</h1>
-                    <p className="text-xs text-muted-foreground truncate max-w-[160px]">
-                      {user?.email}
-                    </p>
+                    <h1 className="text-sm font-semibold text-foreground">PropScholar</h1>
+                    <p className="text-[11px] text-muted-foreground">Admin Panel</p>
                   </div>
                 </div>
-                <MobileNav />
+                <ScrollArea className="flex-1 py-3 h-[calc(100vh-80px)]">
+                  <NavList />
+                </ScrollArea>
               </SheetContent>
             </Sheet>
-
-            <Link
-              to="/"
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Link>
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-foreground flex items-center justify-center">
-                <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-background" />
-              </div>
-              <div className="hidden sm:block">
-                <h1 className="font-display text-xl font-bold tracking-tight">
-                  Command Center
-                </h1>
-                <p className="text-xs text-muted-foreground">
-                  {user?.email}
-                </p>
-              </div>
-            </div>
           </div>
 
-          <Button 
-            variant="ghost" 
-            onClick={handleSignOut}
-            className="text-muted-foreground hover:text-foreground"
-            size="sm"
-          >
-            <LogOut className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">Sign Out</span>
-          </Button>
-        </div>
-      </header>
+          {/* Page title */}
+          <div className="flex items-center gap-2">
+            {(() => {
+              const current = navItems.find(i => i.value === activeTab);
+              if (!current) return null;
+              return (
+                <h2 className="text-lg font-semibold text-foreground">{current.label}</h2>
+              );
+            })()}
+          </div>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 sm:space-y-8">
-          {/* Desktop Tab Navigation */}
-          <TabsList className="hidden lg:flex bg-card/50 border border-border/50 p-1.5 rounded-xl backdrop-blur-sm flex-wrap gap-1">
-            {navItems.map((item) => (
-              <TabsTrigger 
-                key={item.value}
-                value={item.value} 
-                className="gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-lg"
-              >
-                <item.icon className="w-4 h-4" />
-                {item.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          {/* Mobile current tab indicator */}
-          <div className="lg:hidden flex items-center justify-between bg-card/50 border border-border/50 p-3 rounded-xl">
+          {/* Desktop user info */}
+          <div className="hidden lg:flex items-center gap-3">
             <div className="flex items-center gap-2">
-              {(() => {
-                const current = navItems.find(i => i.value === activeTab);
-                if (!current) return null;
-                return (
-                  <>
-                    <current.icon className="w-5 h-5 text-primary" />
-                    <span className="font-medium">{current.label}</span>
-                  </>
-                );
-              })()}
+              <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-xs font-medium text-foreground">
+                {user?.email?.charAt(0).toUpperCase() || "A"}
+              </div>
+              <span className="text-sm text-muted-foreground">{user?.email}</span>
             </div>
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  Change
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="bottom" className="h-auto max-h-[80vh] rounded-t-2xl">
-                <div className="py-2">
-                  <h3 className="font-semibold text-center mb-4">Navigation</h3>
-                  <MobileNav />
-                </div>
-              </SheetContent>
-            </Sheet>
           </div>
 
-          <TabsContent value="dashboard">
-            <AnalyticsDashboard />
-          </TabsContent>
+          {/* Mobile sign out */}
+          <div className="lg:hidden">
+            <Button variant="ghost" size="icon" onClick={handleSignOut} className="h-9 w-9 text-muted-foreground">
+              <LogOut className="w-4 h-4" />
+            </Button>
+          </div>
+        </header>
 
-          <TabsContent value="knowledge">
-            <KnowledgeBaseManager />
-          </TabsContent>
-
-          <TabsContent value="training">
-            <TrainingCenter />
-          </TabsContent>
-
-          <TabsContent value="history">
-            <ChatHistoryView />
-          </TabsContent>
-
-          <TabsContent value="discord-memory">
-            <DiscordMemoryView />
-          </TabsContent>
-
-          <TabsContent value="leads">
-            <LeadsManager />
-          </TabsContent>
-
-          <TabsContent value="tickets">
-            <TicketsManager />
-          </TabsContent>
-
-          <TabsContent value="coupons">
-            <CouponsManager />
-          </TabsContent>
-
-          <TabsContent value="auto-replies">
-            <AutoRepliesManager />
-          </TabsContent>
-
-          <TabsContent value="customizer">
-            <WidgetCustomizer />
-          </TabsContent>
-
-          <TabsContent value="embed">
-            <EmbedCustomization />
-          </TabsContent>
-
-          <TabsContent value="fullpage">
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold">16:9 Full-Page Chat</h2>
-                <p className="text-muted-foreground">A premium full-screen chat experience for scholaris.space</p>
-              </div>
-              
-              <div className="border border-border/50 rounded-xl p-6 bg-card/30 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold">Preview</h3>
-                  <a href="/fullpage" target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
-                    Open Full Screen <Monitor className="w-3.5 h-3.5" />
-                  </a>
-                </div>
-                
-                <div className="rounded-xl overflow-hidden border border-border/30 bg-black" style={{ aspectRatio: "16/9" }}>
-                  <iframe
-                    src="/fullpage"
-                    className="w-full h-full border-0"
-                    title="16:9 Fullpage Chat Preview"
-                  />
-                </div>
-                
-                <div className="pt-4 border-t border-border/30">
-                  <h4 className="text-sm font-medium mb-2">Embed Code</h4>
-                  <p className="text-xs text-muted-foreground mb-3">Use this to embed the full-page chat on any website.</p>
-                  <div className="bg-background border border-border rounded-lg p-3">
-                    <code className="text-xs text-muted-foreground break-all">
-                      {`<iframe src="https://scholaris.space/fullpage" style="width:100%;height:100vh;border:none;" allow="clipboard-write"></iframe>`}
-                    </code>
-                  </div>
-                </div>
-              </div>
-
-              <FullpageUsageLogs />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="credits">
-            <CreditUsageCalendar />
-          </TabsContent>
-
-          <TabsContent value="abandoned">
-            <AbandonedCheckouts />
-          </TabsContent>
-
-          <TabsContent value="email-logs">
-            <EmailLogsView />
-          </TabsContent>
-
-          <TabsContent value="ref-links">
-            <ReferenceLinksManager />
-          </TabsContent>
-
-          <TabsContent value="tones">
-            <TonePresetsManager />
-          </TabsContent>
-
-          <TabsContent value="extension">
-            <ExtensionAnalytics />
-          </TabsContent>
-
-          <TabsContent value="manual-push">
-            <ManualPush />
-          </TabsContent>
-
-          <TabsContent value="conn-logs">
-            <ConnectionLogsView />
-          </TabsContent>
-
-          <TabsContent value="discord">
-            <DiscordSettings />
-          </TabsContent>
-        </Tabs>
-      </main>
+        {/* Content */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="p-4 lg:p-8 max-w-7xl">
+            <AdminContent activeTab={activeTab} />
+          </div>
+        </main>
+      </div>
     </div>
   );
 };
