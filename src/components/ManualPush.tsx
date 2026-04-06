@@ -83,6 +83,13 @@ export const ManualPush = () => {
             </RadioGroup>
           </div>
 
+          <div className="flex items-center space-x-2">
+            <Checkbox id="save-hall" checked={saveToHall} onCheckedChange={(v) => setSaveToHall(!!v)} />
+            <Label htmlFor="save-hall" className="cursor-pointer font-normal text-sm">
+              Also save to Hall of Fame (certificates page)
+            </Label>
+          </div>
+
           <Button onClick={handleSend} disabled={sending || !name.trim()} className="w-full">
             {sending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
             {sending ? "Sending..." : "Push to Discord"}
