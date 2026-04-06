@@ -47,8 +47,14 @@ function randomAccountNumber(): string {
 // --- Cloudinary config ---
 const CLOUDINARY_CLOUD = "dzozyqlqr";
 
-// Blank template URLs (from Supabase storage)
-const TEMPLATE_URLS = {
+// Public IDs for uploaded blank templates (will be set after first upload)
+const TEMPLATE_PUBLIC_IDS = {
+  achievement: "cert-templates/achievement-blank",
+  completion: "cert-templates/completion-blank",
+};
+
+// Supabase storage URLs for the blank templates
+const TEMPLATE_STORAGE_URLS = {
   achievement: "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/cert-templates/achievement-blank.png",
   completion: "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/cert-templates/completion-blank.png",
 };
@@ -59,30 +65,89 @@ const TEXT_CONFIG = {
   completion: { nameY: 830, fontSize: 60, xOffset: 300 },
 };
 
+// --- Upload template to Cloudinary if not already there ---
+async function ensureTemplateUploaded(
+  certType: "achievement" | "completion"
+): Promise<string> {
+  const publicId = TEMPLATE_PUBLIC_IDS[certType];
+  const apiKey = Deno.env.get("CLOUDINARY_API_KEY")!;
+  const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET")!;
+
+  // Check if already exists
+  const timestamp = Math.floor(Date.now() / 1000).toString();
+  const checkStr = `public_id=${publicId}&timestamp=${timestamp}${apiSecret}`;
+  const checkSigBytes = new Uint8Array(
+    await crypto.subtle.digest("SHA-1", new TextEncoder().encode(checkStr))
+  );
+  const checkSig = Array.from(checkSigBytes).map(b => b.toString(16).padStart(2, "0")).join("");
+
+  try {
+    const checkRes = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/resources/image/upload/${publicId}`,
+      {
+        headers: {
+          Authorization: "Basic " + btoa(`${apiKey}:${apiSecret}`),
+        },
+      }
+    );
+    if (checkRes.ok) {
+      console.log(`Template ${certType} already exists in Cloudinary`);
+      return publicId;
+    }
+  } catch (_) {}
+
+  // Upload from Supabase storage URL
+  const sourceUrl = TEMPLATE_STORAGE_URLS[certType];
+  const uploadTimestamp = Math.floor(Date.now() / 1000).toString();
+  const sigStr = `folder=cert-templates&public_id=${certType}-blank&timestamp=${uploadTimestamp}${apiSecret}`;
+  const sigBytes = new Uint8Array(
+    await crypto.subtle.digest("SHA-1", new TextEncoder().encode(sigStr))
+  );
+  const signature = Array.from(sigBytes).map(b => b.toString(16).padStart(2, "0")).join("");
+
+  const formData = new FormData();
+  formData.append("file", sourceUrl);
+  formData.append("public_id", `${certType}-blank`);
+  formData.append("folder", "cert-templates");
+  formData.append("timestamp", uploadTimestamp);
+  formData.append("api_key", apiKey);
+  formData.append("signature", signature);
+
+  const uploadRes = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`,
+    { method: "POST", body: formData }
+  );
+
+  if (!uploadRes.ok) {
+    const err = await uploadRes.text();
+    console.error(`Cloudinary upload failed for ${certType}:`, err);
+    throw new Error(`Cloudinary upload failed: ${err}`);
+  }
+
+  const result = await uploadRes.json();
+  console.log(`Uploaded ${certType} template to Cloudinary: ${result.public_id}`);
+  return result.public_id;
+}
+
 // --- Generate certificate URL using Cloudinary text overlay ---
 function generateCertificateUrl(
+  publicId: string,
   userName: string,
   certType: "achievement" | "completion"
 ): string {
   const config = TEXT_CONFIG[certType];
-  const templateUrl = TEMPLATE_URLS[certType];
   const nameUpper = userName.toUpperCase();
 
-  // Encode the name for URL (spaces become %20)
-  const encodedName = encodeURIComponent(nameUpper).replace(/%20/g, "%20");
+  // Encode text for Cloudinary URL (spaces become %20, special chars encoded)
+  const encodedName = encodeURIComponent(nameUpper);
 
-  // Cloudinary fetch URL with text overlay
-  // l_text:FontFamily_Size_Weight:Text,co_rgb:color,g_gravity,y_offset
-  // Using g_north so y is from top, x_offset from center
-  const textOverlay = `l_text:Roboto_${config.fontSize}_bold:${encodedName},co_rgb:FFFFFF,g_north,y_${config.nameY},x_${config.xOffset}`;
+  // Cloudinary transformation URL with text overlay
+  // l_text: uses font_size_weight format, co_rgb for color, g_north + y for position from top
+  const transformation = `l_text:Roboto_${config.fontSize}_bold:${encodedName},co_rgb:FFFFFF,g_north,y_${config.nameY},x_${config.xOffset}`;
 
-  // Base64 encode the source URL for Cloudinary fetch
-  const base64Url = btoa(templateUrl);
-
-  const cloudinaryUrl = `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/image/fetch/${textOverlay}/https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/cert-templates/${certType === "achievement" ? "achievement-blank.png" : "completion-blank.png"}`;
-
-  console.log(`Generated Cloudinary cert URL for ${userName}: ${cloudinaryUrl}`);
-  return cloudinaryUrl;
+  const url = `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/image/upload/${transformation}/${publicId}`;
+  console.log(`Generated Cloudinary cert URL for ${userName}: ${url}`);
+  return url;
 }
 
 // --- Channel IDs from config ---
@@ -175,14 +240,17 @@ async function sendDiscordEmbed(
 }
 
 // --- Build a fake cert with Cloudinary text overlay ---
-function buildFakeCert() {
+async function buildFakeCert() {
   const isAchievement = Math.random() < 0.2;
   const certType = isAchievement ? "achievement" : "completion";
   const userName = randomName();
   const accountNumber = randomAccountNumber();
 
-  // Generate certificate URL with name overlay via Cloudinary
-  const certificateUrl = generateCertificateUrl(userName, certType);
+  // Ensure template is uploaded to Cloudinary
+  const publicId = await ensureTemplateUploaded(certType);
+
+  // Generate certificate URL with name overlay
+  const certificateUrl = generateCertificateUrl(publicId, userName, certType);
 
   return {
     user_name: userName,
@@ -234,7 +302,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const fakeCert = buildFakeCert();
+    const fakeCert = await buildFakeCert();
     await sendDiscordEmbed(botToken, channelIds, fakeCert);
 
     const cfg = await getConfig(supabase);
@@ -280,7 +348,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  const fakeCert = buildFakeCert();
+  const fakeCert = await buildFakeCert();
   await sendDiscordEmbed(botToken, channelIds, fakeCert);
 
   const nextDelay = 30 + Math.floor(Math.random() * 150);
