@@ -245,12 +245,14 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    // Get the latest 3 certificates
-    const { data: latestCerts } = await sb
+    // Get the latest 3 certificates, optionally filtered by type
+    let query = sb
       .from("hall_of_fame_certificates")
       .select("*")
-      .order("created_at", { ascending: false })
-      .limit(3);
+      .order("created_at", { ascending: false });
+    if (body.certificate_type) query = query.eq("certificate_type", body.certificate_type);
+    if (body.phase) query = query.eq("phase", body.phase);
+    const { data: latestCerts } = await query.limit(body.count || 3);
     if (!latestCerts || latestCerts.length === 0) {
       return new Response(JSON.stringify({ error: "No certificates found" }), {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -285,16 +287,23 @@ Deno.serve(async (req) => {
       const sampleDoc = await db.collection("credentialkeys").findOne({});
       const sampleWithCert = await db.collection("credentialkeys").findOne({ completionCertificateUrl: { $exists: true } });
       // Check alternate field names
-      const withCertUrl2 = await db.collection("credentialkeys").countDocuments({ certificate_url: { $exists: true, $ne: null } });
-      const withCertUrl3 = await db.collection("credentialkeys").countDocuments({ certificateUrl: { $exists: true, $ne: null } });
+      const withNestedCert = await db.collection("credentialkeys").countDocuments({ "credentials.completionCertificateUrl": { $exists: true, $ne: null } });
+      const sampleNested = await db.collection("credentialkeys").findOne({ "credentials.completionCertificateUrl": { $exists: true } });
+      const nestedCreds = sampleNested?.credentials?.filter((c: any) => c.completionCertificateUrl) || [];
 
       return new Response(JSON.stringify({
         totalCredKeys,
         withCompletionCertificateUrl: withCertUrl,
-        withCertificateUrl: withCertUrl3,
-        withCertificate_url: withCertUrl2,
+        withNestedCompletionCertificateUrl: withNestedCert,
         sampleDocFields: sampleDoc ? Object.keys(sampleDoc) : [],
         sampleWithCertFields: sampleWithCert ? Object.keys(sampleWithCert) : [],
+        sampleNestedCert: nestedCreds.length > 0 ? Object.keys(nestedCreds[0]) : [],
+        sampleNestedCertData: nestedCreds.length > 0 ? {
+          phase: nestedCreds[0].phase,
+          loginId: nestedCreds[0].loginId,
+          credentialStatus: nestedCreds[0].credentialStatus,
+          hasUrl: !!nestedCreds[0].completionCertificateUrl,
+        } : null,
       }, null, 2), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     } finally {
       if (mc) try { await mc.close(); } catch (_) {}
@@ -329,12 +338,7 @@ Deno.serve(async (req) => {
 
     const credKeys = await db
       .collection("credentialkeys")
-      .find({
-        $or: [
-          { completionCertificateUrl: { $exists: true, $ne: null } },
-          { "credentials.completionCertificateUrl": { $exists: true, $ne: null } },
-        ],
-      })
+      .find({})
       .toArray();
 
     const certificates = [
