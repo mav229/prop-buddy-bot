@@ -161,7 +161,7 @@ export const ManualPush = () => {
               />
             </div>
           </div>
-          <CardDescription>Sends fake order confirmations at random intervals (7–45 min)</CardDescription>
+          <CardDescription>Sends fake order confirmations at random intervals (5 min – 2 hrs)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center gap-4 text-xs text-muted-foreground">

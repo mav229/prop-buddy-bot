@@ -75,12 +75,18 @@ function randomIndianOrderName(): string {
   return `${first} ${last}`;
 }
 
-const ORDER_ACCOUNT_SIZES = ["$2K", "$3K", "$5K", "$10K", "$15K", "$25K", "$50K"];
-const ORDER_PAYMENT_METHODS_UPI = ["UPI", "UPI", "UPI"]; // weighted toward UPI
+// Weighted account sizes: $2K & $5K most frequent, $10K frequent, $25K moderate, $50K rare
+const ORDER_ACCOUNT_SIZES_WEIGHTED = [
+  "$2K", "$2K", "$2K", "$2K", "$2K",       // ~25%
+  "$5K", "$5K", "$5K", "$5K", "$5K",       // ~25%
+  "$10K", "$10K", "$10K", "$10K",           // ~20%
+  "$25K", "$25K", "$25K",                   // ~15%
+  "$50K", "$50K",                           // ~10% (~2 per day)
+];
 const ORDER_PAYMENT_METHODS_OTHER = ["PayPal", "Crypto", "Crypto"];
 
 function randomOrderPayment(): string {
-  // 65% UPI, 35% PayPal/Crypto
+  // 65% UPI (Indian traders), 35% PayPal/Crypto
   if (Math.random() < 0.65) {
     return "UPI";
   }
@@ -88,7 +94,7 @@ function randomOrderPayment(): string {
 }
 
 function randomAccountSize(): string {
-  return ORDER_ACCOUNT_SIZES[Math.floor(Math.random() * ORDER_ACCOUNT_SIZES.length)];
+  return ORDER_ACCOUNT_SIZES_WEIGHTED[Math.floor(Math.random() * ORDER_ACCOUNT_SIZES_WEIGHTED.length)];
 }
 
 function randomAccountNumber(): string {
@@ -578,7 +584,7 @@ Deno.serve(async (req) => {
   if (body?.action === "order_auto_toggle") {
     const cfg = await getOrderAutoConfig(supabase);
     const newEnabled = body.enabled !== undefined ? !!body.enabled : !cfg.enabled;
-    const nextMs = randomDelayMs(7, 45);
+    const nextMs = randomDelayMs(5, 120);
     const nextRun = new Date(Date.now() + nextMs).toISOString();
     await saveOrderAutoConfig(supabase, { ...cfg, enabled: newEnabled, next_run: newEnabled ? nextRun : cfg.next_run });
     return new Response(JSON.stringify({ success: true, enabled: newEnabled, next_run: newEnabled ? nextRun : cfg.next_run }), {
@@ -605,7 +611,7 @@ Deno.serve(async (req) => {
     const fakeOrder = buildFakeOrder();
     await sendOrderEmbed(botToken, channelIds, fakeOrder);
     const cfg = await getOrderAutoConfig(supabase);
-    const nextMs = randomDelayMs(7, 45);
+    const nextMs = randomDelayMs(5, 120);
     const nextRun = new Date(Date.now() + nextMs).toISOString();
     await saveOrderAutoConfig(supabase, { ...cfg, last_run: new Date().toISOString(), next_run: nextRun });
     return new Response(JSON.stringify({
@@ -647,7 +653,7 @@ Deno.serve(async (req) => {
     if (now >= nextRun && botToken && channelIds.length > 0) {
       const fakeOrder = buildFakeOrder();
       await sendOrderEmbed(botToken, channelIds, fakeOrder);
-      const nextMs = randomDelayMs(7, 45);
+      const nextMs = randomDelayMs(5, 120);
       const nextRunTime = new Date(now + nextMs).toISOString();
       await saveOrderAutoConfig(supabase, { ...orderCfg, enabled: true, last_run: new Date().toISOString(), next_run: nextRunTime });
       results.order = { sent: fakeOrder.customer_name, account_size: fakeOrder.account_size, next_run: nextRunTime };
