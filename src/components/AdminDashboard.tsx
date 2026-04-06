@@ -28,6 +28,7 @@ const navItems = [
   { value: "ref-links", label: "Ref Links", icon: LinkIcon },
   { value: "tones", label: "Tones", icon: Puzzle },
   { value: "manual-push", label: "Manual Push", icon: Crosshair },
+  { value: "orders", label: "Orders", icon: PackageCheck },
   { value: "extension", label: "Extension", icon: Puzzle },
   { value: "conn-logs", label: "Logs", icon: PlugZap },
   { value: "discord", label: "Settings", icon: Settings },
