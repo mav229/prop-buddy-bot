@@ -25,6 +25,11 @@ function makeSlug(
   return `${type}-${base}-${suffix}`;
 }
 
+function normalizePhase(phase: unknown): string | null {
+  if (typeof phase !== "string" || !phase.trim()) return null;
+  return phase.trim().toLowerCase().replace(/_/g, "-");
+}
+
 // --- Helper to get channel IDs from config ---
 async function getChannelIds(supabase: any): Promise<string[]> {
   try {
@@ -138,9 +143,16 @@ async function extractCredKeyCerts(credKeys: any[], db: any) {
 
   for (const doc of credKeys) {
     const mongoId = doc._id.toString();
-    const certUrl = doc.completionCertificateUrl;
+    const certUrl =
+      typeof doc.completionCertificateUrl === "string"
+        ? doc.completionCertificateUrl
+        : "";
     let userName = "Trader";
-    const account = doc.loginId?.toString() || "";
+    const account =
+      doc.loginId?.toString() ||
+      doc.accountNumber?.toString?.() ||
+      doc.account_number?.toString?.() ||
+      "";
 
     if (doc.assignedTo) {
       try {
@@ -153,24 +165,31 @@ async function extractCredKeyCerts(credKeys: any[], db: any) {
       } catch (_) {}
     }
 
-    certs.push({
-      user_name: userName,
-      account_number: account || null,
-      certificate_url: certUrl,
-      certificate_type: "completion",
-      phase: doc.phase || "phase-1",
-      slug: makeSlug("completion", userName, account, mongoId),
-      mongo_source_id: mongoId,
-      mongo_collection: "credentialkeys",
-      payout_amount: null,
-      status: doc.status || null,
-    });
+    if (certUrl) {
+      certs.push({
+        user_name: userName,
+        account_number: account || null,
+        certificate_url: certUrl,
+        certificate_type: "completion",
+        phase: normalizePhase(doc.phase) || "phase-1",
+        slug: makeSlug("completion", userName, account, mongoId),
+        mongo_source_id: mongoId,
+        mongo_collection: "credentialkeys",
+        payout_amount: null,
+        status: doc.credentialStatus || doc.status || null,
+      });
+    }
 
     // Nested credentials
     if (Array.isArray(doc.credentials)) {
       for (const cred of doc.credentials) {
         if (!cred.completionCertificateUrl) continue;
         const credId = `${mongoId}-${cred.loginId || cred._id || "sub"}`;
+        const credAccount =
+          cred.loginId?.toString() ||
+          account ||
+          cred.assignedOrderId?.toString?.() ||
+          "";
         let credUserName = "Trader";
         if (cred.assignedTo) {
           try {
@@ -189,15 +208,15 @@ async function extractCredKeyCerts(credKeys: any[], db: any) {
         }
         certs.push({
           user_name: credUserName,
-          account_number: cred.loginId?.toString() || null,
+          account_number: credAccount || null,
           certificate_url: cred.completionCertificateUrl,
           certificate_type: "completion",
-          phase: cred.phase || "phase-1",
-          slug: makeSlug("completion", credUserName, cred.loginId?.toString() || "", credId),
+          phase: normalizePhase(cred.phase) || "phase-1",
+          slug: makeSlug("completion", credUserName, credAccount, credId),
           mongo_source_id: credId,
           mongo_collection: "credentialkeys",
           payout_amount: null,
-          status: cred.status || null,
+          status: cred.credentialStatus || cred.status || null,
         });
       }
     }
@@ -310,7 +329,12 @@ Deno.serve(async (req) => {
 
     const credKeys = await db
       .collection("credentialkeys")
-      .find({ completionCertificateUrl: { $exists: true, $ne: null } })
+      .find({
+        $or: [
+          { completionCertificateUrl: { $exists: true, $ne: null } },
+          { "credentials.completionCertificateUrl": { $exists: true, $ne: null } },
+        ],
+      })
       .toArray();
 
     const certificates = [
