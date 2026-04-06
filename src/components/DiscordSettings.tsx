@@ -249,31 +249,48 @@ export const DiscordSettings = () => {
       {/* Certificate Announcements Channel */}
       <div className="glass-panel p-6 space-y-4">
         <div className="flex items-center gap-3">
-          <Bell className="w-5 h-5 text-amber-400" />
+          <Bell className="w-5 h-5 text-primary" />
           <div>
             <h3 className="font-display font-semibold">Certificate Announcements</h3>
             <p className="text-sm text-muted-foreground">
-              New Phase 1 &amp; Phase 2 certificates will be announced with a rich embed in this Discord channel.
+              New certificates will be announced with a rich embed in these Discord channels.
             </p>
           </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="cert-channel">Discord Channel ID</Label>
-          <div className="flex items-center gap-2">
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="cert-channel-1">Channel 1 (Primary)</Label>
             <Input
-              id="cert-channel"
-              value={certChannelId}
-              onChange={(e) => setCertChannelId(e.target.value)}
+              id="cert-channel-1"
+              value={certChannelId1}
+              onChange={(e) => setCertChannelId1(e.target.value)}
               placeholder="e.g., 1234567890123456789"
               className="font-mono text-sm"
             />
-            <Button onClick={handleSaveChannel} disabled={savingChannel} variant="secondary" size="sm">
-              {savingChannel ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            </Button>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cert-channel-2">Channel 2 (Optional)</Label>
+            <Input
+              id="cert-channel-2"
+              value={certChannelId2}
+              onChange={(e) => setCertChannelId2(e.target.value)}
+              placeholder="e.g., 9876543210987654321"
+              className="font-mono text-sm"
+            />
           </div>
           <p className="text-xs text-muted-foreground">
             Right-click a Discord channel → Copy Channel ID (enable Developer Mode in Discord settings first).
           </p>
+          <div className="flex items-center gap-2 pt-2">
+            <Button onClick={handleSaveChannel} disabled={savingChannel} variant="secondary" size="sm">
+              {savingChannel ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Save className="w-4 h-4 mr-1.5" />}
+              Save Channels
+            </Button>
+            <Button onClick={handleManualTrigger} disabled={triggering} variant="premium" size="sm">
+              {triggering ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Send className="w-4 h-4 mr-1.5" />}
+              Send Latest Certificates
+            </Button>
+          </div>
         </div>
       </div>
 
