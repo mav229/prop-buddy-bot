@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Bot, ExternalLink, Loader2, CheckCircle, AlertCircle, DatabaseBackup } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Bot, ExternalLink, Loader2, CheckCircle, AlertCircle, DatabaseBackup, Bell, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +12,41 @@ export const DiscordSettings = () => {
   const [loading, setLoading] = useState(false);
   const [registering, setRegistering] = useState(false);
   const [backingUp, setBackingUp] = useState(false);
+  const [certChannelId, setCertChannelId] = useState("");
+  const [savingChannel, setSavingChannel] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const loadChannelConfig = async () => {
+      const { data } = await supabase
+        .from("widget_config")
+        .select("config")
+        .eq("id", "cert_announce_channel")
+        .maybeSingle();
+      if (data?.config && typeof data.config === "object" && "channel_id" in (data.config as Record<string, unknown>)) {
+        setCertChannelId((data.config as Record<string, string>).channel_id || "");
+      }
+    };
+    loadChannelConfig();
+  }, []);
+
+  const handleSaveChannel = async () => {
+    setSavingChannel(true);
+    try {
+      const { error } = await supabase
+        .from("widget_config")
+        .upsert({
+          id: "cert_announce_channel",
+          config: { channel_id: certChannelId.trim() },
+        }, { onConflict: "id" });
+      if (error) throw error;
+      toast({ title: "Saved", description: "Certificate announcement channel updated." });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Error", description: e instanceof Error ? e.message : "Failed to save" });
+    } finally {
+      setSavingChannel(false);
+    }
+  };
 
   const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/discord-bot`;
 
