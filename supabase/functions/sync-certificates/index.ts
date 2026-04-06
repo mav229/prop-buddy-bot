@@ -30,6 +30,15 @@ function normalizePhase(phase: unknown): string | null {
   return phase.trim().toLowerCase().replace(/_/g, "-");
 }
 
+// Parse "Name (email@example.com)" format from assignedTo
+function parseAssignedTo(val: unknown): { name: string | null; email: string | null } {
+  if (typeof val !== "string" || !val.trim()) return { name: null, email: null };
+  const match = val.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+  if (match) return { name: match[1].trim(), email: match[2].trim().toLowerCase() };
+  if (val.includes("@")) return { name: null, email: val.trim().toLowerCase() };
+  return { name: val.trim(), email: null };
+}
+
 // --- Helper to get channel IDs from config ---
 async function getChannelIds(supabase: any): Promise<string[]> {
   try {
