@@ -163,15 +163,14 @@ async function extractCredKeyCerts(credKeys: any[], db: any) {
       doc.account_number?.toString?.() ||
       "";
 
+    // Parse name directly from assignedTo string "Name (email)"
     if (doc.assignedTo) {
-      try {
-        const user = await db.collection("users").findOne({ _id: doc.assignedTo });
-        if (user) {
-          userName =
-            user.displayName || user.name || user.firstName ||
-            user.username || user.email?.split("@")[0] || "Trader";
-        }
-      } catch (_) {}
+      const parsed = parseAssignedTo(doc.assignedTo);
+      if (parsed.name) {
+        userName = parsed.name;
+      } else if (parsed.email) {
+        userName = parsed.email.split("@")[0];
+      }
     }
 
     if (certUrl) {
