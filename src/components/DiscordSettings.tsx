@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Bot, ExternalLink, Loader2, CheckCircle, AlertCircle, DatabaseBackup, Bell, Save, Send } from "lucide-react";
+import { Bot, ExternalLink, Loader2, CheckCircle, AlertCircle, DatabaseBackup, Bell, Save, Send, Sparkles, Power } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -16,6 +17,11 @@ export const DiscordSettings = () => {
   const [certChannelId2, setCertChannelId2] = useState("");
   const [savingChannel, setSavingChannel] = useState(false);
   const [triggering, setTriggering] = useState(false);
+  const [fakeEnabled, setFakeEnabled] = useState(false);
+  const [fakeLastRun, setFakeLastRun] = useState<string | null>(null);
+  const [fakeNextRun, setFakeNextRun] = useState<string | null>(null);
+  const [fakeSending, setFakeSending] = useState(false);
+  const [fakeToggling, setFakeToggling] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
