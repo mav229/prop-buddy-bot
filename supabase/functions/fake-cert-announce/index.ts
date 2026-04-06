@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// --- Realistic name pools ---
+// --- Realistic name pools (certificates - mixed) ---
 const FIRST_NAMES = [
   "Aarav", "Arjun", "Vivaan", "Aditya", "Vihaan", "Sai", "Reyansh", "Krishna",
   "Ishaan", "Shaurya", "Atharva", "Advik", "Pranav", "Advaith", "Dhruv",
@@ -38,6 +38,57 @@ function randomName(): string {
   const first = FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)];
   const last = LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)];
   return `${first} ${last}`;
+}
+
+// --- Indian-only name pool for fake orders ---
+const INDIAN_FIRST_NAMES = [
+  "Aarav", "Arjun", "Vivaan", "Aditya", "Vihaan", "Sai", "Reyansh", "Krishna",
+  "Ishaan", "Shaurya", "Atharva", "Advik", "Pranav", "Advaith", "Dhruv",
+  "Kabir", "Ritvik", "Aarush", "Kayaan", "Darsh", "Ravi", "Amit", "Suresh",
+  "Raj", "Vikram", "Nikhil", "Rohan", "Siddharth", "Akash", "Deepak",
+  "Manish", "Rahul", "Gaurav", "Pradeep", "Harsh", "Manav", "Kunal",
+  "Ananya", "Saanvi", "Aanya", "Diya", "Myra", "Aadhya", "Ira", "Anika",
+  "Prisha", "Riya", "Avni", "Neha", "Pooja", "Sneha", "Kriti", "Tanvi",
+  "Yash", "Dev", "Aryan", "Karan", "Varun", "Mohit", "Sahil", "Aman",
+  "Naveen", "Tarun", "Chirag", "Vishal", "Neeraj", "Ankit", "Ashish",
+];
+
+const INDIAN_LAST_INITIALS = [
+  "S", "K", "P", "M", "G", "V", "R", "D", "T", "B", "J", "C", "N", "A", "L", "H", "Y",
+];
+
+const INDIAN_LAST_NAMES = [
+  "Sharma", "Patel", "Singh", "Kumar", "Gupta", "Verma", "Joshi", "Chauhan",
+  "Reddy", "Nair", "Mehta", "Shah", "Kapoor", "Iyer", "Rao", "Desai",
+  "Patil", "Bhatt", "Saxena", "Tiwari", "Yadav", "Srivastava", "Das",
+  "Bose", "Chatterjee", "Banerjee", "Kulkarni", "Agarwal", "Mishra", "Pandey",
+];
+
+function randomIndianOrderName(): string {
+  const first = INDIAN_FIRST_NAMES[Math.floor(Math.random() * INDIAN_FIRST_NAMES.length)];
+  // 60% chance short format "Manav K", 40% full name "Manav Kumar"
+  if (Math.random() < 0.6) {
+    const initial = INDIAN_LAST_INITIALS[Math.floor(Math.random() * INDIAN_LAST_INITIALS.length)];
+    return `${first} ${initial}`;
+  }
+  const last = INDIAN_LAST_NAMES[Math.floor(Math.random() * INDIAN_LAST_NAMES.length)];
+  return `${first} ${last}`;
+}
+
+const ORDER_ACCOUNT_SIZES = ["$2K", "$3K", "$5K", "$10K", "$15K", "$25K", "$50K"];
+const ORDER_PAYMENT_METHODS_UPI = ["UPI", "UPI", "UPI"]; // weighted toward UPI
+const ORDER_PAYMENT_METHODS_OTHER = ["PayPal", "Crypto", "Crypto"];
+
+function randomOrderPayment(): string {
+  // 65% UPI, 35% PayPal/Crypto
+  if (Math.random() < 0.65) {
+    return "UPI";
+  }
+  return ORDER_PAYMENT_METHODS_OTHER[Math.floor(Math.random() * ORDER_PAYMENT_METHODS_OTHER.length)];
+}
+
+function randomAccountSize(): string {
+  return ORDER_ACCOUNT_SIZES[Math.floor(Math.random() * ORDER_ACCOUNT_SIZES.length)];
 }
 
 function randomAccountNumber(): string {
