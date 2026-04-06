@@ -245,12 +245,14 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    // Get the latest 3 certificates
-    const { data: latestCerts } = await sb
+    // Get the latest 3 certificates, optionally filtered by type
+    let query = sb
       .from("hall_of_fame_certificates")
       .select("*")
-      .order("created_at", { ascending: false })
-      .limit(3);
+      .order("created_at", { ascending: false });
+    if (body.certificate_type) query = query.eq("certificate_type", body.certificate_type);
+    if (body.phase) query = query.eq("phase", body.phase);
+    const { data: latestCerts } = await query.limit(body.count || 3);
     if (!latestCerts || latestCerts.length === 0) {
       return new Response(JSON.stringify({ error: "No certificates found" }), {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
