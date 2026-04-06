@@ -314,6 +314,90 @@ export const DiscordSettings = () => {
         </div>
       </div>
 
+      {/* Fake Certificate Auto-Poster */}
+      <div className="glass-panel p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Sparkles className="w-5 h-5 text-amber-400" />
+            <div>
+              <h3 className="font-display font-semibold">Auto Certificate Poster</h3>
+              <p className="text-sm text-muted-foreground">
+                Posts randomly generated certificates to Discord at random intervals (30 min – 3 hrs).
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="fake-toggle" className="text-xs text-muted-foreground">
+              {fakeEnabled ? "Active" : "Off"}
+            </Label>
+            <Switch
+              id="fake-toggle"
+              checked={fakeEnabled}
+              disabled={fakeToggling}
+              onCheckedChange={async (checked) => {
+                setFakeToggling(true);
+                try {
+                  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fake-cert-announce`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "toggle", enabled: checked }),
+                  });
+                  const data = await res.json();
+                  setFakeEnabled(!!data.enabled);
+                  toast({ title: data.enabled ? "Auto-poster enabled" : "Auto-poster disabled" });
+                } catch (e) {
+                  toast({ variant: "destructive", title: "Error", description: "Failed to toggle" });
+                } finally {
+                  setFakeToggling(false);
+                }
+              }}
+            />
+          </div>
+        </div>
+
+        {fakeLastRun && (
+          <p className="text-xs text-muted-foreground">
+            Last posted: {new Date(fakeLastRun).toLocaleString()}
+          </p>
+        )}
+        {fakeNextRun && fakeEnabled && (
+          <p className="text-xs text-muted-foreground">
+            Next scheduled: {new Date(fakeNextRun).toLocaleString()}
+          </p>
+        )}
+
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={fakeSending}
+          onClick={async () => {
+            setFakeSending(true);
+            try {
+              const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fake-cert-announce`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "send_now" }),
+              });
+              const data = await res.json();
+              if (!res.ok || data?.error) throw new Error(data?.error || "Failed");
+              setFakeLastRun(new Date().toISOString());
+              setFakeNextRun(data.next_run || null);
+              toast({
+                title: "Fake certificate sent!",
+                description: `Posted ${data.sent} (${data.type}) to Discord.`,
+              });
+            } catch (e) {
+              toast({ variant: "destructive", title: "Error", description: e instanceof Error ? e.message : "Failed" });
+            } finally {
+              setFakeSending(false);
+            }
+          }}
+        >
+          {fakeSending ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Send className="w-4 h-4 mr-1.5" />}
+          Send One Now
+        </Button>
+      </div>
+
 
       <div className="glass-panel p-6 space-y-4">
         <div className="flex items-center gap-3">
