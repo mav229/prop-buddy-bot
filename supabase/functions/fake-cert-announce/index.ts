@@ -61,8 +61,8 @@ const TEMPLATE_STORAGE_URLS = {
 
 // Text positioning config matching the original certificate generator
 const TEXT_CONFIG = {
-  achievement: { nameY: 830, fontSize: 60, xOffset: 0 },
-  completion: { nameY: 830, fontSize: 60, xOffset: 0 },
+  achievement: { fontSize: 60, gravity: "center", yOffset: 120, xOffset: 200 },
+  completion: { fontSize: 60, gravity: "center", yOffset: 120, xOffset: 200 },
 };
 
 // --- Upload template to Cloudinary if not already there ---
@@ -138,12 +138,10 @@ function generateCertificateUrl(
   const config = TEXT_CONFIG[certType];
   const nameUpper = userName.toUpperCase();
 
-  // Encode text for Cloudinary URL (spaces become %20, special chars encoded)
   const encodedName = encodeURIComponent(nameUpper);
 
-  // Cloudinary transformation URL with text overlay
-  // l_text: uses font_size_weight format, co_rgb for color, g_north + y for position from top
-  const transformation = `l_text:Roboto_${config.fontSize}_bold:${encodedName},co_rgb:FFFFFF,g_north,y_${config.nameY},x_${config.xOffset}`;
+  // g_center with offsets: xOffset pushes right (toward cert text area), yOffset pushes down to name bar
+  const transformation = `l_text:Roboto_${config.fontSize}_bold:${encodedName},co_rgb:FFFFFF,g_${config.gravity},y_${config.yOffset},x_${config.xOffset}`;
 
   const url = `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/image/upload/${transformation}/${publicId}`;
   console.log(`Generated Cloudinary cert URL for ${userName}: ${url}`);
