@@ -44,92 +44,45 @@ function randomAccountNumber(): string {
   return `279${Math.floor(100000 + Math.random() * 900000)}`;
 }
 
-// --- Template URLs ---
+// --- Cloudinary config ---
+const CLOUDINARY_CLOUD = "dzozyqlqr";
+
+// Blank template URLs (from Supabase storage)
 const TEMPLATE_URLS = {
   achievement: "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/cert-templates/achievement-blank.png",
   completion: "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/cert-templates/completion-blank.png",
 };
 
-// --- Generate certificate image with name using AI ---
-async function generateCertificateImage(
-  supabase: any,
+// Text positioning config matching the original certificate generator
+const TEXT_CONFIG = {
+  achievement: { nameY: 830, fontSize: 60, xOffset: 300 },
+  completion: { nameY: 830, fontSize: 60, xOffset: 300 },
+};
+
+// --- Generate certificate URL using Cloudinary text overlay ---
+function generateCertificateUrl(
   userName: string,
   certType: "achievement" | "completion"
-): Promise<string | null> {
-  const apiKey = Deno.env.get("LOVABLE_API_KEY");
-  if (!apiKey) {
-    console.error("LOVABLE_API_KEY not set, skipping image generation");
-    return null;
-  }
-
+): string {
+  const config = TEXT_CONFIG[certType];
   const templateUrl = TEMPLATE_URLS[certType];
   const nameUpper = userName.toUpperCase();
 
-  try {
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: `Add the name "${nameUpper}" to this certificate in the empty name field area (the dark rectangle/area below "PROUDLY PRESENTED TO"). The name should be in white color, bold, centered in that area, matching the certificate's style. Do not change anything else on the certificate.`,
-              },
-              {
-                type: "image_url",
-                image_url: { url: templateUrl },
-              },
-            ],
-          },
-        ],
-        modalities: ["image", "text"],
-      }),
-    });
+  // Encode the name for URL (spaces become %20)
+  const encodedName = encodeURIComponent(nameUpper).replace(/%20/g, "%20");
 
-    if (!response.ok) {
-      console.error("AI image gen failed:", response.status, await response.text());
-      return null;
-    }
+  // Cloudinary fetch URL with text overlay
+  // l_text:FontFamily_Size_Weight:Text,co_rgb:color,g_gravity,y_offset
+  // Using g_north so y is from top, x_offset from center
+  const textOverlay = `l_text:Roboto_${config.fontSize}_bold:${encodedName},co_rgb:FFFFFF,g_north,y_${config.nameY},x_${config.xOffset}`;
 
-    const data = await response.json();
-    const imageData = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+  // Base64 encode the source URL for Cloudinary fetch
+  const base64Url = btoa(templateUrl);
 
-    if (!imageData) {
-      console.error("No image in AI response");
-      return null;
-    }
+  const cloudinaryUrl = `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/image/fetch/${textOverlay}/https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/cert-templates/${certType === "achievement" ? "achievement-blank.png" : "completion-blank.png"}`;
 
-    // Upload to storage
-    const base64 = imageData.replace(/^data:image\/\w+;base64,/, "");
-    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-    const fileName = `fake-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("generated-certs")
-      .upload(fileName, bytes, { contentType: "image/png", upsert: true });
-
-    if (uploadError) {
-      console.error("Upload error:", uploadError);
-      return null;
-    }
-
-    const { data: urlData } = supabase.storage
-      .from("generated-certs")
-      .getPublicUrl(fileName);
-
-    console.log(`Generated cert image for ${userName}: ${urlData.publicUrl}`);
-    return urlData.publicUrl;
-  } catch (e) {
-    console.error("Cert image generation error:", e);
-    return null;
-  }
+  console.log(`Generated Cloudinary cert URL for ${userName}: ${cloudinaryUrl}`);
+  return cloudinaryUrl;
 }
 
 // --- Channel IDs from config ---
@@ -221,29 +174,15 @@ async function sendDiscordEmbed(
   }
 }
 
-// --- Build a fake cert with AI-generated image ---
-async function buildFakeCert(supabase: any) {
+// --- Build a fake cert with Cloudinary text overlay ---
+function buildFakeCert() {
   const isAchievement = Math.random() < 0.2;
   const certType = isAchievement ? "achievement" : "completion";
   const userName = randomName();
   const accountNumber = randomAccountNumber();
 
-  // Generate image with name overlaid
-  const generatedUrl = await generateCertificateImage(supabase, userName, certType);
-
-  // Fallback: use a random real cert if AI generation fails
-  let certificateUrl = generatedUrl;
-  if (!certificateUrl) {
-    const { data: realCerts } = await supabase
-      .from("hall_of_fame_certificates")
-      .select("certificate_url")
-      .order("created_at", { ascending: false })
-      .limit(50);
-    const certUrls = realCerts?.map((c: any) => c.certificate_url) || [];
-    certificateUrl = certUrls.length > 0
-      ? certUrls[Math.floor(Math.random() * certUrls.length)]
-      : TEMPLATE_URLS[certType];
-  }
+  // Generate certificate URL with name overlay via Cloudinary
+  const certificateUrl = generateCertificateUrl(userName, certType);
 
   return {
     user_name: userName,
@@ -295,7 +234,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const fakeCert = await buildFakeCert(supabase);
+    const fakeCert = buildFakeCert();
     await sendDiscordEmbed(botToken, channelIds, fakeCert);
 
     const cfg = await getConfig(supabase);
@@ -307,7 +246,7 @@ Deno.serve(async (req) => {
       success: true,
       sent: fakeCert.user_name,
       type: fakeCert.certificate_type,
-      generated_image: !!fakeCert.certificate_url?.includes("generated-certs"),
+      certificate_url: fakeCert.certificate_url,
       next_run: nextRun,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
@@ -341,7 +280,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  const fakeCert = await buildFakeCert(supabase);
+  const fakeCert = buildFakeCert();
   await sendDiscordEmbed(botToken, channelIds, fakeCert);
 
   const nextDelay = 30 + Math.floor(Math.random() * 150);
