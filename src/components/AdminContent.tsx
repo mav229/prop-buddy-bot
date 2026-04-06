@@ -92,6 +92,8 @@ export const AdminContent = ({ activeTab }: AdminContentProps) => {
       return <TonePresetsManager />;
     case "manual-push":
       return <ManualPush />;
+    case "orders":
+      return <DiscordOrders />;
     case "extension":
       return <ExtensionAnalytics />;
     case "conn-logs":
