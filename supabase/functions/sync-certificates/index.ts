@@ -214,33 +214,35 @@ Deno.serve(async (req) => {
   // Test mode: send a sample embed without syncing
   let body: any = {};
   try { body = await req.json(); } catch (_) {}
-  if (body?.action === "test_announce") {
+  // Special actions
+  if (body?.action === "manual_announce") {
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN") || "";
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     const sb = createClient(supabaseUrl, serviceRoleKey);
-    const { data: channelConfig } = await sb
-      .from("widget_config")
-      .select("config")
-      .eq("id", "cert_announce_channel")
-      .maybeSingle();
-    const channelId = (channelConfig?.config as Record<string, string>)?.channel_id || "";
-    if (!botToken || !channelId) {
-      return new Response(JSON.stringify({ error: "Bot token or channel not configured" }), {
+    const channelIds = await getChannelIds(sb);
+    if (!botToken || channelIds.length === 0) {
+      return new Response(JSON.stringify({ error: "Bot token or channels not configured" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const testType = body.type || "completion"; // "completion" or "achievement"
-    const sampleCert = {
-      user_name: body.user_name || "Sample Trader",
-      account_number: body.account_number || "123456",
-      certificate_url: body.certificate_url || "https://res.cloudinary.com/dghzfr1qj/image/upload/v1733745493/certificates/sample.png",
-      certificate_type: testType,
-      phase: testType === "achievement" ? "funded" : "phase-1",
-      slug: "test-sample",
-    };
-    await sendDiscordEmbed(botToken, channelId, sampleCert);
-    return new Response(JSON.stringify({ success: true, message: `Test ${testType} announcement sent` }), {
+    // Get the latest 3 certificates
+    const { data: latestCerts } = await sb
+      .from("hall_of_fame_certificates")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(3);
+    if (!latestCerts || latestCerts.length === 0) {
+      return new Response(JSON.stringify({ error: "No certificates found" }), {
+        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    let announced = 0;
+    for (const cert of latestCerts) {
+      await announceToDiscord(botToken, channelIds, cert);
+      announced++;
+    }
+    return new Response(JSON.stringify({ success: true, announced }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
