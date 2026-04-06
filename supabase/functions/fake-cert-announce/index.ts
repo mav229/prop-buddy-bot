@@ -61,8 +61,8 @@ const TEMPLATE_STORAGE_URLS = {
 
 // Text positioning config matching the original certificate generator
 const TEXT_CONFIG = {
-  achievement: { nameY: 830, fontSize: 60, xOffset: 300 },
-  completion: { nameY: 830, fontSize: 60, xOffset: 300 },
+  achievement: { nameY: 830, fontSize: 60, xOffset: 0 },
+  completion: { nameY: 830, fontSize: 60, xOffset: 0 },
 };
 
 // --- Upload template to Cloudinary if not already there ---
