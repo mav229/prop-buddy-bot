@@ -31,7 +31,7 @@ export const ManualPush = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      setLastSent({ name: data.sent, type: data.type, url: data.certificate_url });
+      setLastSent({ name: data.sent, type: data.type, url: data.certificate_url, saved: data.saved_to_hall });
       toast.success(`Certificate sent for ${data.sent}`);
       setName("");
     } catch (err: any) {
