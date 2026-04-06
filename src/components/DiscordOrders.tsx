@@ -105,7 +105,7 @@ export const DiscordOrders = () => {
           payment_method: order.paymentMethod,
           order_number: order.orderNumber,
           amount: order.amount,
-          discord_username: order.discordUsername,
+          email: order.email,
         },
       });
       if (error) throw error;

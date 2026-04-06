@@ -324,7 +324,7 @@ Deno.serve(async (req) => {
     const paymentMethod = body.payment_method?.trim() || "N/A";
     const orderNumber = body.order_number?.trim() || "";
     const amount = body.amount || 0;
-    const discordUsername = body.discord_username || null;
+    const email = body.email?.trim() || "";
 
     if (!customerName) {
       return new Response(JSON.stringify({ error: "Customer name is required" }), {
@@ -342,14 +342,14 @@ Deno.serve(async (req) => {
     const embed = {
       title: "🛒 New Order Confirmed!",
       description: `**${customerName}** has purchased a PropScholar account!`,
-      color: 0x3b82f6, // blue
+      color: 0x3b82f6,
       fields: [
         { name: "Customer", value: customerName, inline: true },
         { name: "Account Size", value: accountSize, inline: true },
         { name: "Payment Method", value: paymentMethod, inline: true },
         ...(amount ? [{ name: "Amount", value: `$${Number(amount).toLocaleString()}`, inline: true }] : []),
         ...(orderNumber ? [{ name: "Order #", value: orderNumber, inline: true }] : []),
-        ...(discordUsername ? [{ name: "Discord", value: discordUsername, inline: true }] : []),
+        ...(email ? [{ name: "Email", value: email, inline: true }] : []),
       ],
       footer: { text: "PropScholar Orders" },
       timestamp: new Date().toISOString(),
