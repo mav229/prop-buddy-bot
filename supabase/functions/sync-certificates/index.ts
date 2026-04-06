@@ -25,10 +25,29 @@ function makeSlug(
   return `${type}-${base}-${suffix}`;
 }
 
-// --- Discord embed sender ---
-async function sendDiscordEmbed(
+// --- Helper to get channel IDs from config ---
+async function getChannelIds(supabase: any): Promise<string[]> {
+  try {
+    const { data } = await supabase
+      .from("widget_config")
+      .select("config")
+      .eq("id", "cert_announce_channel")
+      .maybeSingle();
+    if (!data?.config || typeof data.config !== "object") return [];
+    const cfg = data.config as Record<string, string>;
+    const ids: string[] = [];
+    if (cfg.channel_id_1 || cfg.channel_id) ids.push(cfg.channel_id_1 || cfg.channel_id);
+    if (cfg.channel_id_2) ids.push(cfg.channel_id_2);
+    return ids.filter(Boolean);
+  } catch (_) {
+    return [];
+  }
+}
+
+// --- Discord embed sender (sends to all configured channels) ---
+async function announceToDiscord(
   botToken: string,
-  channelId: string,
+  channelIds: string[],
   cert: {
     user_name: string;
     account_number: string | null;
@@ -39,10 +58,8 @@ async function sendDiscordEmbed(
   }
 ) {
   const isAchievement = cert.certificate_type === "achievement";
-  const color = isAchievement ? 0xfbbf24 : 0x22c55e; // gold vs green
-  const title = isAchievement
-    ? `🏆 New Funded Trader!`
-    : `✅ Phase 1 Completed!`;
+  const color = isAchievement ? 0xfbbf24 : 0x22c55e;
+  const title = isAchievement ? `🏆 New Funded Trader!` : `✅ Phase 1 Completed!`;
   const description = isAchievement
     ? `**${cert.user_name}** has earned a funded account after successfully completing the PropScholar evaluation!`
     : `**${cert.user_name}** has successfully completed Phase 1 of the PropScholar evaluation!`;
@@ -66,26 +83,29 @@ async function sendDiscordEmbed(
     timestamp: new Date().toISOString(),
   };
 
-  try {
-    const res = await fetch(
-      `https://discord.com/api/v10/channels/${channelId}/messages`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bot ${botToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ embeds: [embed] }),
+  for (const channelId of channelIds) {
+    try {
+      const res = await fetch(
+        `https://discord.com/api/v10/channels/${channelId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bot ${botToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ embeds: [embed] }),
+        }
+      );
+      if (!res.ok) {
+        const text = await res.text();
+        console.error(`Discord embed failed ch:${channelId} (${res.status}):`, text);
+      } else {
+        console.log(`Announced ${cert.user_name} to channel ${channelId}`);
       }
-    );
-    if (!res.ok) {
-      const text = await res.text();
-      console.error(`Discord embed failed (${res.status}):`, text);
-    } else {
-      console.log(`Discord announcement sent for ${cert.user_name}`);
+    } catch (e) {
+      console.error(`Discord embed error ch:${channelId}:`, e);
     }
-  } catch (e) {
-    console.error("Discord embed error:", e);
+    await new Promise((r) => setTimeout(r, 500));
   }
 }
 
