@@ -25,13 +25,173 @@ function makeSlug(
   return `${type}-${base}-${suffix}`;
 }
 
+// --- Discord embed sender ---
+async function sendDiscordEmbed(
+  botToken: string,
+  channelId: string,
+  cert: {
+    user_name: string;
+    account_number: string | null;
+    certificate_url: string;
+    certificate_type: string;
+    phase: string | null;
+    slug: string;
+  }
+) {
+  const isAchievement = cert.certificate_type === "achievement";
+  const color = isAchievement ? 0xfbbf24 : 0x22c55e; // gold vs green
+  const title = isAchievement
+    ? `🏆 New Funded Trader!`
+    : `✅ Phase 1 Completed!`;
+  const description = isAchievement
+    ? `**${cert.user_name}** has earned a funded account after successfully completing the PropScholar evaluation!`
+    : `**${cert.user_name}** has successfully completed Phase 1 of the PropScholar evaluation!`;
+
+  const embed = {
+    title,
+    description,
+    color,
+    image: { url: cert.certificate_url },
+    fields: [
+      ...(cert.account_number
+        ? [{ name: "Account", value: cert.account_number, inline: true }]
+        : []),
+      {
+        name: "Type",
+        value: isAchievement ? "Achievement Certificate" : "Completion Certificate",
+        inline: true,
+      },
+    ],
+    footer: { text: "PropScholar Hall of Fame" },
+    timestamp: new Date().toISOString(),
+  };
+
+  try {
+    const res = await fetch(
+      `https://discord.com/api/v10/channels/${channelId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bot ${botToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ embeds: [embed] }),
+      }
+    );
+    if (!res.ok) {
+      const text = await res.text();
+      console.error(`Discord embed failed (${res.status}):`, text);
+    } else {
+      console.log(`Discord announcement sent for ${cert.user_name}`);
+    }
+  } catch (e) {
+    console.error("Discord embed error:", e);
+  }
+}
+
+// --- Cert extraction helpers ---
+function extractPayoutCerts(payouts: any[]) {
+  const certs: any[] = [];
+  for (const doc of payouts) {
+    const mongoId = doc._id.toString();
+    const userName = doc.userName || doc.user_name || "Trader";
+    const account =
+      doc.accountNumber?.toString() || doc.account_number?.toString() || "";
+    certs.push({
+      user_name: userName,
+      account_number: account || null,
+      certificate_url: doc.certificateUrl,
+      certificate_type: "achievement",
+      phase: doc.phase || "funded",
+      slug: makeSlug("achievement", userName, account, mongoId),
+      mongo_source_id: mongoId,
+      mongo_collection: "payouts",
+      payout_amount: doc.payoutAmount || doc.payout_amount || null,
+      status: doc.status || null,
+    });
+  }
+  return certs;
+}
+
+async function extractCredKeyCerts(credKeys: any[], db: any) {
+  const certs: any[] = [];
+
+  for (const doc of credKeys) {
+    const mongoId = doc._id.toString();
+    const certUrl = doc.completionCertificateUrl;
+    let userName = "Trader";
+    const account = doc.loginId?.toString() || "";
+
+    if (doc.assignedTo) {
+      try {
+        const user = await db.collection("users").findOne({ _id: doc.assignedTo });
+        if (user) {
+          userName =
+            user.displayName || user.name || user.firstName ||
+            user.username || user.email?.split("@")[0] || "Trader";
+        }
+      } catch (_) {}
+    }
+
+    certs.push({
+      user_name: userName,
+      account_number: account || null,
+      certificate_url: certUrl,
+      certificate_type: "completion",
+      phase: doc.phase || "phase-1",
+      slug: makeSlug("completion", userName, account, mongoId),
+      mongo_source_id: mongoId,
+      mongo_collection: "credentialkeys",
+      payout_amount: null,
+      status: doc.status || null,
+    });
+
+    // Nested credentials
+    if (Array.isArray(doc.credentials)) {
+      for (const cred of doc.credentials) {
+        if (!cred.completionCertificateUrl) continue;
+        const credId = `${mongoId}-${cred.loginId || cred._id || "sub"}`;
+        let credUserName = "Trader";
+        if (cred.assignedTo) {
+          try {
+            const user = await db.collection("users").findOne({
+              $or: [
+                { _id: cred.assignedTo },
+                { email: cred.assignedTo?.toString?.()?.toLowerCase?.() },
+              ],
+            });
+            if (user) {
+              credUserName =
+                user.displayName || user.name || user.firstName ||
+                user.email?.split("@")[0] || "Trader";
+            }
+          } catch (_) {}
+        }
+        certs.push({
+          user_name: credUserName,
+          account_number: cred.loginId?.toString() || null,
+          certificate_url: cred.completionCertificateUrl,
+          certificate_type: "completion",
+          phase: cred.phase || "phase-1",
+          slug: makeSlug("completion", credUserName, cred.loginId?.toString() || "", credId),
+          mongo_source_id: credId,
+          mongo_collection: "credentialkeys",
+          payout_amount: null,
+          status: cred.status || null,
+        });
+      }
+    }
+  }
+  return certs;
+}
+
+// --- Main handler ---
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-
   const uri = Deno.env.get("MONGO_URI");
   if (!uri) {
     return new Response(JSON.stringify({ error: "MONGO_URI not configured" }), {
@@ -51,135 +211,43 @@ Deno.serve(async (req) => {
     await client.connect();
     const db = client.db(dbName);
 
-    const certificates: {
-      user_name: string;
-      account_number: string | null;
-      certificate_url: string;
-      certificate_type: string;
-      phase: string | null;
-      slug: string;
-      mongo_source_id: string;
-      mongo_collection: string;
-      payout_amount: number | null;
-      status: string | null;
-    }[] = [];
-
-    // 1. Payouts — Achievement Certificates
+    // 1. Fetch from MongoDB
     const payouts = await db
       .collection("payouts")
       .find({ certificateUrl: { $exists: true, $ne: null } })
       .toArray();
 
-    for (const doc of payouts) {
-      const mongoId = doc._id.toString();
-      const userName = doc.userName || doc.user_name || "Trader";
-      const account = doc.accountNumber?.toString() || doc.account_number?.toString() || "";
-      certificates.push({
-        user_name: userName,
-        account_number: account || null,
-        certificate_url: doc.certificateUrl,
-        certificate_type: "achievement",
-        phase: doc.phase || "funded",
-        slug: makeSlug("achievement", userName, account, mongoId),
-        mongo_source_id: mongoId,
-        mongo_collection: "payouts",
-        payout_amount: doc.payoutAmount || doc.payout_amount || null,
-        status: doc.status || null,
-      });
-    }
-
-    // 2. CredentialKeys — Completion Certificates
     const credKeys = await db
       .collection("credentialkeys")
       .find({ completionCertificateUrl: { $exists: true, $ne: null } })
       .toArray();
 
-    for (const doc of credKeys) {
-      // Each credential key may have multiple credentials with completionCertificateUrl
-      const mongoId = doc._id.toString();
-      const certUrl = doc.completionCertificateUrl;
-      
-      // Try to resolve user name from the users collection
-      let userName = "Trader";
-      let account = doc.loginId?.toString() || "";
-
-      // Check if doc has user reference
-      if (doc.assignedTo) {
-        try {
-          const user = await db
-            .collection("users")
-            .findOne({ _id: doc.assignedTo });
-          if (user) {
-            userName =
-              user.displayName ||
-              user.name ||
-              user.firstName ||
-              user.username ||
-              user.email?.split("@")[0] ||
-              "Trader";
-          }
-        } catch (_) {
-          // ignore lookup failures
-        }
-      }
-
-      certificates.push({
-        user_name: userName,
-        account_number: account || null,
-        certificate_url: certUrl,
-        certificate_type: "completion",
-        phase: doc.phase || "phase-1",
-        slug: makeSlug("completion", userName, account, mongoId),
-        mongo_source_id: mongoId,
-        mongo_collection: "credentialkeys",
-        payout_amount: null,
-        status: doc.status || null,
-      });
-    }
-
-    // Also check individual credentials within credentialkeys docs
-    for (const doc of credKeys) {
-      if (!Array.isArray(doc.credentials)) continue;
-      for (const cred of doc.credentials) {
-        if (!cred.completionCertificateUrl) continue;
-        const credId = `${doc._id.toString()}-${cred.loginId || cred._id || "sub"}`;
-        
-        let userName = "Trader";
-        if (cred.assignedTo) {
-          try {
-            const user = await db.collection("users").findOne({ 
-              $or: [
-                { _id: cred.assignedTo },
-                { email: cred.assignedTo?.toString?.()?.toLowerCase?.() }
-              ]
-            });
-            if (user) {
-              userName = user.displayName || user.name || user.firstName || user.email?.split("@")[0] || "Trader";
-            }
-          } catch (_) {}
-        }
-
-        certificates.push({
-          user_name: userName,
-          account_number: cred.loginId?.toString() || null,
-          certificate_url: cred.completionCertificateUrl,
-          certificate_type: "completion",
-          phase: cred.phase || "phase-1",
-          slug: makeSlug("completion", userName, cred.loginId?.toString() || "", credId),
-          mongo_source_id: credId,
-          mongo_collection: "credentialkeys",
-          payout_amount: null,
-          status: cred.status || null,
-        });
-      }
-    }
+    const certificates = [
+      ...extractPayoutCerts(payouts),
+      ...(await extractCredKeyCerts(credKeys, db)),
+    ];
 
     console.log(`Found ${certificates.length} total certificates to sync`);
 
-    // Upsert into Supabase
+    // 2. Load Discord config
+    const botToken = Deno.env.get("DISCORD_BOT_TOKEN") || "";
+    let announceChannelId = "";
+    try {
+      const { data: channelConfig } = await supabase
+        .from("widget_config")
+        .select("config")
+        .eq("id", "cert_announce_channel")
+        .maybeSingle();
+      if (channelConfig?.config && typeof channelConfig.config === "object") {
+        announceChannelId = (channelConfig.config as Record<string, string>).channel_id || "";
+      }
+    } catch (_) {}
+
+    // 3. Upsert into Supabase
     let inserted = 0;
     let updated = 0;
     let errors = 0;
+    const newCerts: typeof certificates = [];
 
     for (const cert of certificates) {
       const { data: existing } = await supabase
@@ -212,7 +280,6 @@ Deno.serve(async (req) => {
           .from("hall_of_fame_certificates")
           .insert(cert);
         if (error) {
-          // Handle slug collision by appending random suffix
           if (error.code === "23505" && error.message?.includes("slug")) {
             cert.slug = `${cert.slug}-${Date.now().toString(36)}`;
             const { error: retryErr } = await supabase
@@ -223,6 +290,7 @@ Deno.serve(async (req) => {
               errors++;
             } else {
               inserted++;
+              newCerts.push(cert);
             }
           } else {
             console.error(`Insert error for ${cert.mongo_source_id}:`, error);
@@ -230,7 +298,18 @@ Deno.serve(async (req) => {
           }
         } else {
           inserted++;
+          newCerts.push(cert);
         }
+      }
+    }
+
+    // 4. Send Discord announcements for NEW certs only
+    if (botToken && announceChannelId && newCerts.length > 0) {
+      console.log(`Sending ${newCerts.length} Discord announcements to channel ${announceChannelId}`);
+      for (const cert of newCerts) {
+        await sendDiscordEmbed(botToken, announceChannelId, cert);
+        // Small delay to avoid rate limits
+        await new Promise((r) => setTimeout(r, 1000));
       }
     }
 
@@ -241,6 +320,7 @@ Deno.serve(async (req) => {
         inserted,
         updated,
         errors,
+        announced: newCerts.length,
         synced_at: new Date().toISOString(),
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

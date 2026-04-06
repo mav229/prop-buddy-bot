@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Bot, ExternalLink, Loader2, CheckCircle, AlertCircle, DatabaseBackup } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Bot, ExternalLink, Loader2, CheckCircle, AlertCircle, DatabaseBackup, Bell, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +12,41 @@ export const DiscordSettings = () => {
   const [loading, setLoading] = useState(false);
   const [registering, setRegistering] = useState(false);
   const [backingUp, setBackingUp] = useState(false);
+  const [certChannelId, setCertChannelId] = useState("");
+  const [savingChannel, setSavingChannel] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const loadChannelConfig = async () => {
+      const { data } = await supabase
+        .from("widget_config")
+        .select("config")
+        .eq("id", "cert_announce_channel")
+        .maybeSingle();
+      if (data?.config && typeof data.config === "object" && "channel_id" in (data.config as Record<string, unknown>)) {
+        setCertChannelId((data.config as Record<string, string>).channel_id || "");
+      }
+    };
+    loadChannelConfig();
+  }, []);
+
+  const handleSaveChannel = async () => {
+    setSavingChannel(true);
+    try {
+      const { error } = await supabase
+        .from("widget_config")
+        .upsert({
+          id: "cert_announce_channel",
+          config: { channel_id: certChannelId.trim() },
+        }, { onConflict: "id" });
+      if (error) throw error;
+      toast({ title: "Saved", description: "Certificate announcement channel updated." });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Error", description: e instanceof Error ? e.message : "Failed to save" });
+    } finally {
+      setSavingChannel(false);
+    }
+  };
 
   const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/discord-bot`;
 
@@ -187,7 +221,38 @@ export const DiscordSettings = () => {
         </div>
       </div>
 
-      {/* MongoDB Backup */}
+      {/* Certificate Announcements Channel */}
+      <div className="glass-panel p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <Bell className="w-5 h-5 text-amber-400" />
+          <div>
+            <h3 className="font-display font-semibold">Certificate Announcements</h3>
+            <p className="text-sm text-muted-foreground">
+              New Phase 1 &amp; Phase 2 certificates will be announced with a rich embed in this Discord channel.
+            </p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="cert-channel">Discord Channel ID</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              id="cert-channel"
+              value={certChannelId}
+              onChange={(e) => setCertChannelId(e.target.value)}
+              placeholder="e.g., 1234567890123456789"
+              className="font-mono text-sm"
+            />
+            <Button onClick={handleSaveChannel} disabled={savingChannel} variant="secondary" size="sm">
+              {savingChannel ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Right-click a Discord channel → Copy Channel ID (enable Developer Mode in Discord settings first).
+          </p>
+        </div>
+      </div>
+
+
       <div className="glass-panel p-6 space-y-4">
         <div className="flex items-center gap-3">
           <DatabaseBackup className="w-5 h-5 text-primary" />
