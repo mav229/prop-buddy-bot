@@ -221,7 +221,38 @@ export const DiscordSettings = () => {
         </div>
       </div>
 
-      {/* MongoDB Backup */}
+      {/* Certificate Announcements Channel */}
+      <div className="glass-panel p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <Bell className="w-5 h-5 text-amber-400" />
+          <div>
+            <h3 className="font-display font-semibold">Certificate Announcements</h3>
+            <p className="text-sm text-muted-foreground">
+              New Phase 1 &amp; Phase 2 certificates will be announced with a rich embed in this Discord channel.
+            </p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="cert-channel">Discord Channel ID</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              id="cert-channel"
+              value={certChannelId}
+              onChange={(e) => setCertChannelId(e.target.value)}
+              placeholder="e.g., 1234567890123456789"
+              className="font-mono text-sm"
+            />
+            <Button onClick={handleSaveChannel} disabled={savingChannel} variant="secondary" size="sm">
+              {savingChannel ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Right-click a Discord channel → Copy Channel ID (enable Developer Mode in Discord settings first).
+          </p>
+        </div>
+      </div>
+
+
       <div className="glass-panel p-6 space-y-4">
         <div className="flex items-center gap-3">
           <DatabaseBackup className="w-5 h-5 text-primary" />
