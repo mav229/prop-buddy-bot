@@ -574,52 +574,91 @@ Deno.serve(async (req) => {
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
-  // --- CRON tick: check if it's time to post ---
-  const cfg = await getConfig(supabase);
-
-  if (!cfg.enabled) {
-    return new Response(JSON.stringify({ skipped: true, reason: "disabled" }), {
+  // --- Order auto toggle ---
+  if (body?.action === "order_auto_toggle") {
+    const cfg = await getOrderAutoConfig(supabase);
+    const newEnabled = body.enabled !== undefined ? !!body.enabled : !cfg.enabled;
+    const nextMs = randomDelayMs(7, 45);
+    const nextRun = new Date(Date.now() + nextMs).toISOString();
+    await saveOrderAutoConfig(supabase, { ...cfg, enabled: newEnabled, next_run: newEnabled ? nextRun : cfg.next_run });
+    return new Response(JSON.stringify({ success: true, enabled: newEnabled, next_run: newEnabled ? nextRun : cfg.next_run }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
-  const now = Date.now();
-  const nextRun = cfg.next_run ? new Date(cfg.next_run).getTime() : 0;
-
-  if (now < nextRun) {
-    return new Response(JSON.stringify({
-      skipped: true,
-      reason: "not_yet",
-      next_run: cfg.next_run,
-      minutes_left: Math.round((nextRun - now) / 60000),
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  }
-
-  // Time to post!
-  const channelIds = await getChannelIds(supabase);
-  if (!botToken || channelIds.length === 0) {
-    return new Response(JSON.stringify({ error: "Bot or channels not configured" }), {
-      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+  // --- Order auto status ---
+  if (body?.action === "order_auto_status") {
+    const cfg = await getOrderAutoConfig(supabase);
+    return new Response(JSON.stringify({ enabled: !!cfg.enabled, last_run: cfg.last_run, next_run: cfg.next_run }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
-  const fakeCert = await buildFakeCert();
-  await sendDiscordEmbed(botToken, channelIds, fakeCert);
+  // --- Order auto send now ---
+  if (body?.action === "order_auto_send_now") {
+    const channelIds = await getChannelIds(supabase);
+    if (!botToken || channelIds.length === 0) {
+      return new Response(JSON.stringify({ error: "Bot or channels not configured" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const fakeOrder = buildFakeOrder();
+    await sendOrderEmbed(botToken, channelIds, fakeOrder);
+    const cfg = await getOrderAutoConfig(supabase);
+    const nextMs = randomDelayMs(7, 45);
+    const nextRun = new Date(Date.now() + nextMs).toISOString();
+    await saveOrderAutoConfig(supabase, { ...cfg, last_run: new Date().toISOString(), next_run: nextRun });
+    return new Response(JSON.stringify({
+      success: true,
+      sent: fakeOrder.customer_name,
+      account_size: fakeOrder.account_size,
+      payment_method: fakeOrder.payment_method,
+      next_run: nextRun,
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
 
-  const nextDelay = 30 + Math.floor(Math.random() * 150);
-  const nextRunTime = new Date(now + nextDelay * 60 * 1000).toISOString();
-  await saveConfig(supabase, {
-    ...cfg,
-    enabled: true,
-    last_run: new Date().toISOString(),
-    next_run: nextRunTime,
+  // --- CRON tick: check both cert and order auto ---
+  const cfg = await getConfig(supabase);
+  const orderCfg = await getOrderAutoConfig(supabase);
+  const now = Date.now();
+  const channelIds = await getChannelIds(supabase);
+  const results: any = {};
+
+  // Certificate auto
+  if (cfg.enabled) {
+    const nextRun = cfg.next_run ? new Date(cfg.next_run).getTime() : 0;
+    if (now >= nextRun && botToken && channelIds.length > 0) {
+      const fakeCert = await buildFakeCert();
+      await sendDiscordEmbed(botToken, channelIds, fakeCert);
+      const nextMs = randomDelayMs(30, 180);
+      const nextRunTime = new Date(now + nextMs).toISOString();
+      await saveConfig(supabase, { ...cfg, enabled: true, last_run: new Date().toISOString(), next_run: nextRunTime });
+      results.cert = { sent: fakeCert.user_name, type: fakeCert.certificate_type, next_run: nextRunTime };
+    } else {
+      results.cert = { skipped: true, next_run: cfg.next_run };
+    }
+  } else {
+    results.cert = { skipped: true, reason: "disabled" };
+  }
+
+  // Order auto
+  if (orderCfg.enabled) {
+    const nextRun = orderCfg.next_run ? new Date(orderCfg.next_run).getTime() : 0;
+    if (now >= nextRun && botToken && channelIds.length > 0) {
+      const fakeOrder = buildFakeOrder();
+      await sendOrderEmbed(botToken, channelIds, fakeOrder);
+      const nextMs = randomDelayMs(7, 45);
+      const nextRunTime = new Date(now + nextMs).toISOString();
+      await saveOrderAutoConfig(supabase, { ...orderCfg, enabled: true, last_run: new Date().toISOString(), next_run: nextRunTime });
+      results.order = { sent: fakeOrder.customer_name, account_size: fakeOrder.account_size, next_run: nextRunTime };
+    } else {
+      results.order = { skipped: true, next_run: orderCfg.next_run };
+    }
+  } else {
+    results.order = { skipped: true, reason: "disabled" };
+  }
+
+  return new Response(JSON.stringify({ success: true, ...results }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-
-  return new Response(JSON.stringify({
-    success: true,
-    sent: fakeCert.user_name,
-    type: fakeCert.certificate_type,
-    next_run: nextRunTime,
-    next_in_minutes: nextDelay,
-  }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 });
