@@ -27,6 +27,8 @@ import { EmailLogsView } from "./EmailLogsView";
 import { ReferenceLinksManager } from "./ReferenceLinksManager";
 import { ExtensionAnalytics } from "./ExtensionAnalytics";
 import { TonePresetsManager } from "./TonePresetsManager";
+import { ManualPush } from "./ManualPush";
+import { TonePresetsManager } from "./TonePresetsManager";
 import { Link } from "react-router-dom";
 
 const navItems = [
