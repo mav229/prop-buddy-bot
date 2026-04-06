@@ -200,19 +200,12 @@ async function extractCredKeyCerts(credKeys: any[], db: any) {
           "";
         let credUserName = "Trader";
         if (cred.assignedTo) {
-          try {
-            const user = await db.collection("users").findOne({
-              $or: [
-                { _id: cred.assignedTo },
-                { email: cred.assignedTo?.toString?.()?.toLowerCase?.() },
-              ],
-            });
-            if (user) {
-              credUserName =
-                user.displayName || user.name || user.firstName ||
-                user.email?.split("@")[0] || "Trader";
-            }
-          } catch (_) {}
+          const parsed = parseAssignedTo(cred.assignedTo);
+          if (parsed.name) {
+            credUserName = parsed.name;
+          } else if (parsed.email) {
+            credUserName = parsed.email.split("@")[0];
+          }
         }
         certs.push({
           user_name: credUserName,
