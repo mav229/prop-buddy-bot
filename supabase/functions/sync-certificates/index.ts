@@ -350,12 +350,10 @@ Deno.serve(async (req) => {
     }
 
     // 4. Send Discord announcements for NEW certs only
-    if (botToken && announceChannelId && newCerts.length > 0) {
-      console.log(`Sending ${newCerts.length} Discord announcements to channel ${announceChannelId}`);
+    if (botToken && channelIds.length > 0 && newCerts.length > 0) {
+      console.log(`Sending ${newCerts.length} certs to ${channelIds.length} channels`);
       for (const cert of newCerts) {
-        await sendDiscordEmbed(botToken, announceChannelId, cert);
-        // Small delay to avoid rate limits
-        await new Promise((r) => setTimeout(r, 1000));
+        await announceToDiscord(botToken, channelIds, cert);
       }
     }
 
