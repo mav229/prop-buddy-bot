@@ -7,14 +7,12 @@ const corsHeaders = {
 };
 
 async function isAdmin(req: Request): Promise<boolean> {
-  // Check service role key first
   const authHeader = req.headers.get("Authorization");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (authHeader && serviceRoleKey && authHeader.includes(serviceRoleKey)) {
     return true;
   }
 
-  // Check if user is admin via Supabase auth
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
   const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
   if (!authHeader) return false;
@@ -57,37 +55,78 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const limit = Math.min(body.limit || 50, 200);
     const skip = body.skip || 0;
+    const statusFilter = body.status || null; // optional filter
 
     client = new MongoClient(uri);
     await client.connect();
     const db = client.db(dbName);
 
+    // Build query
+    const query: any = {};
+    if (statusFilter) {
+      query.status = statusFilter;
+    }
+
     const orders = await db.collection("orders")
-      .find({})
+      .find(query)
       .sort({ createdAt: -1, _id: -1 })
       .skip(skip)
       .limit(limit)
       .toArray();
 
-    const total = await db.collection("orders").countDocuments({});
+    const total = await db.collection("orders").countDocuments(query);
 
-    // Map orders - include all raw fields so we can discover the schema on first load
+    // Try to resolve Discord IDs from discord_connections via email
+    const emails = orders
+      .map((o: any) => o.customerDetails?.email?.toLowerCase())
+      .filter(Boolean);
+
+    let discordMap: Record<string, { discord_user_id: string; discord_username: string | null }> = {};
+    if (emails.length > 0) {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+      const supabase = createClient(supabaseUrl, serviceKey);
+      const { data: connections } = await supabase
+        .from("discord_connections")
+        .select("email, discord_user_id, discord_username")
+        .in("email", [...new Set(emails)]);
+      
+      if (connections) {
+        for (const c of connections) {
+          discordMap[c.email.toLowerCase()] = {
+            discord_user_id: c.discord_user_id,
+            discord_username: c.discord_username,
+          };
+        }
+      }
+    }
+
+    // Map orders with correct field paths
     const mapped = orders.map((order: any) => {
+      const cd = order.customerDetails || {};
+      const pd = order.paymentDetails || {};
+      const pricing = order.pricing || {};
+      const email = (cd.email || "").toLowerCase();
+      const discord = discordMap[email] || null;
+
+      // Extract account sizes from items
+      // Items have variant IDs but not names, so we show item count & total
+      const itemCount = order.items?.length || 0;
+
       return {
         _id: order._id?.toString(),
-        // Customer name - try common patterns
-        customerName: order.customerName || order.customer_name || order.userName || order.user_name || order.name || order.buyerName || order.fullName || order.customer?.name || "",
-        // Account size
-        accountSize: order.accountSize || order.account_size || order.variantName || order.variant_name || order.variant?.name || order.productName || order.product_name || order.product?.name || order.title || "",
-        // Payment method
-        paymentMethod: order.paymentMethod || order.payment_method || order.gateway || order.paymentGateway || order.payment_gateway || order.method || "",
-        // Extra useful fields
-        status: order.status || order.orderStatus || "",
-        amount: order.amount || order.total || order.totalAmount || order.price || 0,
-        email: order.email || order.customerEmail || order.customer_email || order.userEmail || "",
-        createdAt: order.createdAt || order.created_at || order.date || "",
-        // Raw keys for schema discovery
-        _rawKeys: Object.keys(order),
+        orderNumber: order.orderNumber || "",
+        customerName: cd.name || "",
+        email: cd.email || "",
+        phone: cd.phone || "",
+        paymentMethod: pd.paymentMethod || "",
+        status: order.status || "",
+        amount: pricing.total || 0,
+        currency: pd.currency || "USD",
+        itemCount,
+        discordUserId: discord?.discord_user_id || null,
+        discordUsername: discord?.discord_username || null,
+        createdAt: order.createdAt || "",
         _raw: order,
       };
     });
