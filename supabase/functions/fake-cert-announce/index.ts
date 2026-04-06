@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// --- Realistic name pools ---
+// --- Realistic name pools (certificates - mixed) ---
 const FIRST_NAMES = [
   "Aarav", "Arjun", "Vivaan", "Aditya", "Vihaan", "Sai", "Reyansh", "Krishna",
   "Ishaan", "Shaurya", "Atharva", "Advik", "Pranav", "Advaith", "Dhruv",
@@ -38,6 +38,57 @@ function randomName(): string {
   const first = FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)];
   const last = LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)];
   return `${first} ${last}`;
+}
+
+// --- Indian-only name pool for fake orders ---
+const INDIAN_FIRST_NAMES = [
+  "Aarav", "Arjun", "Vivaan", "Aditya", "Vihaan", "Sai", "Reyansh", "Krishna",
+  "Ishaan", "Shaurya", "Atharva", "Advik", "Pranav", "Advaith", "Dhruv",
+  "Kabir", "Ritvik", "Aarush", "Kayaan", "Darsh", "Ravi", "Amit", "Suresh",
+  "Raj", "Vikram", "Nikhil", "Rohan", "Siddharth", "Akash", "Deepak",
+  "Manish", "Rahul", "Gaurav", "Pradeep", "Harsh", "Manav", "Kunal",
+  "Ananya", "Saanvi", "Aanya", "Diya", "Myra", "Aadhya", "Ira", "Anika",
+  "Prisha", "Riya", "Avni", "Neha", "Pooja", "Sneha", "Kriti", "Tanvi",
+  "Yash", "Dev", "Aryan", "Karan", "Varun", "Mohit", "Sahil", "Aman",
+  "Naveen", "Tarun", "Chirag", "Vishal", "Neeraj", "Ankit", "Ashish",
+];
+
+const INDIAN_LAST_INITIALS = [
+  "S", "K", "P", "M", "G", "V", "R", "D", "T", "B", "J", "C", "N", "A", "L", "H", "Y",
+];
+
+const INDIAN_LAST_NAMES = [
+  "Sharma", "Patel", "Singh", "Kumar", "Gupta", "Verma", "Joshi", "Chauhan",
+  "Reddy", "Nair", "Mehta", "Shah", "Kapoor", "Iyer", "Rao", "Desai",
+  "Patil", "Bhatt", "Saxena", "Tiwari", "Yadav", "Srivastava", "Das",
+  "Bose", "Chatterjee", "Banerjee", "Kulkarni", "Agarwal", "Mishra", "Pandey",
+];
+
+function randomIndianOrderName(): string {
+  const first = INDIAN_FIRST_NAMES[Math.floor(Math.random() * INDIAN_FIRST_NAMES.length)];
+  // 60% chance short format "Manav K", 40% full name "Manav Kumar"
+  if (Math.random() < 0.6) {
+    const initial = INDIAN_LAST_INITIALS[Math.floor(Math.random() * INDIAN_LAST_INITIALS.length)];
+    return `${first} ${initial}`;
+  }
+  const last = INDIAN_LAST_NAMES[Math.floor(Math.random() * INDIAN_LAST_NAMES.length)];
+  return `${first} ${last}`;
+}
+
+const ORDER_ACCOUNT_SIZES = ["$2K", "$3K", "$5K", "$10K", "$15K", "$25K", "$50K"];
+const ORDER_PAYMENT_METHODS_UPI = ["UPI", "UPI", "UPI"]; // weighted toward UPI
+const ORDER_PAYMENT_METHODS_OTHER = ["PayPal", "Crypto", "Crypto"];
+
+function randomOrderPayment(): string {
+  // 65% UPI, 35% PayPal/Crypto
+  if (Math.random() < 0.65) {
+    return "UPI";
+  }
+  return ORDER_PAYMENT_METHODS_OTHER[Math.floor(Math.random() * ORDER_PAYMENT_METHODS_OTHER.length)];
+}
+
+function randomAccountSize(): string {
+  return ORDER_ACCOUNT_SIZES[Math.floor(Math.random() * ORDER_ACCOUNT_SIZES.length)];
 }
 
 function randomAccountNumber(): string {
@@ -180,6 +231,82 @@ async function saveConfig(supabase: any, config: any) {
   await supabase
     .from("widget_config")
     .upsert({ id: "fake_cert_config", config }, { onConflict: "id" });
+}
+
+// --- Order auto config ---
+async function getOrderAutoConfig(supabase: any) {
+  const { data } = await supabase
+    .from("widget_config")
+    .select("config")
+    .eq("id", "fake_order_config")
+    .maybeSingle();
+  return data?.config || {};
+}
+
+async function saveOrderAutoConfig(supabase: any, config: any) {
+  await supabase
+    .from("widget_config")
+    .upsert({ id: "fake_order_config", config }, { onConflict: "id" });
+}
+
+// --- Build a fake order ---
+function buildFakeOrder() {
+  const customerName = randomIndianOrderName();
+  const accountSize = randomAccountSize();
+  const paymentMethod = randomOrderPayment();
+  return { customer_name: customerName, account_size: accountSize, payment_method: paymentMethod };
+}
+
+// --- Send order embed to Discord ---
+async function sendOrderEmbed(
+  botToken: string,
+  channelIds: string[],
+  order: { customer_name: string; account_size: string; payment_method: string }
+) {
+  const embed = {
+    title: "🛒 New Order Confirmed!",
+    description: `**${order.customer_name}** has purchased a PropScholar account!`,
+    color: 0x3b82f6,
+    fields: [
+      { name: "Customer", value: order.customer_name, inline: true },
+      { name: "Account Size", value: order.account_size, inline: true },
+      { name: "Payment Method", value: order.payment_method, inline: true },
+    ],
+    footer: { text: "PropScholar Orders" },
+    timestamp: new Date().toISOString(),
+  };
+
+  for (const channelId of channelIds) {
+    try {
+      const res = await fetch(
+        `https://discord.com/api/v10/channels/${channelId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bot ${botToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ embeds: [embed] }),
+        }
+      );
+      if (!res.ok) {
+        console.error(`Discord order failed ch:${channelId} (${res.status}):`, await res.text());
+      } else {
+        console.log(`Fake order sent for ${order.customer_name} to ${channelId}`);
+      }
+    } catch (e) {
+      console.error(`Discord order error ch:${channelId}:`, e);
+    }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+}
+
+// --- Random delay in ms: completely random between min/max minutes with non-round seconds ---
+function randomDelayMs(minMinutes: number, maxMinutes: number): number {
+  const minMs = minMinutes * 60 * 1000;
+  const maxMs = maxMinutes * 60 * 1000;
+  // Truly random, not rounded
+  return minMs + Math.floor(Math.random() * (maxMs - minMs)) + Math.floor(Math.random() * 59000) + Math.floor(Math.random() * 999);
 }
 
 // --- Discord embed sender ---
@@ -447,52 +574,91 @@ Deno.serve(async (req) => {
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
-  // --- CRON tick: check if it's time to post ---
-  const cfg = await getConfig(supabase);
-
-  if (!cfg.enabled) {
-    return new Response(JSON.stringify({ skipped: true, reason: "disabled" }), {
+  // --- Order auto toggle ---
+  if (body?.action === "order_auto_toggle") {
+    const cfg = await getOrderAutoConfig(supabase);
+    const newEnabled = body.enabled !== undefined ? !!body.enabled : !cfg.enabled;
+    const nextMs = randomDelayMs(7, 45);
+    const nextRun = new Date(Date.now() + nextMs).toISOString();
+    await saveOrderAutoConfig(supabase, { ...cfg, enabled: newEnabled, next_run: newEnabled ? nextRun : cfg.next_run });
+    return new Response(JSON.stringify({ success: true, enabled: newEnabled, next_run: newEnabled ? nextRun : cfg.next_run }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
-  const now = Date.now();
-  const nextRun = cfg.next_run ? new Date(cfg.next_run).getTime() : 0;
-
-  if (now < nextRun) {
-    return new Response(JSON.stringify({
-      skipped: true,
-      reason: "not_yet",
-      next_run: cfg.next_run,
-      minutes_left: Math.round((nextRun - now) / 60000),
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  }
-
-  // Time to post!
-  const channelIds = await getChannelIds(supabase);
-  if (!botToken || channelIds.length === 0) {
-    return new Response(JSON.stringify({ error: "Bot or channels not configured" }), {
-      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+  // --- Order auto status ---
+  if (body?.action === "order_auto_status") {
+    const cfg = await getOrderAutoConfig(supabase);
+    return new Response(JSON.stringify({ enabled: !!cfg.enabled, last_run: cfg.last_run, next_run: cfg.next_run }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
-  const fakeCert = await buildFakeCert();
-  await sendDiscordEmbed(botToken, channelIds, fakeCert);
+  // --- Order auto send now ---
+  if (body?.action === "order_auto_send_now") {
+    const channelIds = await getChannelIds(supabase);
+    if (!botToken || channelIds.length === 0) {
+      return new Response(JSON.stringify({ error: "Bot or channels not configured" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const fakeOrder = buildFakeOrder();
+    await sendOrderEmbed(botToken, channelIds, fakeOrder);
+    const cfg = await getOrderAutoConfig(supabase);
+    const nextMs = randomDelayMs(7, 45);
+    const nextRun = new Date(Date.now() + nextMs).toISOString();
+    await saveOrderAutoConfig(supabase, { ...cfg, last_run: new Date().toISOString(), next_run: nextRun });
+    return new Response(JSON.stringify({
+      success: true,
+      sent: fakeOrder.customer_name,
+      account_size: fakeOrder.account_size,
+      payment_method: fakeOrder.payment_method,
+      next_run: nextRun,
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
 
-  const nextDelay = 30 + Math.floor(Math.random() * 150);
-  const nextRunTime = new Date(now + nextDelay * 60 * 1000).toISOString();
-  await saveConfig(supabase, {
-    ...cfg,
-    enabled: true,
-    last_run: new Date().toISOString(),
-    next_run: nextRunTime,
+  // --- CRON tick: check both cert and order auto ---
+  const cfg = await getConfig(supabase);
+  const orderCfg = await getOrderAutoConfig(supabase);
+  const now = Date.now();
+  const channelIds = await getChannelIds(supabase);
+  const results: any = {};
+
+  // Certificate auto
+  if (cfg.enabled) {
+    const nextRun = cfg.next_run ? new Date(cfg.next_run).getTime() : 0;
+    if (now >= nextRun && botToken && channelIds.length > 0) {
+      const fakeCert = await buildFakeCert();
+      await sendDiscordEmbed(botToken, channelIds, fakeCert);
+      const nextMs = randomDelayMs(30, 180);
+      const nextRunTime = new Date(now + nextMs).toISOString();
+      await saveConfig(supabase, { ...cfg, enabled: true, last_run: new Date().toISOString(), next_run: nextRunTime });
+      results.cert = { sent: fakeCert.user_name, type: fakeCert.certificate_type, next_run: nextRunTime };
+    } else {
+      results.cert = { skipped: true, next_run: cfg.next_run };
+    }
+  } else {
+    results.cert = { skipped: true, reason: "disabled" };
+  }
+
+  // Order auto
+  if (orderCfg.enabled) {
+    const nextRun = orderCfg.next_run ? new Date(orderCfg.next_run).getTime() : 0;
+    if (now >= nextRun && botToken && channelIds.length > 0) {
+      const fakeOrder = buildFakeOrder();
+      await sendOrderEmbed(botToken, channelIds, fakeOrder);
+      const nextMs = randomDelayMs(7, 45);
+      const nextRunTime = new Date(now + nextMs).toISOString();
+      await saveOrderAutoConfig(supabase, { ...orderCfg, enabled: true, last_run: new Date().toISOString(), next_run: nextRunTime });
+      results.order = { sent: fakeOrder.customer_name, account_size: fakeOrder.account_size, next_run: nextRunTime };
+    } else {
+      results.order = { skipped: true, next_run: orderCfg.next_run };
+    }
+  } else {
+    results.order = { skipped: true, reason: "disabled" };
+  }
+
+  return new Response(JSON.stringify({ success: true, ...results }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-
-  return new Response(JSON.stringify({
-    success: true,
-    sent: fakeCert.user_name,
-    type: fakeCert.certificate_type,
-    next_run: nextRunTime,
-    next_in_minutes: nextDelay,
-  }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 });
