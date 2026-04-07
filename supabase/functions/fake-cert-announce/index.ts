@@ -289,11 +289,17 @@ async function buildFakeOrder(supabase: any) {
   const todayKey = new Date().toISOString().slice(0, 10);
   const recentOrderNames: { name: string; date: string }[] = orderCfg.recent_order_names || [];
   const todayNames = recentOrderNames.filter((r: any) => r.date === todayKey);
-  const usedSet = new Set(todayNames.map((r: any) => r.name.toLowerCase()));
+  // Count how many times each name was used today — allow up to 3 repeats
+  const nameCount: Record<string, number> = {};
+  for (const r of todayNames) {
+    const key = r.name.toLowerCase();
+    nameCount[key] = (nameCount[key] || 0) + 1;
+  }
 
   let customerName = randomIndianOrderName();
   for (let i = 0; i < 20; i++) {
-    if (!usedSet.has(customerName.toLowerCase())) break;
+    const count = nameCount[customerName.toLowerCase()] || 0;
+    if (count < 3) break;
     customerName = randomIndianOrderName();
   }
 
