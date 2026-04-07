@@ -374,17 +374,31 @@ async function sendDiscordEmbed(
   }
 }
 
-// --- Build a fake cert with Cloudinary text overlay ---
-async function buildFakeCert() {
+// --- Build a fake cert with Cloudinary text overlay, avoiding recent names ---
+async function buildFakeCert(supabase: any) {
   const isAchievement = Math.random() < 0.2;
   const certType = isAchievement ? "achievement" : "completion";
-  const userName = randomName();
+
+  // Load recently used names (last 4 days) to avoid repeats
+  const cfg = await getConfig(supabase);
+  const recentNames: { name: string; ts: number }[] = cfg.recent_cert_names || [];
+  const fourDaysAgo = Date.now() - 4 * 24 * 60 * 60 * 1000;
+  const activeRecent = recentNames.filter((r: any) => r.ts > fourDaysAgo);
+  const recentSet = new Set(activeRecent.map((r: any) => r.name.toLowerCase()));
+
+  // Try up to 20 times to get a unique name
+  let userName = randomName();
+  for (let i = 0; i < 20; i++) {
+    if (!recentSet.has(userName.toLowerCase())) break;
+    userName = randomName();
+  }
+
+  // Save this name to recent list
+  activeRecent.push({ name: userName, ts: Date.now() });
+  await saveConfig(supabase, { ...cfg, recent_cert_names: activeRecent });
+
   const accountNumber = randomAccountNumber();
-
-  // Ensure template is uploaded to Cloudinary
   const publicId = await ensureTemplateUploaded(certType);
-
-  // Generate certificate URL with name overlay
   const certificateUrl = generateCertificateUrl(publicId, userName, certType);
 
   return {
