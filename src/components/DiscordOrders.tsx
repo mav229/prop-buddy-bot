@@ -17,6 +17,7 @@ interface Order {
   status: string;
   amount: number;
   currency: string;
+  accountSize: string;
   itemCount: number;
   discordUserId: string | null;
   discordUsername: string | null;
@@ -67,6 +68,7 @@ export const DiscordOrders = () => {
 
   const formatAmount = (amount: number, currency: string) => {
     if (!amount) return "—";
+    if (currency === "INR") return `₹${amount.toLocaleString()}`;
     if (currency === "USD") return `$${amount.toLocaleString()}`;
     return `${amount.toLocaleString()} ${currency}`;
   };
@@ -85,13 +87,8 @@ export const DiscordOrders = () => {
     return <Badge variant="outline">{status || "—"}</Badge>;
   };
 
-  // Extract account size from raw order items
   const getAccountSize = (order: Order): string => {
-    const raw = order._raw as any;
-    if (!raw?.items?.length) return "—";
-    // Show total price of first item as account indicator, or item count
-    const firstItem = raw.items[0];
-    return `$${firstItem.price || 0}`;
+    return order.accountSize || "—";
   };
 
   const handlePushToDiscord = async (order: Order) => {
