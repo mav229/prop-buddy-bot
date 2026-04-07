@@ -22,6 +22,7 @@ interface Order {
   discordUserId: string | null;
   discordUsername: string | null;
   createdAt: string;
+  pushed: boolean;
   _raw?: Record<string, unknown>;
 }
 
@@ -208,10 +209,10 @@ export const DiscordOrders = () => {
                         {formatDate(order.createdAt)}
                       </TableCell>
                       <TableCell className="text-right">
-                        {order.status.toLowerCase() === "pending" ? (
-                          <span className="text-xs text-muted-foreground">Pending</span>
-                        ) : pushedIds.has(order._id) ? (
+                        {order.pushed ? (
                           <Check className="w-4 h-4 text-emerald-400 ml-auto" />
+                        ) : order.status.toLowerCase() === "pending" ? (
+                          <span className="text-xs text-muted-foreground">Pending</span>
                         ) : (
                           <Button
                             variant="ghost"
