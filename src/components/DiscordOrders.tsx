@@ -68,6 +68,7 @@ export const DiscordOrders = () => {
 
   const formatAmount = (amount: number, currency: string) => {
     if (!amount) return "—";
+    if (currency === "INR") return `₹${amount.toLocaleString()}`;
     if (currency === "USD") return `$${amount.toLocaleString()}`;
     return `${amount.toLocaleString()} ${currency}`;
   };
