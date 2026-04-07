@@ -1,5 +1,6 @@
 import { MongoClient } from "npm:mongodb@6.12.0";
 import { createClient } from "npm:@supabase/supabase-js@2.49.4";
+import { buildDiscordCertificateMessage } from "../_shared/discordCertificateMessage.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -82,7 +83,6 @@ async function announceToDiscord(
     title,
     description,
     color,
-    image: { url: cert.certificate_url },
     fields: [
       ...(cert.account_number
         ? [{ name: "Account", value: cert.account_number, inline: true }]
@@ -99,15 +99,16 @@ async function announceToDiscord(
 
   for (const channelId of channelIds) {
     try {
+      const message = await buildDiscordCertificateMessage(embed, cert.certificate_url);
       const res = await fetch(
         `https://discord.com/api/v10/channels/${channelId}/messages`,
         {
           method: "POST",
           headers: {
             Authorization: `Bot ${botToken}`,
-            "Content-Type": "application/json",
+            ...(message.headers || {}),
           },
-          body: JSON.stringify({ embeds: [embed] }),
+          body: message.body,
         }
       );
       if (!res.ok) {
