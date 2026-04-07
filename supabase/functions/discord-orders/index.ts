@@ -28,6 +28,23 @@ async function isAdmin(req: Request): Promise<boolean> {
   return data === true;
 }
 
+function mapPriceToAccountSize(price: number, currency: string): string {
+  // For INR prices, these are rough mappings based on PropScholar pricing
+  if (currency === "INR") {
+    if (price <= 500) return "$2K";
+    if (price <= 1000) return "$5K";
+    if (price <= 2000) return "$10K";
+    if (price <= 4000) return "$25K";
+    return "$50K";
+  }
+  // USD prices
+  if (price <= 30) return "$2K";
+  if (price <= 60) return "$5K";
+  if (price <= 100) return "$10K";
+  if (price <= 200) return "$25K";
+  return "$50K";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
