@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.49.4";
+import { buildDiscordCertificateMessage } from "../_shared/discordCertificateMessage.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -228,7 +229,7 @@ function generateCertificateUrl(
   // g_center with offsets: xOffset pushes right (toward cert text area), yOffset pushes down to name bar
   const transformation = `l_text:Roboto_${config.fontSize}_bold:${encodedName},co_rgb:FFFFFF,g_${config.gravity},y_${config.yOffset},x_${config.xOffset}`;
 
-  const url = `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/image/upload/${transformation}/${publicId}`;
+  const url = `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/image/upload/f_png/${transformation}/${publicId}.png`;
   console.log(`Generated Cloudinary cert URL for ${userName}: ${url}`);
   return url;
 }
@@ -402,7 +403,6 @@ async function sendDiscordEmbed(
     title,
     description,
     color,
-    image: { url: cert.certificate_url },
     fields: [
       { name: "Account", value: cert.account_number, inline: true },
       {
@@ -417,15 +417,16 @@ async function sendDiscordEmbed(
 
   for (const channelId of channelIds) {
     try {
+      const message = await buildDiscordCertificateMessage(embed, cert.certificate_url);
       const res = await fetch(
         `https://discord.com/api/v10/channels/${channelId}/messages`,
         {
           method: "POST",
           headers: {
             Authorization: `Bot ${botToken}`,
-            "Content-Type": "application/json",
+            ...(message.headers || {}),
           },
-          body: JSON.stringify({ embeds: [embed] }),
+          body: message.body,
         }
       );
       if (!res.ok) {
