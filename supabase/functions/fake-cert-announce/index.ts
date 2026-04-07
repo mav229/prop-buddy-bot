@@ -513,6 +513,7 @@ Deno.serve(async (req) => {
 
     const fakeCert = await buildFakeCert(supabase);
     await sendDiscordEmbed(botToken, channelIds, fakeCert);
+    await saveAutoCertToHall(supabase, fakeCert);
 
     const cfg = await getConfig(supabase);
     const nextDelay = 30 + Math.floor(Math.random() * 150);
@@ -686,7 +687,7 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const fakeOrder = buildFakeOrder();
+    const fakeOrder = await buildFakeOrder(supabase);
     await sendOrderEmbed(botToken, channelIds, fakeOrder);
     const cfg = await getOrderAutoConfig(supabase);
     const nextMs = randomDelayMs(5, 120);
@@ -714,6 +715,7 @@ Deno.serve(async (req) => {
     if (now >= nextRun && botToken && channelIds.length > 0) {
       const fakeCert = await buildFakeCert(supabase);
       await sendDiscordEmbed(botToken, channelIds, fakeCert);
+      await saveAutoCertToHall(supabase, fakeCert);
       const nextMs = randomDelayMs(30, 180);
       const nextRunTime = new Date(now + nextMs).toISOString();
       await saveConfig(supabase, { ...cfg, enabled: true, last_run: new Date().toISOString(), next_run: nextRunTime });
@@ -729,7 +731,7 @@ Deno.serve(async (req) => {
   if (orderCfg.enabled) {
     const nextRun = orderCfg.next_run ? new Date(orderCfg.next_run).getTime() : 0;
     if (now >= nextRun && botToken && channelIds.length > 0) {
-      const fakeOrder = buildFakeOrder();
+      const fakeOrder = await buildFakeOrder(supabase);
       await sendOrderEmbed(botToken, channelIds, fakeOrder);
       const nextMs = randomDelayMs(5, 120);
       const nextRunTime = new Date(now + nextMs).toISOString();
