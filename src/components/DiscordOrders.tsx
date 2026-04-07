@@ -17,6 +17,7 @@ interface Order {
   status: string;
   amount: number;
   currency: string;
+  accountSize: string;
   itemCount: number;
   discordUserId: string | null;
   discordUsername: string | null;
