@@ -86,13 +86,8 @@ export const DiscordOrders = () => {
     return <Badge variant="outline">{status || "—"}</Badge>;
   };
 
-  // Extract account size from raw order items
   const getAccountSize = (order: Order): string => {
-    const raw = order._raw as any;
-    if (!raw?.items?.length) return "—";
-    // Show total price of first item as account indicator, or item count
-    const firstItem = raw.items[0];
-    return `$${firstItem.price || 0}`;
+    return order.accountSize || "—";
   };
 
   const handlePushToDiscord = async (order: Order) => {
