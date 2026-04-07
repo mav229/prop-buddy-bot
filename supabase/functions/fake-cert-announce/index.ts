@@ -6,37 +6,65 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// --- Realistic name pools (certificates - mixed) ---
-const FIRST_NAMES = [
-  "Aarav", "Arjun", "Vivaan", "Aditya", "Vihaan", "Sai", "Reyansh", "Krishna",
-  "Ishaan", "Shaurya", "Atharva", "Advik", "Pranav", "Advaith", "Dhruv",
-  "Kabir", "Ritvik", "Aarush", "Kayaan", "Darsh", "Ananya", "Saanvi", "Aanya",
-  "Diya", "Myra", "Aadhya", "Ira", "Anika", "Prisha", "Riya", "Avni",
-  "James", "Michael", "David", "Robert", "Daniel", "William", "Joseph", "Thomas",
-  "Samuel", "Benjamin", "Nathan", "Ethan", "Alexander", "Ryan", "Lucas",
-  "Oluwaseun", "Chinedu", "Emeka", "Tunde", "Kojo", "Kwame", "Adebayo",
-  "Mohammed", "Ahmed", "Omar", "Hassan", "Ali", "Yusuf", "Ibrahim",
-  "Carlos", "Diego", "Luis", "Pablo", "Marco", "André", "Felipe",
-  "Ravi", "Amit", "Suresh", "Raj", "Vikram", "Nikhil", "Rohan", "Siddharth",
-  "Akash", "Deepak", "Manish", "Rahul", "Gaurav", "Pradeep", "Harsh",
-];
-
-const LAST_NAMES = [
-  "Sharma", "Patel", "Singh", "Kumar", "Gupta", "Verma", "Joshi", "Chauhan",
-  "Reddy", "Nair", "Pillai", "Mehta", "Shah", "Malhotra", "Kapoor", "Chopra",
-  "Iyer", "Rao", "Desai", "Kulkarni", "Bhat", "Agarwal", "Mishra", "Pandey",
-  "Smith", "Johnson", "Williams", "Brown", "Davis", "Wilson", "Taylor", "Anderson",
-  "Thomas", "Jackson", "White", "Harris", "Martin", "Thompson", "Moore",
-  "Okafor", "Adeyemi", "Mensah", "Osei", "Nkrumah", "Diallo", "Traore",
-  "Khan", "Al-Rashid", "Bakr", "El-Sayed", "Haddad",
-  "Rodriguez", "Martinez", "Lopez", "Garcia", "Hernandez", "Silva", "Santos",
-  "Kambli", "Patil", "Bhatt", "Saxena", "Tiwari", "Yadav", "Srivastava",
-  "Das", "Bose", "Chatterjee", "Banerjee", "Mukherjee",
-];
+// --- Realistic certificate name pools by identity group (no mixed-culture combos) ---
+const CERT_NAME_GROUPS = [
+  {
+    first: [
+      "Aarav", "Arjun", "Vivaan", "Aditya", "Vihaan", "Sai", "Reyansh", "Krishna",
+      "Ishaan", "Shaurya", "Atharva", "Advik", "Pranav", "Dhruv", "Kabir", "Ritvik",
+      "Ananya", "Saanvi", "Aanya", "Diya", "Myra", "Aadhya", "Anika", "Prisha",
+      "Ravi", "Amit", "Raj", "Vikram", "Nikhil", "Rohan", "Akash", "Rahul", "Gaurav",
+      "Manav", "Kunal", "Neha", "Pooja", "Sneha", "Kriti", "Tanvi", "Yash", "Dev",
+    ],
+    last: [
+      "Sharma", "Patel", "Singh", "Kumar", "Gupta", "Verma", "Joshi", "Chauhan",
+      "Reddy", "Nair", "Mehta", "Shah", "Kapoor", "Iyer", "Rao", "Desai", "Patil",
+      "Bhatt", "Saxena", "Tiwari", "Yadav", "Srivastava", "Das", "Bose", "Banerjee",
+      "Kulkarni", "Agarwal", "Mishra", "Pandey",
+    ],
+    initials: ["S", "K", "P", "M", "G", "V", "R", "D", "T", "B", "J", "N", "A", "L", "H", "Y"],
+  },
+  {
+    first: [
+      "James", "Michael", "David", "Robert", "Daniel", "William", "Joseph", "Thomas",
+      "Samuel", "Benjamin", "Nathan", "Ethan", "Alexander", "Ryan", "Lucas", "Emma",
+      "Olivia", "Sophia", "Grace", "Hannah", "Chloe", "Lily", "Mia", "Ella",
+    ],
+    last: [
+      "Smith", "Johnson", "Williams", "Brown", "Davis", "Wilson", "Taylor", "Anderson",
+      "Thomas", "Jackson", "White", "Harris", "Martin", "Thompson", "Moore", "Clark",
+      "Walker", "Hall", "Young",
+    ],
+    initials: ["S", "J", "W", "B", "D", "T", "A", "C", "H", "M", "P", "R"],
+  },
+  {
+    first: ["Emeka", "Chinedu", "Tunde", "Kojo", "Kwame", "Adebayo", "Ada", "Amara", "Ife", "Zuri"],
+    last: ["Okafor", "Adeyemi", "Mensah", "Osei", "Nkrumah", "Diallo", "Traore", "Bello", "Owusu"],
+    initials: ["O", "A", "M", "N", "D", "T", "B", "K"],
+  },
+  {
+    first: ["Mohammed", "Ahmed", "Omar", "Hassan", "Ali", "Yusuf", "Ibrahim", "Amina", "Fatima", "Noor"],
+    last: ["Khan", "Al-Rashid", "Bakr", "El-Sayed", "Haddad", "Qureshi", "Rahman"],
+    initials: ["K", "R", "B", "E", "H", "Q"],
+  },
+  {
+    first: ["Carlos", "Diego", "Luis", "Pablo", "Marco", "Andre", "Felipe", "Sofia", "Camila", "Valeria"],
+    last: ["Rodriguez", "Martinez", "Lopez", "Garcia", "Hernandez", "Silva", "Santos", "Fernandez"],
+    initials: ["R", "M", "L", "G", "H", "S", "F"],
+  },
+] as const;
 
 function randomName(): string {
-  const first = FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)];
-  const last = LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)];
+  const group = CERT_NAME_GROUPS[Math.floor(Math.random() * CERT_NAME_GROUPS.length)];
+  const first = group.first[Math.floor(Math.random() * group.first.length)];
+
+  // Prefer natural short format like "Gaurav T" often, otherwise matched surname from same group
+  if (Math.random() < 0.55) {
+    const initial = group.initials[Math.floor(Math.random() * group.initials.length)];
+    return `${first} ${initial}`;
+  }
+
+  const last = group.last[Math.floor(Math.random() * group.last.length)];
   return `${first} ${last}`;
 }
 
