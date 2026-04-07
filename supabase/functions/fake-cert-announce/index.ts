@@ -451,7 +451,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const fakeCert = await buildFakeCert();
+    const fakeCert = await buildFakeCert(supabase);
     await sendDiscordEmbed(botToken, channelIds, fakeCert);
 
     const cfg = await getConfig(supabase);
@@ -652,7 +652,7 @@ Deno.serve(async (req) => {
   if (cfg.enabled) {
     const nextRun = cfg.next_run ? new Date(cfg.next_run).getTime() : 0;
     if (now >= nextRun && botToken && channelIds.length > 0) {
-      const fakeCert = await buildFakeCert();
+      const fakeCert = await buildFakeCert(supabase);
       await sendDiscordEmbed(botToken, channelIds, fakeCert);
       const nextMs = randomDelayMs(30, 180);
       const nextRunTime = new Date(now + nextMs).toISOString();
