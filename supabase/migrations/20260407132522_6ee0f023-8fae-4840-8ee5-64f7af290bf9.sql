@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_hall_of_fame_created_at_desc ON public.hall_of_fame_certificates (created_at DESC);
