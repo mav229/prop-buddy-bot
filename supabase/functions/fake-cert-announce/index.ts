@@ -284,8 +284,22 @@ async function saveOrderAutoConfig(supabase: any, config: any) {
 }
 
 // --- Build a fake order ---
-function buildFakeOrder() {
-  const customerName = randomIndianOrderName();
+async function buildFakeOrder(supabase: any) {
+  const orderCfg = await getOrderAutoConfig(supabase);
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const recentOrderNames: { name: string; date: string }[] = orderCfg.recent_order_names || [];
+  const todayNames = recentOrderNames.filter((r: any) => r.date === todayKey);
+  const usedSet = new Set(todayNames.map((r: any) => r.name.toLowerCase()));
+
+  let customerName = randomIndianOrderName();
+  for (let i = 0; i < 20; i++) {
+    if (!usedSet.has(customerName.toLowerCase())) break;
+    customerName = randomIndianOrderName();
+  }
+
+  todayNames.push({ name: customerName, date: todayKey });
+  await saveOrderAutoConfig(supabase, { ...orderCfg, recent_order_names: todayNames });
+
   const accountSize = randomAccountSize();
   const paymentMethod = randomOrderPayment();
   return { customer_name: customerName, account_size: accountSize, payment_method: paymentMethod };
