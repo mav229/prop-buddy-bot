@@ -524,6 +524,36 @@ export type Database = {
         }
         Relationships: []
       }
+      pushed_orders: {
+        Row: {
+          account_size: string | null
+          customer_name: string | null
+          id: string
+          mongo_order_id: string
+          order_number: string | null
+          payment_method: string | null
+          pushed_at: string
+        }
+        Insert: {
+          account_size?: string | null
+          customer_name?: string | null
+          id?: string
+          mongo_order_id: string
+          order_number?: string | null
+          payment_method?: string | null
+          pushed_at?: string
+        }
+        Update: {
+          account_size?: string | null
+          customer_name?: string | null
+          id?: string
+          mongo_order_id?: string
+          order_number?: string | null
+          payment_method?: string | null
+          pushed_at?: string
+        }
+        Relationships: []
+      }
       session_cache: {
         Row: {
           context_json: Json

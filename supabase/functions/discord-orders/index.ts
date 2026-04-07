@@ -1,6 +1,9 @@
 import { MongoClient } from "npm:mongodb@6.12.0";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -28,6 +31,64 @@ async function isAdmin(req: Request): Promise<boolean> {
   return data === true;
 }
 
+async function getChannelIds(): Promise<string[]> {
+  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+  try {
+    const { data } = await supabase
+      .from("widget_config")
+      .select("config")
+      .eq("id", "cert_announce_channel")
+      .maybeSingle();
+    if (!data?.config || typeof data.config !== "object") return [];
+    const cfg = data.config as Record<string, string>;
+    const ids: string[] = [];
+    if (cfg.channel_id_1 || cfg.channel_id) ids.push(cfg.channel_id_1 || cfg.channel_id);
+    if (cfg.channel_id_2) ids.push(cfg.channel_id_2);
+    return ids.filter(Boolean);
+  } catch (_) {
+    return [];
+  }
+}
+
+async function sendOrderToDiscord(
+  botToken: string,
+  channelIds: string[],
+  order: { customer_name: string; account_size: string; payment_method: string }
+) {
+  const embed = {
+    title: "🛒 New Order Confirmed!",
+    description: `**${order.customer_name}** has purchased a PropScholar account!`,
+    color: 0x3b82f6,
+    fields: [
+      { name: "Customer", value: order.customer_name, inline: true },
+      { name: "Account Size", value: order.account_size, inline: true },
+      { name: "Payment Method", value: order.payment_method, inline: true },
+    ],
+    footer: { text: "PropScholar Orders" },
+    timestamp: new Date().toISOString(),
+  };
+  for (const channelId of channelIds) {
+    try {
+      const res = await fetch(
+        `https://discord.com/api/v10/channels/${channelId}/messages`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ embeds: [embed] }),
+        }
+      );
+      if (!res.ok) {
+        console.error(`Real order push failed ch:${channelId} (${res.status}):`, await res.text());
+      } else {
+        console.log(`Real order pushed: ${order.customer_name} to ${channelId}`);
+      }
+    } catch (e) {
+      console.error(`Real order push error ch:${channelId}:`, e);
+    }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+}
+
 function mapPriceToAccountSize(price: number, currency: string): string {
   // For INR prices, these are rough mappings based on PropScholar pricing
   if (currency === "INR") {
@@ -50,13 +111,6 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  if (!(await isAdmin(req))) {
-    return new Response(
-      JSON.stringify({ error: "Unauthorized" }),
-      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
   const uri = Deno.env.get("MONGO_URI");
   if (!uri) {
     return new Response(
@@ -70,6 +124,72 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
+
+    // === AUTO PUSH MODE (called by cron) ===
+    if (body?.action === "auto_push") {
+      const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
+      const channelIds = await getChannelIds();
+      if (!botToken || channelIds.length === 0) {
+        return new Response(JSON.stringify({ skipped: true, reason: "Bot or channels not configured" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+      client = new MongoClient(uri);
+      await client.connect();
+      const db = client.db(dbName);
+
+      const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
+      const confirmedOrders = await db.collection("orders")
+        .find({ status: { $in: ["confirmed", "completed", "paid", "fulfilled"] }, createdAt: { $gte: cutoff } })
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .toArray();
+
+      if (confirmedOrders.length === 0) {
+        return new Response(JSON.stringify({ pushed: 0, message: "No recent confirmed orders" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const mongoIds = confirmedOrders.map((o: any) => o._id?.toString()).filter(Boolean);
+      const { data: alreadyPushed } = await supabase.from("pushed_orders").select("mongo_order_id").in("mongo_order_id", mongoIds);
+      const pushedSet = new Set((alreadyPushed || []).map((r: any) => r.mongo_order_id));
+      const newOrders = confirmedOrders.filter((o: any) => !pushedSet.has(o._id?.toString()));
+
+      let pushCount = 0;
+      for (const order of newOrders) {
+        const cd = order.customerDetails || {};
+        const pd = order.paymentDetails || {};
+        const gwPayment = pd.gatewayResponse?.data?.payment || {};
+        const pm = (gwPayment.payment_group || pd.paymentMethod || pd.method || "").toUpperCase();
+        const currency = pd.currency || "USD";
+        let amount = pd.amount || gwPayment.payment_amount || 0;
+        if (currency === "INR" && amount > 10000) amount = Math.round(amount / 100);
+        const firstItem = order.items?.[0];
+        const itemPrice = firstItem?.price || firstItem?.totalPrice || amount;
+        const accountSize = mapPriceToAccountSize(itemPrice, currency);
+        const customerName = cd.name || "Unknown";
+
+        await sendOrderToDiscord(botToken, channelIds, { customer_name: customerName, account_size: accountSize, payment_method: pm || "N/A" });
+        await supabase.from("pushed_orders").insert({ mongo_order_id: order._id?.toString(), order_number: order.orderNumber || "", customer_name: customerName, account_size: accountSize, payment_method: pm });
+        pushCount++;
+        if (newOrders.length > 1) await new Promise((r) => setTimeout(r, 1000));
+      }
+
+      console.log(`Auto-pushed ${pushCount} real orders to Discord`);
+      return new Response(JSON.stringify({ pushed: pushCount, total_checked: confirmedOrders.length }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // === ADMIN LIST MODE ===
+    if (!(await isAdmin(req))) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const limit = Math.min(body.limit || 50, 200);
     const skip = body.skip || 0;
     const statusFilter = body.status || null; // optional filter
@@ -93,17 +213,21 @@ Deno.serve(async (req) => {
 
     const total = await db.collection("orders").countDocuments(query);
 
-    // Try to resolve Discord IDs from discord_connections via email
+    // Get pushed status
+    const orderIds = orders.map((o: any) => o._id?.toString()).filter(Boolean);
+    const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY);
+    const { data: pushedData } = await supabaseAdmin.from("pushed_orders").select("mongo_order_id").in("mongo_order_id", orderIds);
+    const pushedMap: Record<string, boolean> = {};
+    for (const p of (pushedData || [])) pushedMap[p.mongo_order_id] = true;
+
+    // Try to resolve Discord IDs
     const emails = orders
       .map((o: any) => o.customerDetails?.email?.toLowerCase())
       .filter(Boolean);
 
     let discordMap: Record<string, { discord_user_id: string; discord_username: string | null }> = {};
     if (emails.length > 0) {
-      const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-      const supabase = createClient(supabaseUrl, serviceKey);
-      const { data: connections } = await supabase
+      const { data: connections } = await supabaseAdmin
         .from("discord_connections")
         .select("email, discord_user_id, discord_username")
         .in("email", [...new Set(emails)]);
@@ -145,6 +269,7 @@ Deno.serve(async (req) => {
 
       return {
         _id: order._id?.toString(),
+        pushed: !!pushedMap[order._id?.toString()],
         orderNumber: order.orderNumber || "",
         customerName: cd.name || "",
         email: cd.email || "",
