@@ -349,6 +349,24 @@ async function sendOrderEmbed(
   }
 }
 
+// Helper to save auto-cert to hall of fame website
+async function saveAutoCertToHall(supabase: any, cert: any) {
+  const slug = cert.user_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  const { error } = await supabase.from("hall_of_fame_certificates").insert({
+    user_name: cert.user_name,
+    account_number: cert.account_number,
+    certificate_url: cert.certificate_url,
+    certificate_type: cert.certificate_type,
+    phase: cert.phase,
+    slug: `${slug}-${Date.now()}`,
+    mongo_source_id: `auto-${Date.now()}`,
+    mongo_collection: "auto_push",
+    status: "active",
+  });
+  if (error) console.error("Failed to save auto cert to hall:", error);
+  else console.log(`Auto cert saved to hall of fame: ${cert.user_name}`);
+}
+
 // --- Natural-looking random delay: irregular seconds, mix of odd/even, never round ---
 function randomDelayMs(minMinutes: number, maxMinutes: number): number {
   // Pick a base between min and max with fractional minutes (not round)
