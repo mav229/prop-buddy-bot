@@ -105,13 +105,26 @@ Deno.serve(async (req) => {
     const mapped = orders.map((order: any) => {
       const cd = order.customerDetails || {};
       const pd = order.paymentDetails || {};
-      const pricing = order.pricing || {};
       const email = (cd.email || "").toLowerCase();
       const discord = discordMap[email] || null;
 
-      // Extract account sizes from items
-      // Items have variant IDs but not names, so we show item count & total
-      const itemCount = order.items?.length || 0;
+      // Extract payment method from gateway response
+      const gwPayment = pd.gatewayResponse?.data?.payment || {};
+      const paymentGroup = gwPayment.payment_group || "";
+      const paymentMethod = paymentGroup || pd.paymentMethod || pd.method || "";
+
+      // Amount: paymentDetails.amount is in paise for INR, convert to rupees
+      const currency = pd.currency || "USD";
+      let amount = pd.amount || gwPayment.payment_amount || 0;
+      if (currency === "INR" && amount > 10000) {
+        amount = Math.round(amount / 100);
+      }
+
+      // Extract account size from item price
+      const firstItem = order.items?.[0];
+      const itemPrice = firstItem?.price || firstItem?.totalPrice || amount;
+      // Map common price points to account sizes
+      const accountSize = mapPriceToAccountSize(itemPrice, currency);
 
       return {
         _id: order._id?.toString(),
@@ -119,11 +132,12 @@ Deno.serve(async (req) => {
         customerName: cd.name || "",
         email: cd.email || "",
         phone: cd.phone || "",
-        paymentMethod: pd.paymentMethod || "",
+        paymentMethod: paymentMethod.toUpperCase(),
         status: order.status || "",
-        amount: pricing.total || 0,
-        currency: pd.currency || "USD",
-        itemCount,
+        amount,
+        currency,
+        accountSize,
+        itemCount: order.items?.length || 0,
         discordUserId: discord?.discord_user_id || null,
         discordUsername: discord?.discord_username || null,
         createdAt: order.createdAt || "",
