@@ -284,8 +284,22 @@ async function saveOrderAutoConfig(supabase: any, config: any) {
 }
 
 // --- Build a fake order ---
-function buildFakeOrder() {
-  const customerName = randomIndianOrderName();
+async function buildFakeOrder(supabase: any) {
+  const orderCfg = await getOrderAutoConfig(supabase);
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const recentOrderNames: { name: string; date: string }[] = orderCfg.recent_order_names || [];
+  const todayNames = recentOrderNames.filter((r: any) => r.date === todayKey);
+  const usedSet = new Set(todayNames.map((r: any) => r.name.toLowerCase()));
+
+  let customerName = randomIndianOrderName();
+  for (let i = 0; i < 20; i++) {
+    if (!usedSet.has(customerName.toLowerCase())) break;
+    customerName = randomIndianOrderName();
+  }
+
+  todayNames.push({ name: customerName, date: todayKey });
+  await saveOrderAutoConfig(supabase, { ...orderCfg, recent_order_names: todayNames });
+
   const accountSize = randomAccountSize();
   const paymentMethod = randomOrderPayment();
   return { customer_name: customerName, account_size: accountSize, payment_method: paymentMethod };
@@ -333,6 +347,24 @@ async function sendOrderEmbed(
     }
     await new Promise((r) => setTimeout(r, 500));
   }
+}
+
+// Helper to save auto-cert to hall of fame website
+async function saveAutoCertToHall(supabase: any, cert: any) {
+  const slug = cert.user_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  const { error } = await supabase.from("hall_of_fame_certificates").insert({
+    user_name: cert.user_name,
+    account_number: cert.account_number,
+    certificate_url: cert.certificate_url,
+    certificate_type: cert.certificate_type,
+    phase: cert.phase,
+    slug: `${slug}-${Date.now()}`,
+    mongo_source_id: `auto-${Date.now()}`,
+    mongo_collection: "auto_push",
+    status: "active",
+  });
+  if (error) console.error("Failed to save auto cert to hall:", error);
+  else console.log(`Auto cert saved to hall of fame: ${cert.user_name}`);
 }
 
 // --- Natural-looking random delay: irregular seconds, mix of odd/even, never round ---
@@ -481,6 +513,7 @@ Deno.serve(async (req) => {
 
     const fakeCert = await buildFakeCert(supabase);
     await sendDiscordEmbed(botToken, channelIds, fakeCert);
+    await saveAutoCertToHall(supabase, fakeCert);
 
     const cfg = await getConfig(supabase);
     const nextDelay = 30 + Math.floor(Math.random() * 150);
@@ -654,7 +687,7 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const fakeOrder = buildFakeOrder();
+    const fakeOrder = await buildFakeOrder(supabase);
     await sendOrderEmbed(botToken, channelIds, fakeOrder);
     const cfg = await getOrderAutoConfig(supabase);
     const nextMs = randomDelayMs(5, 120);
@@ -682,6 +715,7 @@ Deno.serve(async (req) => {
     if (now >= nextRun && botToken && channelIds.length > 0) {
       const fakeCert = await buildFakeCert(supabase);
       await sendDiscordEmbed(botToken, channelIds, fakeCert);
+      await saveAutoCertToHall(supabase, fakeCert);
       const nextMs = randomDelayMs(30, 180);
       const nextRunTime = new Date(now + nextMs).toISOString();
       await saveConfig(supabase, { ...cfg, enabled: true, last_run: new Date().toISOString(), next_run: nextRunTime });
@@ -697,7 +731,7 @@ Deno.serve(async (req) => {
   if (orderCfg.enabled) {
     const nextRun = orderCfg.next_run ? new Date(orderCfg.next_run).getTime() : 0;
     if (now >= nextRun && botToken && channelIds.length > 0) {
-      const fakeOrder = buildFakeOrder();
+      const fakeOrder = await buildFakeOrder(supabase);
       await sendOrderEmbed(botToken, channelIds, fakeOrder);
       const nextMs = randomDelayMs(5, 120);
       const nextRunTime = new Date(now + nextMs).toISOString();
