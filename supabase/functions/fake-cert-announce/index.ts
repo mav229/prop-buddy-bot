@@ -307,12 +307,16 @@ async function sendOrderEmbed(
   }
 }
 
-// --- Random delay in ms: completely random between min/max minutes with non-round seconds ---
+// --- Natural-looking random delay: irregular seconds, mix of odd/even, never round ---
 function randomDelayMs(minMinutes: number, maxMinutes: number): number {
-  const minMs = minMinutes * 60 * 1000;
-  const maxMs = maxMinutes * 60 * 1000;
-  // Truly random, not rounded
-  return minMs + Math.floor(Math.random() * (maxMs - minMs)) + Math.floor(Math.random() * 59000) + Math.floor(Math.random() * 999);
+  // Pick a base between min and max with fractional minutes (not round)
+  const baseMinutes = minMinutes + Math.random() * (maxMinutes - minMinutes);
+  // Add irregular seconds offset: prefer odd-ish seconds like 07, 13, 23, 37, 47, 53
+  const irregularSeconds = [3, 7, 11, 13, 17, 19, 23, 27, 29, 31, 37, 41, 43, 47, 49, 53, 57, 59,
+    2, 6, 8, 14, 18, 22, 26, 34, 38, 42, 46, 51, 54, 58];
+  const extraSec = irregularSeconds[Math.floor(Math.random() * irregularSeconds.length)];
+  const extraMs = Math.floor(Math.random() * 999); // random milliseconds for true irregularity
+  return Math.floor(baseMinutes * 60 * 1000) + extraSec * 1000 + extraMs;
 }
 
 // --- Discord embed sender ---
