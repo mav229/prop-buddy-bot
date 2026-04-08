@@ -51,14 +51,18 @@ function buildHtml(name: string) {
         </a>
       </div>
     </div>
-    <div style="background:#0f1729;padding:20px 28px;text-align:left;">
-      <div style="display:inline-block;">
-        <a href="https://www.instagram.com/propscholar/" target="_blank" style="text-decoration:none;margin-right:10px;"><img src="${ICON_IG}" alt="Instagram" width="28" height="28" style="border-radius:4px;" /></a>
-        <a href="https://discord.gg/propscholar" target="_blank" style="text-decoration:none;margin-right:10px;"><img src="${ICON_DC}" alt="Discord" width="28" height="28" style="border-radius:4px;" /></a>
-        <a href="https://x.com/propscholar" target="_blank" style="text-decoration:none;margin-right:10px;"><img src="${ICON_X}" alt="X" width="28" height="28" style="border-radius:4px;" /></a>
-        <a href="https://www.youtube.com/@propscholar" target="_blank" style="text-decoration:none;margin-right:10px;"><img src="${ICON_YT}" alt="YouTube" width="28" height="28" style="border-radius:4px;" /></a>
-        <a href="https://propscholar.com" target="_blank" style="text-decoration:none;"><img src="${ICON_PS}" alt="PropScholar" width="28" height="28" style="border-radius:4px;" /></a>
-      </div>
+    <div style="background:#0f1729;padding:16px 28px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+        <td style="vertical-align:middle;">
+          <a href="https://propscholar.com" target="_blank" style="text-decoration:none;"><img src="${ICON_PS}" alt="PropScholar" width="32" height="32" style="border-radius:4px;" /></a>
+        </td>
+        <td style="vertical-align:middle;text-align:right;">
+          <a href="https://www.instagram.com/propscholar/" target="_blank" style="text-decoration:none;margin-left:10px;"><img src="${ICON_IG}" alt="Instagram" width="26" height="26" style="border-radius:4px;" /></a>
+          <a href="https://discord.gg/propscholar" target="_blank" style="text-decoration:none;margin-left:10px;"><img src="${ICON_DC}" alt="Discord" width="26" height="26" style="border-radius:4px;" /></a>
+          <a href="https://x.com/propscholar" target="_blank" style="text-decoration:none;margin-left:10px;"><img src="${ICON_X}" alt="X" width="26" height="26" style="border-radius:4px;" /></a>
+          <a href="https://www.youtube.com/@propscholar" target="_blank" style="text-decoration:none;margin-left:10px;"><img src="${ICON_YT}" alt="YouTube" width="26" height="26" style="border-radius:4px;" /></a>
+        </td>
+      </tr></table>
     </div>
     <img src="${trackerBase}?id=${trackingId}&action=open" width="1" height="1" style="display:none;" />
   </div>
