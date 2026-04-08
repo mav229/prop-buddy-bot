@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Star, Loader2, Power, Mail, Clock, User, CheckCircle2 } from "lucide-react";
+import { Star, Loader2, Power, Mail, Clock, User, CheckCircle2, Eye, MousePointerClick } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
