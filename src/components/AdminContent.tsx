@@ -21,6 +21,7 @@ import { ReferenceLinksManager } from "./ReferenceLinksManager";
 import { ExtensionAnalytics } from "./ExtensionAnalytics";
 import { TonePresetsManager } from "./TonePresetsManager";
 import { ManualPush } from "./ManualPush";
+import { TestimonialManager } from "./TestimonialManager";
 
 interface AdminContentProps {
   activeTab: string;
@@ -92,6 +93,8 @@ export const AdminContent = ({ activeTab }: AdminContentProps) => {
       return <TonePresetsManager />;
     case "manual-push":
       return <ManualPush />;
+    case "testimonials":
+      return <TestimonialManager />;
     case "orders":
       return <DiscordOrders />;
     case "extension":
