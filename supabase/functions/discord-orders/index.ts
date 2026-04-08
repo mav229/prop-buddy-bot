@@ -89,21 +89,40 @@ async function sendOrderToDiscord(
   }
 }
 
-function mapPriceToAccountSize(price: number, currency: string): string {
-  // For INR prices, these are rough mappings based on PropScholar pricing
-  if (currency === "INR") {
-    if (price <= 500) return "$2K";
-    if (price <= 1000) return "$5K";
-    if (price <= 2000) return "$10K";
-    if (price <= 4000) return "$25K";
-    return "$50K";
+function extractAccountSizeFromItem(item: any): string | null {
+  // Try to extract account size from item name/title/description
+  const text = [item?.name, item?.title, item?.productName, item?.description]
+    .filter(Boolean)
+    .join(" ");
+  
+  const match = text.match(/\$?(200|100|50|25|10|5|2)\s*[kK]/i);
+  if (match) return `$${match[1]}K`;
+  
+  // Also check for full amounts like "200000" or "50000"
+  const fullMatch = text.match(/(200000|100000|50000|25000|10000|5000|2000)/);
+  if (fullMatch) {
+    const map: Record<string, string> = { "200000": "$200K", "100000": "$100K", "50000": "$50K", "25000": "$25K", "10000": "$10K", "5000": "$5K", "2000": "$2K" };
+    return map[fullMatch[1]] || null;
   }
-  // USD prices
-  if (price <= 30) return "$2K";
-  if (price <= 60) return "$5K";
-  if (price <= 100) return "$10K";
-  if (price <= 200) return "$25K";
-  return "$50K";
+  
+  return null;
+}
+
+function mapPriceToAccountSize(price: number, currency: string): string {
+  if (currency === "INR") {
+    if (price <= 600) return "$2K";
+    if (price <= 1200) return "$5K";
+    if (price <= 2500) return "$10K";
+    if (price <= 5000) return "$25K";
+    if (price <= 10000) return "$50K";
+    return "$100K";
+  }
+  if (price <= 15) return "$2K";
+  if (price <= 35) return "$5K";
+  if (price <= 70) return "$10K";
+  if (price <= 150) return "$25K";
+  if (price <= 300) return "$50K";
+  return "$100K";
 }
 
 Deno.serve(async (req) => {
@@ -168,7 +187,7 @@ Deno.serve(async (req) => {
         if (currency === "INR" && amount > 10000) amount = Math.round(amount / 100);
         const firstItem = order.items?.[0];
         const itemPrice = firstItem?.price || firstItem?.totalPrice || amount;
-        const accountSize = mapPriceToAccountSize(itemPrice, currency);
+        const accountSize = extractAccountSizeFromItem(firstItem) || mapPriceToAccountSize(itemPrice, currency);
         const customerName = cd.name || "Unknown";
 
         await sendOrderToDiscord(botToken, channelIds, { customer_name: customerName, account_size: accountSize, payment_method: pm || "N/A" });
@@ -261,11 +280,10 @@ Deno.serve(async (req) => {
         amount = Math.round(amount / 100);
       }
 
-      // Extract account size from item price
+      // Extract account size from item name first, then fall back to price mapping
       const firstItem = order.items?.[0];
       const itemPrice = firstItem?.price || firstItem?.totalPrice || amount;
-      // Map common price points to account sizes
-      const accountSize = mapPriceToAccountSize(itemPrice, currency);
+      const accountSize = extractAccountSizeFromItem(firstItem) || mapPriceToAccountSize(itemPrice, currency);
 
       return {
         _id: order._id?.toString(),
