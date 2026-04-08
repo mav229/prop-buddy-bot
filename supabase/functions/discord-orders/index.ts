@@ -280,11 +280,10 @@ Deno.serve(async (req) => {
         amount = Math.round(amount / 100);
       }
 
-      // Extract account size from item price
+      // Extract account size from item name first, then fall back to price mapping
       const firstItem = order.items?.[0];
       const itemPrice = firstItem?.price || firstItem?.totalPrice || amount;
-      // Map common price points to account sizes
-      const accountSize = mapPriceToAccountSize(itemPrice, currency);
+      const accountSize = extractAccountSizeFromItem(firstItem) || mapPriceToAccountSize(itemPrice, currency);
 
       return {
         _id: order._id?.toString(),
