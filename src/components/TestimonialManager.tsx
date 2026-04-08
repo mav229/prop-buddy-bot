@@ -254,22 +254,29 @@ export const TestimonialManager = () => {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 text-right">
-                    <div>
-                      <Badge
-                        variant={log.source === "automation" ? "default" : "secondary"}
-                        className="text-xs"
-                      >
-                        {log.source === "automation" ? "Auto" : "Manual"}
+                  <div className="flex items-center gap-2 text-right">
+                    <Badge
+                      variant={log.source === "automation" ? "default" : "secondary"}
+                      className="text-xs"
+                    >
+                      {log.source === "automation" ? "Auto" : "Manual"}
+                    </Badge>
+                    {log.opened_at && (
+                      <Badge variant="outline" className="text-xs gap-1 border-green-500/50 text-green-500">
+                        <Eye className="w-3 h-3" />
+                        Opened
                       </Badge>
-                    </div>
+                    )}
+                    {log.clicked_at && (
+                      <Badge variant="outline" className="text-xs gap-1 border-blue-500/50 text-blue-500">
+                        <MousePointerClick className="w-3 h-3" />
+                        Clicked
+                      </Badge>
+                    )}
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Clock className="w-3 h-3" />
                       {formatDate(log.created_at)}
                     </div>
-                    {log.opened_at && (
-                      <CheckCircle2 className="w-4 h-4 text-green-500" />
-                    )}
                   </div>
                 </div>
               ))}
