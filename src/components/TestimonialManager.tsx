@@ -264,7 +264,7 @@ export const TestimonialManager = () => {
                       {formatDate(log.created_at)}
                     </div>
                     {log.opened_at && (
-                      <CheckCircle2 className="w-4 h-4 text-green-500" title="Opened" />
+                      <CheckCircle2 className="w-4 h-4 text-green-500" />
                     )}
                   </div>
                 </div>
