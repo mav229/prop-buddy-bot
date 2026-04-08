@@ -12,6 +12,8 @@ const GOOGLE_REVIEW_LINK = "https://g.page/r/CdHO0VDiVc1aEAI/review";
 const TRUSTPILOT_LINK = "https://www.trustpilot.com/review/propscholar.com";
 
 const defaultSubtitle = "Tap a star and leave us a quick review on Trustpilot";
+const EMAIL_SUBJECT = "Share your PropScholar experience";
+const EMAIL_PREHEADER = "We Back Traders";
 
 export const TestimonialManager = () => {
   const [recipientName, setRecipientName] = useState("");
@@ -40,7 +42,7 @@ export const TestimonialManager = () => {
 
     <!-- Body -->
     <div style="padding:36px 28px;text-align:center;">
-      <h2 style="font-size:22px;color:#111827;margin:0 0 8px;font-weight:700;">How was your experience?</h2>
+      <h2 style="font-size:22px;color:#111827;margin:0 0 8px;font-weight:700;">How was your payout experience?</h2>
       <p style="font-size:14px;color:#777777;margin:0 0 24px;">${sub}</p>
 
       <!-- Stars -->
@@ -89,8 +91,8 @@ export const TestimonialManager = () => {
       const { data, error } = await supabase.functions.invoke("send-smtp-email", {
         body: {
           to: recipientEmail,
-          subject: `${recipientName}, we'd love your feedback! ⭐`,
-          body: `Hey ${recipientName}, how was your experience with PropScholar? Leave us a review!`,
+          subject: EMAIL_SUBJECT,
+          body: `${EMAIL_PREHEADER} — Hey ${recipientName}, share your PropScholar payout experience!`,
           html: buildHtml(recipientName, subtitle),
           templateId: "testimonial-request",
           recipientName,
