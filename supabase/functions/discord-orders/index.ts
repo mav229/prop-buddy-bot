@@ -187,7 +187,7 @@ Deno.serve(async (req) => {
         if (currency === "INR" && amount > 10000) amount = Math.round(amount / 100);
         const firstItem = order.items?.[0];
         const itemPrice = firstItem?.price || firstItem?.totalPrice || amount;
-        const accountSize = mapPriceToAccountSize(itemPrice, currency);
+        const accountSize = extractAccountSizeFromItem(firstItem) || mapPriceToAccountSize(itemPrice, currency);
         const customerName = cd.name || "Unknown";
 
         await sendOrderToDiscord(botToken, channelIds, { customer_name: customerName, account_size: accountSize, payment_method: pm || "N/A" });
