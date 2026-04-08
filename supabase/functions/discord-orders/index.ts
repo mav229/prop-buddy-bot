@@ -90,15 +90,22 @@ async function sendOrderToDiscord(
 }
 
 function extractAccountSizeFromItem(item: any): string | null {
-  // Try to extract account size from item name/title/description
-  const text = [item?.name, item?.title, item?.productName, item?.description]
+  // Try to extract account size from ALL text fields on the item
+  const text = [
+    item?.name, item?.title, item?.productName, item?.description,
+    item?.variant, item?.variantName, item?.sku, item?.slug,
+    item?.product?.name, item?.product?.title,
+  ]
     .filter(Boolean)
     .join(" ");
   
+  if (!text) return null;
+
+  // Match patterns like "$5K", "5k", "5K", "$5 K"
   const match = text.match(/\$?(200|100|50|25|10|5|2)\s*[kK]/i);
   if (match) return `$${match[1]}K`;
   
-  // Also check for full amounts like "200000" or "50000"
+  // Match full amounts like "200000" or "2000"
   const fullMatch = text.match(/(200000|100000|50000|25000|10000|5000|2000)/);
   if (fullMatch) {
     const map: Record<string, string> = { "200000": "$200K", "100000": "$100K", "50000": "$50K", "25000": "$25K", "10000": "$10K", "5000": "$5K", "2000": "$2K" };
@@ -109,20 +116,24 @@ function extractAccountSizeFromItem(item: any): string | null {
 }
 
 function mapPriceToAccountSize(price: number, currency: string): string {
+  // INR pricing (Cashfree gateway, amounts in rupees)
   if (currency === "INR") {
-    if (price <= 600) return "$2K";
-    if (price <= 1200) return "$5K";
-    if (price <= 2500) return "$10K";
-    if (price <= 5000) return "$25K";
-    if (price <= 10000) return "$50K";
-    return "$100K";
+    if (price <= 400) return "$2K";
+    if (price <= 900) return "$5K";
+    if (price <= 1800) return "$10K";
+    if (price <= 4000) return "$25K";
+    if (price <= 8000) return "$50K";
+    if (price <= 16000) return "$100K";
+    return "$200K";
   }
-  if (price <= 15) return "$2K";
-  if (price <= 35) return "$5K";
-  if (price <= 70) return "$10K";
-  if (price <= 150) return "$25K";
-  if (price <= 300) return "$50K";
-  return "$100K";
+  // USD / crypto pricing
+  if (price <= 8) return "$2K";
+  if (price <= 20) return "$5K";
+  if (price <= 45) return "$10K";
+  if (price <= 90) return "$25K";
+  if (price <= 180) return "$50K";
+  if (price <= 400) return "$100K";
+  return "$200K";
 }
 
 Deno.serve(async (req) => {
@@ -187,7 +198,10 @@ Deno.serve(async (req) => {
         if (currency === "INR" && amount > 10000) amount = Math.round(amount / 100);
         const firstItem = order.items?.[0];
         const itemPrice = firstItem?.price || firstItem?.totalPrice || amount;
-        const accountSize = extractAccountSizeFromItem(firstItem) || mapPriceToAccountSize(itemPrice, currency);
+        const extractedSize = extractAccountSizeFromItem(firstItem);
+        const mappedSize = mapPriceToAccountSize(itemPrice, currency);
+        const accountSize = extractedSize || mappedSize;
+        console.log(`ORDER DEBUG [${cd.name}]: currency=${currency}, rawAmount=${pd.amount}, amount=${amount}, itemPrice=${itemPrice}, itemName=${firstItem?.name || firstItem?.title || 'N/A'}, extractedSize=${extractedSize}, mappedSize=${mappedSize}, finalSize=${accountSize}`);
         const customerName = cd.name || "Unknown";
 
         await sendOrderToDiscord(botToken, channelIds, { customer_name: customerName, account_size: accountSize, payment_method: pm || "N/A" });
