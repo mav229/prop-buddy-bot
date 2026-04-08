@@ -11,7 +11,7 @@ import { toast } from "@/hooks/use-toast";
 const GOOGLE_REVIEW_LINK = "https://g.page/r/CdHO0VDiVc1aEAI/review";
 const TRUSTPILOT_LINK = "https://www.trustpilot.com/review/propscholar.com";
 
-const defaultSubtitle = "Your journey with PropScholar has been incredible — we'd love to hear about it! A quick review helps fellow traders find us and keeps us motivated.";
+const defaultSubtitle = "Tap a star and leave us a quick review on Trustpilot";
 
 export const TestimonialManager = () => {
   const [recipientName, setRecipientName] = useState("");
