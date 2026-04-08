@@ -18,7 +18,7 @@ const ICON_YT = "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/publ
 const ICON_PS = "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/email-assets/icon-propscholar.png";
 
 const EMAIL_SUBJECT = "Share your PropScholar experience";
-const SUBTITLE = "Tap a star and leave us a quick review on Trustpilot";
+const SUBTITLE = "How was your PayUp experience?";
 
 function buildHtml(name: string) {
   const trackerBase = `${Deno.env.get("SUPABASE_URL")}/functions/v1/email-tracker`;
@@ -35,7 +35,7 @@ function buildHtml(name: string) {
       <img src="${BANNER_URL}" alt="How was your experience?" style="width:100%;max-width:600px;display:block;" />
     </div>
     <div style="padding:36px 28px;text-align:center;">
-      <h2 style="font-size:22px;color:#111827;margin:0 0 8px;font-weight:700;">How was your payout experience?</h2>
+      <h2 style="font-size:22px;color:#111827;margin:0 0 8px;font-weight:700;">Be honest… how did we do? Rate Us Below 😉</h2>
       <p style="font-size:14px;color:#777777;margin:0 0 24px;">${SUBTITLE}</p>
       <div style="margin:0 0 28px;">
         <span style="font-size:36px;color:#f5a623;">★ ★ ★ ★ ★</span>
