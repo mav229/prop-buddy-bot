@@ -12,6 +12,8 @@ const GOOGLE_REVIEW_LINK = "https://g.page/r/CdHO0VDiVc1aEAI/review";
 const TRUSTPILOT_LINK = "https://www.trustpilot.com/review/propscholar.com";
 
 const defaultSubtitle = "Tap a star and leave us a quick review on Trustpilot";
+const EMAIL_SUBJECT = "Share your PropScholar experience";
+const EMAIL_PREHEADER = "We Back Traders";
 
 export const TestimonialManager = () => {
   const [recipientName, setRecipientName] = useState("");
