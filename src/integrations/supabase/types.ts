@@ -401,6 +401,7 @@ export type Database = {
           certificate_type: string
           certificate_url: string
           created_at: string
+          email: string | null
           id: string
           mongo_collection: string
           mongo_source_id: string
@@ -409,6 +410,7 @@ export type Database = {
           slug: string
           status: string | null
           synced_at: string
+          testimonial_sent_at: string | null
           updated_at: string
           user_name: string
         }
@@ -417,6 +419,7 @@ export type Database = {
           certificate_type?: string
           certificate_url: string
           created_at?: string
+          email?: string | null
           id?: string
           mongo_collection?: string
           mongo_source_id: string
@@ -425,6 +428,7 @@ export type Database = {
           slug: string
           status?: string | null
           synced_at?: string
+          testimonial_sent_at?: string | null
           updated_at?: string
           user_name: string
         }
@@ -433,6 +437,7 @@ export type Database = {
           certificate_type?: string
           certificate_url?: string
           created_at?: string
+          email?: string | null
           id?: string
           mongo_collection?: string
           mongo_source_id?: string
@@ -441,6 +446,7 @@ export type Database = {
           slug?: string
           status?: string | null
           synced_at?: string
+          testimonial_sent_at?: string | null
           updated_at?: string
           user_name?: string
         }
@@ -622,6 +628,27 @@ export type Database = {
           source?: string
           status?: string
           ticket_number?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      testimonial_settings: {
+        Row: {
+          created_at: string
+          id: string
+          is_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
           updated_at?: string
         }
         Relationships: []
