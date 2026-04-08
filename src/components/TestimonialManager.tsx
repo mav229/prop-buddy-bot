@@ -1,71 +1,107 @@
-import { useState } from "react";
-import { Star, Send, Loader2, ExternalLink } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Star, Loader2, Power, Mail, Clock, User, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
+const BANNER_URL = "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/email-assets/testimonial-banner.png";
 const GOOGLE_REVIEW_LINK = "https://g.page/r/CdHO0VDiVc1aEAI/review";
 const TRUSTPILOT_LINK = "https://www.trustpilot.com/review/propscholar.com";
-
-const defaultSubtitle = "Tap a star and leave us a quick review on Trustpilot";
-const EMAIL_SUBJECT = "Share your PropScholar experience";
-const EMAIL_PREHEADER = "We Back Traders";
+const ICON_IG = "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/email-assets/icon-instagram.png";
+const ICON_DC = "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/email-assets/icon-discord.png";
+const ICON_X = "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/email-assets/icon-x.png";
+const ICON_YT = "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/email-assets/icon-youtube.png";
+const ICON_PS = "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/email-assets/icon-propscholar.png";
 
 export const TestimonialManager = () => {
-  const [recipientName, setRecipientName] = useState("");
-  const [recipientEmail, setRecipientEmail] = useState("");
-  const [subtitle, setSubtitle] = useState(defaultSubtitle);
-  const [sending, setSending] = useState(false);
+  const [isEnabled, setIsEnabled] = useState(false);
+  const [settingsId, setSettingsId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [toggling, setToggling] = useState(false);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [logsLoading, setLogsLoading] = useState(true);
   const [previewMode, setPreviewMode] = useState(false);
 
-  const BANNER_URL = "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/email-assets/testimonial-banner.png";
-  const ICON_IG = "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/email-assets/icon-instagram.png";
-  const ICON_DC = "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/email-assets/icon-discord.png";
-  const ICON_X = "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/email-assets/icon-x.png";
-  const ICON_YT = "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/email-assets/icon-youtube.png";
-  const ICON_PS = "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/email-assets/icon-propscholar.png";
+  useEffect(() => {
+    fetchSettings();
+    fetchLogs();
+  }, []);
 
-  const buildHtml = (name: string, sub: string) => {
+  const fetchSettings = async () => {
+    const { data } = await supabase
+      .from("testimonial_settings")
+      .select("*")
+      .limit(1)
+      .single();
+    if (data) {
+      setIsEnabled(data.is_enabled);
+      setSettingsId(data.id);
+    }
+    setLoading(false);
+  };
+
+  const fetchLogs = async () => {
+    const { data } = await supabase
+      .from("email_logs")
+      .select("*")
+      .in("template_id", ["testimonial-auto", "testimonial-request"])
+      .order("created_at", { ascending: false })
+      .limit(50);
+    setLogs(data || []);
+    setLogsLoading(false);
+  };
+
+  const handleToggle = async (enabled: boolean) => {
+    if (!settingsId) return;
+    setToggling(true);
+    const { error } = await supabase
+      .from("testimonial_settings")
+      .update({ is_enabled: enabled })
+      .eq("id", settingsId);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      setIsEnabled(enabled);
+      toast({
+        title: enabled ? "Automation ON" : "Automation OFF",
+        description: enabled
+          ? "Testimonial emails will be sent to completed payout users"
+          : "Testimonial automation paused",
+      });
+    }
+    setToggling(false);
+  };
+
+  const buildPreviewHtml = () => {
     return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
 <body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">
   <div style="max-width:600px;margin:0 auto;background:#ffffff;">
-    <!-- Banner Image -->
     <div style="text-align:center;">
       <img src="${BANNER_URL}" alt="How was your experience?" style="width:100%;max-width:600px;display:block;" />
     </div>
-
-    <!-- Body -->
     <div style="padding:36px 28px;text-align:center;">
       <h2 style="font-size:22px;color:#111827;margin:0 0 8px;font-weight:700;">How was your payout experience?</h2>
-      <p style="font-size:14px;color:#777777;margin:0 0 24px;">${sub}</p>
-
-      <!-- Stars -->
+      <p style="font-size:14px;color:#777777;margin:0 0 24px;">Tap a star and leave us a quick review on Trustpilot</p>
       <div style="margin:0 0 28px;">
         <span style="font-size:36px;color:#f5a623;">★ ★ ★ ★ ★</span>
       </div>
-
-      <!-- Trustpilot Button -->
       <div style="margin:0 0 14px;">
         <a href="${TRUSTPILOT_LINK}" target="_blank" style="display:inline-block;background:#00b67a;color:#ffffff;text-decoration:none;padding:14px 40px;border-radius:8px;font-size:15px;font-weight:600;">
           Review Us on Trustpilot
         </a>
       </div>
-
-      <!-- Google Button -->
       <div style="margin:0 0 28px;">
         <a href="${GOOGLE_REVIEW_LINK}" target="_blank" style="display:inline-block;background:#4285F4;color:#ffffff;text-decoration:none;padding:14px 40px;border-radius:8px;font-size:15px;font-weight:600;">
           Review Us on Google
         </a>
       </div>
     </div>
-
-    <!-- Footer -->
     <div style="background:#0f1729;padding:20px 28px;text-align:left;">
       <div style="display:inline-block;">
         <a href="https://www.instagram.com/propscholar/" target="_blank" style="text-decoration:none;margin-right:10px;"><img src="${ICON_IG}" alt="Instagram" width="28" height="28" style="border-radius:4px;" /></a>
@@ -80,99 +116,77 @@ export const TestimonialManager = () => {
 </html>`;
   };
 
-  const handleSend = async () => {
-    if (!recipientEmail || !recipientName) {
-      toast({ title: "Missing fields", description: "Name and email are required", variant: "destructive" });
-      return;
-    }
-
-    setSending(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("send-smtp-email", {
-        body: {
-          to: recipientEmail,
-          subject: EMAIL_SUBJECT,
-          body: `${EMAIL_PREHEADER} — Hey ${recipientName}, share your PropScholar payout experience!`,
-          html: buildHtml(recipientName, subtitle),
-          templateId: "testimonial-request",
-          recipientName,
-        },
-      });
-
-      if (error) throw error;
-
-      toast({ title: "Email sent!", description: `Testimonial request sent to ${recipientName}` });
-      setRecipientName("");
-      setRecipientEmail("");
-    } catch (err: any) {
-      toast({ title: "Failed to send", description: err.message, variant: "destructive" });
-    } finally {
-      setSending(false);
-    }
+  const formatDate = (d: string) => {
+    return new Date(d).toLocaleString("en-IN", {
+      day: "2-digit", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    });
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Testimonial Requests</h2>
-        <p className="text-muted-foreground">Send review request emails to customers after payout</p>
+        <h2 className="text-2xl font-bold">Testimonial Automation</h2>
+        <p className="text-muted-foreground">
+          Auto-sends review request emails to users with completed payouts
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Send Form */}
+        {/* Automation Control */}
         <Card className="bg-card/50 border-border/50">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <Star className="w-5 h-5 text-yellow-500" />
-              Send Review Request
+              <Power className="w-5 h-5" />
+              Automation Control
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Customer Name</Label>
-              <Input
-                placeholder="e.g. Moksha Studio"
-                value={recipientName}
-                onChange={(e) => setRecipientName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Customer Email</Label>
-              <Input
-                type="email"
-                placeholder="customer@email.com"
-                value={recipientEmail}
-                onChange={(e) => setRecipientEmail(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Subtitle / Message</Label>
-              <Textarea
-                rows={4}
-                value={subtitle}
-                onChange={(e) => setSubtitle(e.target.value)}
-                className="text-sm"
+          <CardContent className="space-y-6">
+            <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/30">
+              <div className="space-y-1">
+                <Label className="text-base font-semibold">
+                  Auto-send testimonial emails
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Sends to users when payout status is COMPLETED
+                </p>
+              </div>
+              <Switch
+                checked={isEnabled}
+                onCheckedChange={handleToggle}
+                disabled={toggling}
               />
             </div>
 
-            <div className="flex gap-2">
-              <Button onClick={handleSend} disabled={sending} className="flex-1">
-                {sending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
-                Send Email
-              </Button>
-              <Button variant="outline" onClick={() => setPreviewMode(!previewMode)}>
-                {previewMode ? "Hide" : "Preview"}
-              </Button>
+            <div className="flex items-center gap-2">
+              <div
+                className={`w-3 h-3 rounded-full ${
+                  isEnabled ? "bg-green-500 animate-pulse" : "bg-red-500"
+                }`}
+              />
+              <span className="text-sm font-medium">
+                {isEnabled ? "Automation is ACTIVE" : "Automation is PAUSED"}
+              </span>
             </div>
 
-            <div className="flex gap-3 pt-2">
-              <a href={GOOGLE_REVIEW_LINK} target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-                Google Reviews <ExternalLink className="w-3 h-3" />
-              </a>
-              <a href={TRUSTPILOT_LINK} target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-                Trustpilot <ExternalLink className="w-3 h-3" />
-              </a>
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p>• Checks for COMPLETED payouts with email addresses</p>
+              <p>• Sends one email per certificate (never duplicates)</p>
+              <p>• Subject: "Share your PropScholar experience"</p>
+              <p>• Preheader: "We Back Traders"</p>
             </div>
+
+            <Button variant="outline" onClick={() => setPreviewMode(!previewMode)} className="w-full">
+              {previewMode ? "Hide Preview" : "Preview Email Template"}
+            </Button>
           </CardContent>
         </Card>
 
@@ -185,7 +199,7 @@ export const TestimonialManager = () => {
             <CardContent>
               <div className="rounded-lg overflow-hidden border border-border/30 bg-white">
                 <iframe
-                  srcDoc={buildHtml(recipientName || "John", subtitle)}
+                  srcDoc={buildPreviewHtml()}
                   className="w-full h-[500px] border-0"
                   title="Email Preview"
                 />
@@ -194,6 +208,71 @@ export const TestimonialManager = () => {
           </Card>
         )}
       </div>
+
+      {/* Email Logs */}
+      <Card className="bg-card/50 border-border/50">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Mail className="w-5 h-5" />
+            Sent Emails Log
+            <Badge variant="secondary" className="ml-auto">
+              {logs.length} emails
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {logsLoading ? (
+            <div className="flex justify-center p-8">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : logs.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Mail className="w-10 h-10 mx-auto mb-2 opacity-30" />
+              <p>No testimonial emails sent yet</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              {logs.map((log) => (
+                <div
+                  key={log.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-border/20"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <User className="w-4 h-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">
+                        {log.recipient_name || log.recipient_email}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {log.recipient_email}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 text-right">
+                    <div>
+                      <Badge
+                        variant={log.source === "automation" ? "default" : "secondary"}
+                        className="text-xs"
+                      >
+                        {log.source === "automation" ? "Auto" : "Manual"}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock className="w-3 h-3" />
+                      {formatDate(log.created_at)}
+                    </div>
+                    {log.opened_at && (
+                      <CheckCircle2 className="w-4 h-4 text-green-500" title="Opened" />
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
