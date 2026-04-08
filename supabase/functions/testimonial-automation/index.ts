@@ -35,7 +35,7 @@ function buildHtml(name: string) {
       <img src="${BANNER_URL}" alt="How was your experience?" style="width:100%;max-width:600px;display:block;" />
     </div>
     <div style="padding:36px 28px;text-align:center;">
-      <h2 style="font-size:22px;color:#111827;margin:0 0 8px;font-weight:700;">How was your PayUp experience?</h2>
+      <h2 style="font-size:22px;color:#111827;margin:0 0 8px;font-weight:700;">How was your Payout experience?</h2>
       <p style="font-size:14px;color:#777777;margin:0 0 24px;">${SUBTITLE}</p>
       <div style="margin:0 0 28px;">
         <span style="font-size:36px;color:#f5a623;">★ ★ ★ ★ ★</span>
