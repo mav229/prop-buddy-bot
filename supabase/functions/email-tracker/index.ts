@@ -3,10 +3,16 @@ import { createClient } from "npm:@supabase/supabase-js@2.49.4";
 // 1x1 transparent PNG pixel
 const PIXEL = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="), c => c.charCodeAt(0));
 
+const DEST_MAP: Record<string, string> = {
+  trustpilot: "https://www.trustpilot.com/review/propscholar.com",
+  google: "https://g.page/r/CdHO0VDiVc1aEAI/review",
+};
+
 Deno.serve(async (req) => {
   const url = new URL(req.url);
   const trackingId = url.searchParams.get("id");
   const action = url.searchParams.get("action"); // "open" or "click"
+  const dest = url.searchParams.get("dest"); // "trustpilot" or "google"
 
   if (!trackingId) {
     return new Response("Missing tracking id", { status: 400 });
@@ -19,10 +25,10 @@ Deno.serve(async (req) => {
   try {
     if (action === "click") {
       await sb.from("email_logs").update({ clicked_at: new Date().toISOString() }).eq("tracking_id", trackingId);
-      // Redirect to propscholar.com
+      const redirectUrl = (dest && DEST_MAP[dest]) || "https://propscholar.com";
       return new Response(null, {
         status: 302,
-        headers: { Location: "https://propscholar.com" },
+        headers: { Location: redirectUrl },
       });
     }
 
@@ -36,9 +42,9 @@ Deno.serve(async (req) => {
     });
   } catch (err) {
     console.error("Tracker error:", err);
-    // Still return pixel/redirect so user experience isn't broken
     if (action === "click") {
-      return new Response(null, { status: 302, headers: { Location: "https://propscholar.com" } });
+      const redirectUrl = (dest && DEST_MAP[dest]) || "https://propscholar.com";
+      return new Response(null, { status: 302, headers: { Location: redirectUrl } });
     }
     return new Response(PIXEL, { headers: { "Content-Type": "image/png" } });
   }
