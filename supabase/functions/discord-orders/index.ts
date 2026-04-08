@@ -90,15 +90,22 @@ async function sendOrderToDiscord(
 }
 
 function extractAccountSizeFromItem(item: any): string | null {
-  // Try to extract account size from item name/title/description
-  const text = [item?.name, item?.title, item?.productName, item?.description]
+  // Try to extract account size from ALL text fields on the item
+  const text = [
+    item?.name, item?.title, item?.productName, item?.description,
+    item?.variant, item?.variantName, item?.sku, item?.slug,
+    item?.product?.name, item?.product?.title,
+  ]
     .filter(Boolean)
     .join(" ");
   
+  if (!text) return null;
+
+  // Match patterns like "$5K", "5k", "5K", "$5 K"
   const match = text.match(/\$?(200|100|50|25|10|5|2)\s*[kK]/i);
   if (match) return `$${match[1]}K`;
   
-  // Also check for full amounts like "200000" or "50000"
+  // Match full amounts like "200000" or "2000"
   const fullMatch = text.match(/(200000|100000|50000|25000|10000|5000|2000)/);
   if (fullMatch) {
     const map: Record<string, string> = { "200000": "$200K", "100000": "$100K", "50000": "$50K", "25000": "$25K", "10000": "$10K", "5000": "$5K", "2000": "$2K" };
