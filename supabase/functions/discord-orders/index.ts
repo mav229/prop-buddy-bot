@@ -109,20 +109,24 @@ function extractAccountSizeFromItem(item: any): string | null {
 }
 
 function mapPriceToAccountSize(price: number, currency: string): string {
+  // INR pricing (Cashfree gateway, amounts in rupees)
   if (currency === "INR") {
-    if (price <= 600) return "$2K";
-    if (price <= 1200) return "$5K";
-    if (price <= 2500) return "$10K";
-    if (price <= 5000) return "$25K";
-    if (price <= 10000) return "$50K";
-    return "$100K";
+    if (price <= 400) return "$2K";
+    if (price <= 900) return "$5K";
+    if (price <= 1800) return "$10K";
+    if (price <= 4000) return "$25K";
+    if (price <= 8000) return "$50K";
+    if (price <= 16000) return "$100K";
+    return "$200K";
   }
-  if (price <= 15) return "$2K";
-  if (price <= 35) return "$5K";
-  if (price <= 70) return "$10K";
-  if (price <= 150) return "$25K";
-  if (price <= 300) return "$50K";
-  return "$100K";
+  // USD / crypto pricing
+  if (price <= 8) return "$2K";
+  if (price <= 20) return "$5K";
+  if (price <= 45) return "$10K";
+  if (price <= 90) return "$25K";
+  if (price <= 180) return "$50K";
+  if (price <= 400) return "$100K";
+  return "$200K";
 }
 
 Deno.serve(async (req) => {
