@@ -89,6 +89,17 @@ async function sendOrderToDiscord(
   }
 }
 
+const ALLOWED_ACCOUNT_SIZES = ["$2K", "$5K", "$10K", "$25K", "$50K"] as const;
+
+function normalizeAccountSize(value: string | null): string | null {
+  if (!value) return null;
+
+  const normalized = value.trim().toUpperCase().replace(/\s+/g, "");
+  const match = normalized.match(/\$?(2|5|10|25|50)K/);
+
+  return match ? `$${match[1]}K` : null;
+}
+
 function extractAccountSizeFromItem(item: any): string | null {
   // Try to extract account size from ALL text fields on the item
   const text = [
@@ -101,14 +112,14 @@ function extractAccountSizeFromItem(item: any): string | null {
   
   if (!text) return null;
 
-  // Match patterns like "$5K", "5k", "5K", "$5 K"
-  const match = text.match(/\$?(200|100|50|25|10|5|2)\s*[kK]/i);
-  if (match) return `$${match[1]}K`;
+  // Match patterns like "$5K", "5k", "5 K"
+  const shorthandMatch = text.match(/\$?(2|5|10|25|50)\s*[kK]/i);
+  if (shorthandMatch) return `$${shorthandMatch[1]}K`;
   
-  // Match full amounts like "200000" or "2000"
-  const fullMatch = text.match(/(200000|100000|50000|25000|10000|5000|2000)/);
+  // Match full amounts like "50000" or "2000"
+  const fullMatch = text.match(/(50000|25000|10000|5000|2000)/);
   if (fullMatch) {
-    const map: Record<string, string> = { "200000": "$200K", "100000": "$100K", "50000": "$50K", "25000": "$25K", "10000": "$10K", "5000": "$5K", "2000": "$2K" };
+    const map: Record<string, string> = { "50000": "$50K", "25000": "$25K", "10000": "$10K", "5000": "$5K", "2000": "$2K" };
     return map[fullMatch[1]] || null;
   }
   
@@ -118,22 +129,28 @@ function extractAccountSizeFromItem(item: any): string | null {
 function mapPriceToAccountSize(price: number, currency: string): string {
   // INR pricing (Cashfree gateway, amounts in rupees)
   if (currency === "INR") {
-    if (price <= 400) return "$2K";
-    if (price <= 900) return "$5K";
-    if (price <= 1800) return "$10K";
-    if (price <= 4000) return "$25K";
-    if (price <= 8000) return "$50K";
-    if (price <= 16000) return "$100K";
-    return "$200K";
+    if (price <= 300) return "$2K";
+    if (price <= 650) return "$5K";
+    if (price <= 1200) return "$10K";
+    if (price <= 2600) return "$25K";
+    return "$50K";
   }
+
   // USD / crypto pricing
-  if (price <= 8) return "$2K";
-  if (price <= 20) return "$5K";
-  if (price <= 45) return "$10K";
-  if (price <= 90) return "$25K";
-  if (price <= 180) return "$50K";
-  if (price <= 400) return "$100K";
-  return "$200K";
+  if (price <= 6) return "$2K";
+  if (price <= 15) return "$5K";
+  if (price <= 35) return "$10K";
+  if (price <= 75) return "$25K";
+  return "$50K";
+}
+
+function resolveAccountSize(item: any, price: number, currency: string): string {
+  const extracted = normalizeAccountSize(extractAccountSizeFromItem(item));
+  if (extracted && ALLOWED_ACCOUNT_SIZES.includes(extracted as typeof ALLOWED_ACCOUNT_SIZES[number])) {
+    return extracted;
+  }
+
+  return mapPriceToAccountSize(price, currency);
 }
 
 Deno.serve(async (req) => {
@@ -198,9 +215,9 @@ Deno.serve(async (req) => {
         if (currency === "INR" && amount > 10000) amount = Math.round(amount / 100);
         const firstItem = order.items?.[0];
         const itemPrice = firstItem?.price || firstItem?.totalPrice || amount;
-        const extractedSize = extractAccountSizeFromItem(firstItem);
+        const extractedSize = normalizeAccountSize(extractAccountSizeFromItem(firstItem));
         const mappedSize = mapPriceToAccountSize(itemPrice, currency);
-        const accountSize = extractedSize || mappedSize;
+        const accountSize = resolveAccountSize(firstItem, itemPrice, currency);
         console.log(`ORDER DEBUG [${cd.name}]: currency=${currency}, rawAmount=${pd.amount}, amount=${amount}, itemPrice=${itemPrice}, itemName=${firstItem?.name || firstItem?.title || 'N/A'}, extractedSize=${extractedSize}, mappedSize=${mappedSize}, finalSize=${accountSize}`);
         const customerName = cd.name || "Unknown";
 
@@ -297,7 +314,7 @@ Deno.serve(async (req) => {
       // Extract account size from item name first, then fall back to price mapping
       const firstItem = order.items?.[0];
       const itemPrice = firstItem?.price || firstItem?.totalPrice || amount;
-      const accountSize = extractAccountSizeFromItem(firstItem) || mapPriceToAccountSize(itemPrice, currency);
+      const accountSize = resolveAccountSize(firstItem, itemPrice, currency);
 
       return {
         _id: order._id?.toString(),
