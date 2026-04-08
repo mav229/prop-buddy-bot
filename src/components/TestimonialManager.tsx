@@ -11,7 +11,7 @@ import { toast } from "@/hooks/use-toast";
 const GOOGLE_REVIEW_LINK = "https://g.page/r/CdHO0VDiVc1aEAI/review";
 const TRUSTPILOT_LINK = "https://www.trustpilot.com/review/propscholar.com";
 
-const defaultSubtitle = "Your journey with PropScholar has been incredible — we'd love to hear about it! A quick review helps fellow traders find us and keeps us motivated.";
+const defaultSubtitle = "Tap a star and leave us a quick review on Trustpilot";
 
 export const TestimonialManager = () => {
   const [recipientName, setRecipientName] = useState("");
@@ -20,55 +20,58 @@ export const TestimonialManager = () => {
   const [sending, setSending] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
 
+  const BANNER_URL = "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/email-assets/testimonial-banner.png";
+  const ICON_IG = "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/email-assets/icon-instagram.png";
+  const ICON_DC = "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/email-assets/icon-discord.png";
+  const ICON_X = "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/email-assets/icon-x.png";
+  const ICON_YT = "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/email-assets/icon-youtube.png";
+  const ICON_PS = "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/email-assets/icon-propscholar.png";
+
   const buildHtml = (name: string, sub: string) => {
     return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background-color:#ffffff;font-family:Arial,Helvetica,sans-serif;">
+<body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">
   <div style="max-width:600px;margin:0 auto;background:#ffffff;">
-    <!-- Header -->
-    <div style="background:#0a0a0a;padding:32px 24px;text-align:center;border-radius:0 0 12px 12px;">
-      <h1 style="color:#ffffff;font-size:26px;margin:0 0 4px;font-weight:700;letter-spacing:-0.5px;">PropScholar</h1>
-      <p style="color:#888888;font-size:13px;margin:0;">Prop Trading Excellence</p>
+    <!-- Banner Image -->
+    <div style="text-align:center;">
+      <img src="${BANNER_URL}" alt="How was your experience?" style="width:100%;max-width:600px;display:block;" />
     </div>
 
     <!-- Body -->
-    <div style="padding:36px 28px;">
-      <h2 style="font-size:22px;color:#111827;margin:0 0 6px;font-weight:700;">Hey ${name} 👋</h2>
-      <h3 style="font-size:17px;color:#111827;margin:0 0 20px;font-weight:600;">How was your experience with PropScholar?</h3>
-      
-      <p style="font-size:14px;color:#555555;line-height:1.7;margin:0 0 28px;">${sub}</p>
+    <div style="padding:36px 28px;text-align:center;">
+      <h2 style="font-size:22px;color:#111827;margin:0 0 8px;font-weight:700;">How was your experience?</h2>
+      <p style="font-size:14px;color:#777777;margin:0 0 24px;">${sub}</p>
 
-      <!-- Stars decoration -->
-      <div style="text-align:center;margin:0 0 28px;">
-        <span style="font-size:32px;">⭐⭐⭐⭐⭐</span>
+      <!-- Stars -->
+      <div style="margin:0 0 28px;">
+        <span style="font-size:36px;color:#f5a623;">★ ★ ★ ★ ★</span>
       </div>
 
-      <!-- CTA Buttons -->
-      <div style="text-align:center;margin:0 0 16px;">
-        <a href="${GOOGLE_REVIEW_LINK}" target="_blank" style="display:inline-block;background:#4A90D9;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:600;letter-spacing:0.3px;">
-          ⭐ Rate us on Google
-        </a>
-      </div>
-      <div style="text-align:center;margin:0 0 28px;">
-        <a href="${TRUSTPILOT_LINK}" target="_blank" style="display:inline-block;background:#00b67a;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:600;letter-spacing:0.3px;">
-          ★ Rate us on Trustpilot
+      <!-- Trustpilot Button -->
+      <div style="margin:0 0 14px;">
+        <a href="${TRUSTPILOT_LINK}" target="_blank" style="display:inline-block;background:#00b67a;color:#ffffff;text-decoration:none;padding:14px 40px;border-radius:8px;font-size:15px;font-weight:600;">
+          Review Us on Trustpilot
         </a>
       </div>
 
-      <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
-
-      <p style="font-size:13px;color:#999999;line-height:1.6;margin:0;text-align:center;">
-        Thank you for being part of the PropScholar family.<br/>
-        Your review means the world to us! 🙏
-      </p>
+      <!-- Google Button -->
+      <div style="margin:0 0 28px;">
+        <a href="${GOOGLE_REVIEW_LINK}" target="_blank" style="display:inline-block;background:#4285F4;color:#ffffff;text-decoration:none;padding:14px 40px;border-radius:8px;font-size:15px;font-weight:600;">
+          Review Us on Google
+        </a>
+      </div>
     </div>
 
     <!-- Footer -->
-    <div style="background:#f9fafb;padding:20px 28px;text-align:center;border-radius:12px 12px 0 0;">
-      <p style="font-size:12px;color:#aaaaaa;margin:0;">
-        © ${new Date().getFullYear()} PropScholar · team@propscholar.in
-      </p>
+    <div style="background:#0f1729;padding:20px 28px;text-align:left;">
+      <div style="display:inline-block;">
+        <a href="https://www.instagram.com/propscholar/" target="_blank" style="text-decoration:none;margin-right:10px;"><img src="${ICON_IG}" alt="Instagram" width="28" height="28" style="border-radius:4px;" /></a>
+        <a href="https://discord.gg/propscholar" target="_blank" style="text-decoration:none;margin-right:10px;"><img src="${ICON_DC}" alt="Discord" width="28" height="28" style="border-radius:4px;" /></a>
+        <a href="https://x.com/propscholar" target="_blank" style="text-decoration:none;margin-right:10px;"><img src="${ICON_X}" alt="X" width="28" height="28" style="border-radius:4px;" /></a>
+        <a href="https://www.youtube.com/@propscholar" target="_blank" style="text-decoration:none;margin-right:10px;"><img src="${ICON_YT}" alt="YouTube" width="28" height="28" style="border-radius:4px;" /></a>
+        <a href="https://propscholar.com" target="_blank" style="text-decoration:none;"><img src="${ICON_PS}" alt="PropScholar" width="28" height="28" style="border-radius:4px;" /></a>
+      </div>
     </div>
   </div>
 </body>
