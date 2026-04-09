@@ -27,49 +27,54 @@ Deno.serve(async (req) => {
 
     const credDocs = await db.collection("credentialkeys").find({}, { projection: { credentials: 1, name: 1 } }).toArray();
     
-    // Count by credentialStatus + isActive combos
-    const comboCounts: Record<string, number> = {};
-    // Count by phase for ACTIVE
-    const phaseCounts: Record<string, number> = {};
-    // Count unique users (assignedTo) for ACTIVE
-    const activeUsers = new Set<string>();
-    // Count isActive values for ACTIVE status
-    let activeTrue = 0;
-    let activeFalse = 0;
-    let activeUndefined = 0;
-
+    // Count unique loginIds with ACTIVE status
+    const activeLoginIds = new Set<string>();
+    const allLoginIds = new Set<string>();
+    const statusByLogin = new Map<string, string[]>();
+    
     for (const doc of credDocs) {
       for (const c of (doc.credentials || [])) {
-        const combo = `${c.credentialStatus || "NONE"}|isActive=${c.isActive}`;
-        comboCounts[combo] = (comboCounts[combo] || 0) + 1;
+        if (!c.loginId) continue;
+        const lid = String(c.loginId);
+        allLoginIds.add(lid);
+        
+        if (!statusByLogin.has(lid)) statusByLogin.set(lid, []);
+        statusByLogin.get(lid)!.push(c.credentialStatus || "NONE");
         
         if (c.credentialStatus === "ACTIVE") {
-          const phase = c.phase || "NO_PHASE";
-          phaseCounts[phase] = (phaseCounts[phase] || 0) + 1;
-          if (c.assignedTo) activeUsers.add(c.assignedTo);
-          if (c.isActive === true) activeTrue++;
-          else if (c.isActive === false) activeFalse++;
-          else activeUndefined++;
+          activeLoginIds.add(lid);
         }
       }
     }
 
-    // Check credentialkeys doc-level status
-    const docStatuses: Record<string, number> = {};
-    for (const doc of credDocs) {
-      const s = (doc as any).status || (doc as any).keyStatus || "NO_DOC_STATUS";
-      docStatuses[s] = (docStatuses[s] || 0) + 1;
-    }
+    // Check how many loginIds appear in multiple docs
+    const duplicateCount = Array.from(statusByLogin.values()).filter(v => v.length > 1).length;
+    
+    // Check how many have mixed statuses (e.g. ACTIVE in one doc, BREACHED in another)
+    const mixedStatus = Array.from(statusByLogin.entries()).filter(([_, statuses]) => {
+      const unique = new Set(statuses);
+      return unique.size > 1;
+    });
+
+    // Check credentials_reports count for ACTIVE loginIds
+    const activeIds = Array.from(activeLoginIds).map(Number);
+    const reportsCount = await db.collection("credentials_reports")
+      .countDocuments({ account: { $in: activeIds } });
+
+    // Count reports with tradeHistory
+    const reportsWithTrades = await db.collection("credentials_reports")
+      .countDocuments({ account: { $in: activeIds }, "tradeHistory.totalDeals": { $gt: 0 } });
 
     await client.close();
 
     return new Response(JSON.stringify({
-      statusIsActiveCombos: comboCounts,
-      activePhases: phaseCounts,
-      uniqueActiveUsers: activeUsers.size,
-      activeIsActive: { true: activeTrue, false: activeFalse, undefined: activeUndefined },
-      docLevelStatuses: docStatuses,
-      totalCredDocs: credDocs.length,
+      totalUniqueLoginIds: allLoginIds.size,
+      uniqueActiveLoginIds: activeLoginIds.size,
+      duplicateLoginIds: duplicateCount,
+      mixedStatusCount: mixedStatus.length,
+      mixedStatusSample: mixedStatus.slice(0, 5).map(([lid, s]) => ({ loginId: lid, statuses: s })),
+      reportsForActive: reportsCount,
+      reportsWithTradeHistory: reportsWithTrades,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     if (client) try { await client.close(); } catch (_) {}
