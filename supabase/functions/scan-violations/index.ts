@@ -228,20 +228,27 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 4. Filter out accounts that already have breachReasons (not truly active)
+    // 4. Get already-flagged accounts from Supabase (skip them)
+    const { data: flaggedRows } = await supabase
+      .from("flagged_accounts")
+      .select("account_number");
+    const flaggedSet = new Set((flaggedRows || []).map((r: any) => r.account_number));
+
+    // 5. Filter out breached + already-flagged accounts
     const trulyActiveAccounts = activeAccounts.filter((acct) => {
+      // Skip already flagged
+      if (flaggedSet.has(String(acct.loginId))) return false;
       const report = reportMap.get(acct.loginId);
-      if (!report) return true; // No report = still active, include it
+      if (!report) return true;
       const breachReasons = report?.breachReasons || [];
       const isBreached = acct.credInfo?.isBreached === true;
-      // Skip if has breach reasons or is explicitly breached
       if ((Array.isArray(breachReasons) && breachReasons.length > 0) || isBreached) {
         return false;
       }
       return true;
     });
 
-    console.log(`[SCAN] Truly active (no breach reasons): ${trulyActiveAccounts.length} of ${activeAccounts.length}`);
+    console.log(`[SCAN] Truly active (excluding breached + flagged): ${trulyActiveAccounts.length} of ${activeAccounts.length}`);
 
     // 5. Run detection for each truly active account
     const scanResults: any[] = [];
