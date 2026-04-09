@@ -331,6 +331,7 @@ function connect(): void {
             sessionId = d.session_id;
             resumeGatewayUrl = d.resume_gateway_url;
             botUserId = d.user?.id;
+            reconnectAttempts = 0; // Reset backoff on successful connect
             console.log(`Ready! Bot user ID: ${botUserId}, Session: ${sessionId}`);
             break;
 
@@ -344,16 +345,19 @@ function connect(): void {
         }
         break;
 
-      case 7:
-        // Reconnect
+      case 7: {
+        // Reconnect requested by Discord
         console.log("Received Reconnect, reconnecting...");
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.close();
         }
-        setTimeout(connect, 1000);
+        const reconnDelay = getReconnectDelay();
+        console.log(`Reconnecting in ${Math.round(reconnDelay / 1000)}s...`);
+        setTimeout(connect, reconnDelay);
         break;
+      }
 
-      case 9:
+      case 9: {
         // Invalid Session
         console.log("Invalid session, reconnecting fresh...");
         sessionId = null;
@@ -362,8 +366,11 @@ function connect(): void {
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.close();
         }
-        setTimeout(connect, 5000);
+        const invDelay = getReconnectDelay();
+        console.log(`Reconnecting in ${Math.round(invDelay / 1000)}s...`);
+        setTimeout(connect, invDelay);
         break;
+      }
     }
   };
 
@@ -377,8 +384,10 @@ function connect(): void {
       clearInterval(heartbeatInterval);
       heartbeatInterval = null;
     }
-    // Reconnect after delay
-    setTimeout(connect, 5000);
+    // Reconnect with exponential backoff
+    const delay = getReconnectDelay();
+    console.log(`Reconnecting in ${Math.round(delay / 1000)}s...`);
+    setTimeout(connect, delay);
   };
 }
 
