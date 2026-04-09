@@ -146,25 +146,38 @@ Deno.serve(async (req) => {
     const { data: flaggedRows } = await supabase.from("flagged_accounts").select("account_number");
     const flaggedSet = new Set((flaggedRows || []).map((r: any) => r.account_number));
 
-    // Get active credentials
+    // Get active credentials — only truly active (not breached, not inactive)
     const credDocs = await db.collection("credentialkeys")
       .find({}, { projection: { credentials: 1, name: 1 } })
       .toArray();
 
-    const activeAccounts: { loginId: number; userName: string; email: string }[] = [];
+    const allActiveLogins: { loginId: number; userName: string; email: string }[] = [];
 
     for (const doc of credDocs) {
       for (const c of (doc.credentials || [])) {
+        // STRICT: only ACTIVE + not breached
         if (c.credentialStatus !== "ACTIVE" || !c.loginId) continue;
+        if (c.isBreached === true) continue;
         const loginId = parseInt(c.loginId, 10);
         if (isNaN(loginId) || flaggedSet.has(String(loginId))) continue;
-        activeAccounts.push({
+        allActiveLogins.push({
           loginId,
           userName: c.name || c.assignedTo || doc.name || "Unknown",
           email: (c.assignedTo || "").toString(),
         });
       }
     }
+
+    // Also check credentials_reports to exclude breached accounts
+    const accountNumbers = allActiveLogins.map(a => a.loginId);
+    const breachedReports = await db.collection("credentials_reports")
+      .find(
+        { account: { $in: accountNumbers }, $or: [{ isBreached: true }, { "breachReasons.0": { $exists: true } }] },
+        { projection: { account: 1 } }
+      ).toArray();
+    const breachedSet = new Set(breachedReports.map((r: any) => r.account));
+
+    const activeAccounts = allActiveLogins.filter(a => !breachedSet.has(a.loginId));
 
     if (activeAccounts.length === 0) {
       await client.close();
