@@ -156,10 +156,9 @@ Deno.serve(async (req) => {
 
     for (const doc of credDocs) {
       for (const c of (doc.credentials || [])) {
-        // STRICT: only truly active accounts (isActive=true, not breached)
-        if (c.isActive !== true || !c.loginId) continue;
+        // Only scan ACTIVE accounts, skip breached
+        if (c.credentialStatus !== "ACTIVE" || !c.loginId) continue;
         if (c.isBreached === true) continue;
-        if (c.credentialStatus === "BREACHED") continue;
         const loginId = parseInt(c.loginId, 10);
         if (isNaN(loginId) || flaggedSet.has(String(loginId)) || seenLogins.has(loginId)) continue;
         seenLogins.add(loginId);
