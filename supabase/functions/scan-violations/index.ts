@@ -151,6 +151,7 @@ Deno.serve(async (req) => {
       .find({}, { projection: { credentials: 1, name: 1 } })
       .toArray();
 
+    const seenLogins = new Set<number>();
     const allActiveLogins: { loginId: number; userName: string; email: string }[] = [];
 
     for (const doc of credDocs) {
@@ -159,7 +160,8 @@ Deno.serve(async (req) => {
         if (c.credentialStatus !== "ACTIVE" || !c.loginId) continue;
         if (c.isBreached === true) continue;
         const loginId = parseInt(c.loginId, 10);
-        if (isNaN(loginId) || flaggedSet.has(String(loginId))) continue;
+        if (isNaN(loginId) || flaggedSet.has(String(loginId)) || seenLogins.has(loginId)) continue;
+        seenLogins.add(loginId);
         allActiveLogins.push({
           loginId,
           userName: c.name || c.assignedTo || doc.name || "Unknown",
