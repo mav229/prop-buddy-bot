@@ -34,6 +34,16 @@ let resumeGatewayUrl: string | null = null;
 let sequence: number | null = null;
 let botUserId: string | null = null;
 
+// Exponential backoff for reconnects
+let reconnectAttempts = 0;
+const MAX_RECONNECT_DELAY = 120_000; // 2 minutes max
+function getReconnectDelay(): number {
+  const base = Math.min(5000 * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY);
+  const jitter = Math.random() * 2000;
+  reconnectAttempts++;
+  return base + jitter;
+}
+
 // Get AI response by calling the chat edge function
 async function getAIResponse(message: string): Promise<string> {
   try {
