@@ -287,9 +287,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 5. Insert results into Supabase
+    // 6. Insert scan results into Supabase
     if (scanResults.length > 0) {
-      // Insert in batches of 50
       for (let i = 0; i < scanResults.length; i += 50) {
         const batch = scanResults.slice(i, i + 50);
         const { error } = await supabase.from("violation_scans").insert(batch);
@@ -297,6 +296,28 @@ Deno.serve(async (req) => {
           console.error(`[SCAN] Insert error batch ${i}:`, error.message);
         }
       }
+    }
+
+    // 7. Auto-flag accounts with violations → save to flagged_accounts so they're never scanned again
+    const flaggedResults = scanResults.filter((r) => r.risk_level !== "CLEAN");
+    if (flaggedResults.length > 0) {
+      const flagInserts = flaggedResults.map((r) => ({
+        account_number: r.account_number,
+        user_name: r.user_name,
+        email: r.email,
+        flag_type: (r.flags[0]?.type || "UNKNOWN"),
+        flag_detail: r.flags.map((f: any) => `[${f.severity}] ${f.type}: ${f.detail}`).join(" | "),
+        risk_level: r.risk_level,
+        metrics_snapshot: r.metrics_snapshot,
+      }));
+      for (let i = 0; i < flagInserts.length; i += 50) {
+        const batch = flagInserts.slice(i, i + 50);
+        const { error } = await supabase.from("flagged_accounts").upsert(batch, { onConflict: "account_number" });
+        if (error) {
+          console.error(`[SCAN] Flag insert error:`, error.message);
+        }
+      }
+      console.log(`[SCAN] Flagged ${flaggedResults.length} accounts — will skip in future scans`);
     }
 
     const summary = {
