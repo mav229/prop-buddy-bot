@@ -294,7 +294,9 @@ Deno.serve(async (req) => {
 
     const summary = {
       batch: batchId,
-      totalActive: activeAccounts.length,
+      totalCredentialActive: activeAccounts.length,
+      trulyActive: trulyActiveAccounts.length,
+      skippedBreached: activeAccounts.length - trulyActiveAccounts.length,
       scanned: scanResults.length,
       flagged: flaggedCount,
       clean: scanResults.length - flaggedCount,
