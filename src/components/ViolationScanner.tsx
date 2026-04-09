@@ -15,7 +15,7 @@ interface ScanResult {
   user_name: string | null;
   email: string | null;
   risk_level: string;
-  flags: any[];
+  flags: any;
   metrics_snapshot: any;
   credential_status: string | null;
   scan_batch_id: string;
