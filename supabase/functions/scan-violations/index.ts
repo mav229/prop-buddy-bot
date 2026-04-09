@@ -185,7 +185,7 @@ Deno.serve(async (req) => {
     }
 
     // Fetch trade history from credentials_reports (only tradeHistory.deals + account)
-    const accountNumbers = activeAccounts.map(a => a.loginId);
+    const activeIds = activeAccounts.map(a => a.loginId);
     const reports = await db.collection("credentials_reports")
       .find({ account: { $in: accountNumbers } }, {
         projection: { account: 1, "tradeHistory.deals": 1 }
