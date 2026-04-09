@@ -228,11 +228,26 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 4. Run detection for each active account
+    // 4. Filter out accounts that already have breachReasons (not truly active)
+    const trulyActiveAccounts = activeAccounts.filter((acct) => {
+      const report = reportMap.get(acct.loginId);
+      if (!report) return true; // No report = still active, include it
+      const breachReasons = report?.breachReasons || [];
+      const isBreached = acct.credInfo?.isBreached === true;
+      // Skip if has breach reasons or is explicitly breached
+      if ((Array.isArray(breachReasons) && breachReasons.length > 0) || isBreached) {
+        return false;
+      }
+      return true;
+    });
+
+    console.log(`[SCAN] Truly active (no breach reasons): ${trulyActiveAccounts.length} of ${activeAccounts.length}`);
+
+    // 5. Run detection for each truly active account
     const scanResults: any[] = [];
     let flaggedCount = 0;
 
-    for (const acct of activeAccounts) {
+    for (const acct of trulyActiveAccounts) {
       const report = reportMap.get(acct.loginId);
       const violations = violationMap.get(acct.loginId) || [];
       const flags = detectFlags(report || {}, null, acct.credInfo, violations);
@@ -240,7 +255,6 @@ Deno.serve(async (req) => {
 
       if (flags.length > 0) flaggedCount++;
 
-      // Build compact metrics snapshot
       const metrics = report?.evaluation?.metrics || {};
       const snapshot: any = {
         equity: report?.equity,
