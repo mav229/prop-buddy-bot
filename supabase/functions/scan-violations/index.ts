@@ -151,15 +151,18 @@ Deno.serve(async (req) => {
       .find({}, { projection: { credentials: 1, name: 1 } })
       .toArray();
 
+    const seenLogins = new Set<number>();
     const allActiveLogins: { loginId: number; userName: string; email: string }[] = [];
 
     for (const doc of credDocs) {
       for (const c of (doc.credentials || [])) {
-        // STRICT: only ACTIVE + not breached
-        if (c.credentialStatus !== "ACTIVE" || !c.loginId) continue;
+        // STRICT: only truly active accounts (isActive=true, not breached)
+        if (c.isActive !== true || !c.loginId) continue;
         if (c.isBreached === true) continue;
+        if (c.credentialStatus === "BREACHED") continue;
         const loginId = parseInt(c.loginId, 10);
-        if (isNaN(loginId) || flaggedSet.has(String(loginId))) continue;
+        if (isNaN(loginId) || flaggedSet.has(String(loginId)) || seenLogins.has(loginId)) continue;
+        seenLogins.add(loginId);
         allActiveLogins.push({
           loginId,
           userName: c.name || c.assignedTo || doc.name || "Unknown",
@@ -168,16 +171,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Also check credentials_reports to exclude breached accounts
-    const accountNumbers = allActiveLogins.map(a => a.loginId);
-    const breachedReports = await db.collection("credentials_reports")
-      .find(
-        { account: { $in: accountNumbers }, $or: [{ isBreached: true }, { "breachReasons.0": { $exists: true } }] },
-        { projection: { account: 1 } }
-      ).toArray();
-    const breachedSet = new Set(breachedReports.map((r: any) => r.account));
-
-    const activeAccounts = allActiveLogins.filter(a => !breachedSet.has(a.loginId));
+    // Only exclude accounts where credentialStatus is the source of truth
+    // breachReasons are monitoring alerts, NOT definitive breaches
+    const activeAccounts = allActiveLogins;
 
     if (activeAccounts.length === 0) {
       await client.close();
