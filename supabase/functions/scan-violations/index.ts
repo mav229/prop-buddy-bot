@@ -228,20 +228,27 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 4. Filter out accounts that already have breachReasons (not truly active)
+    // 4. Get already-flagged accounts from Supabase (skip them)
+    const { data: flaggedRows } = await supabase
+      .from("flagged_accounts")
+      .select("account_number");
+    const flaggedSet = new Set((flaggedRows || []).map((r: any) => r.account_number));
+
+    // 5. Filter out breached + already-flagged accounts
     const trulyActiveAccounts = activeAccounts.filter((acct) => {
+      // Skip already flagged
+      if (flaggedSet.has(String(acct.loginId))) return false;
       const report = reportMap.get(acct.loginId);
-      if (!report) return true; // No report = still active, include it
+      if (!report) return true;
       const breachReasons = report?.breachReasons || [];
       const isBreached = acct.credInfo?.isBreached === true;
-      // Skip if has breach reasons or is explicitly breached
       if ((Array.isArray(breachReasons) && breachReasons.length > 0) || isBreached) {
         return false;
       }
       return true;
     });
 
-    console.log(`[SCAN] Truly active (no breach reasons): ${trulyActiveAccounts.length} of ${activeAccounts.length}`);
+    console.log(`[SCAN] Truly active (excluding breached + flagged): ${trulyActiveAccounts.length} of ${activeAccounts.length}`);
 
     // 5. Run detection for each truly active account
     const scanResults: any[] = [];
@@ -280,9 +287,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 5. Insert results into Supabase
+    // 6. Insert scan results into Supabase
     if (scanResults.length > 0) {
-      // Insert in batches of 50
       for (let i = 0; i < scanResults.length; i += 50) {
         const batch = scanResults.slice(i, i + 50);
         const { error } = await supabase.from("violation_scans").insert(batch);
@@ -290,6 +296,28 @@ Deno.serve(async (req) => {
           console.error(`[SCAN] Insert error batch ${i}:`, error.message);
         }
       }
+    }
+
+    // 7. Auto-flag accounts with violations → save to flagged_accounts so they're never scanned again
+    const flaggedResults = scanResults.filter((r) => r.risk_level !== "CLEAN");
+    if (flaggedResults.length > 0) {
+      const flagInserts = flaggedResults.map((r) => ({
+        account_number: r.account_number,
+        user_name: r.user_name,
+        email: r.email,
+        flag_type: (r.flags[0]?.type || "UNKNOWN"),
+        flag_detail: r.flags.map((f: any) => `[${f.severity}] ${f.type}: ${f.detail}`).join(" | "),
+        risk_level: r.risk_level,
+        metrics_snapshot: r.metrics_snapshot,
+      }));
+      for (let i = 0; i < flagInserts.length; i += 50) {
+        const batch = flagInserts.slice(i, i + 50);
+        const { error } = await supabase.from("flagged_accounts").upsert(batch, { onConflict: "account_number" });
+        if (error) {
+          console.error(`[SCAN] Flag insert error:`, error.message);
+        }
+      }
+      console.log(`[SCAN] Flagged ${flaggedResults.length} accounts — will skip in future scans`);
     }
 
     const summary = {
