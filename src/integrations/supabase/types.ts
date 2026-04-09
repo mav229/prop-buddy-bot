@@ -710,6 +710,51 @@ export type Database = {
         }
         Relationships: []
       }
+      violation_scans: {
+        Row: {
+          account_number: string
+          created_at: string
+          credential_status: string | null
+          email: string | null
+          flags: Json
+          id: string
+          metrics_snapshot: Json
+          risk_level: string
+          scan_batch_id: string
+          scanned_at: string
+          updated_at: string
+          user_name: string | null
+        }
+        Insert: {
+          account_number: string
+          created_at?: string
+          credential_status?: string | null
+          email?: string | null
+          flags?: Json
+          id?: string
+          metrics_snapshot?: Json
+          risk_level?: string
+          scan_batch_id: string
+          scanned_at?: string
+          updated_at?: string
+          user_name?: string | null
+        }
+        Update: {
+          account_number?: string
+          created_at?: string
+          credential_status?: string | null
+          email?: string | null
+          flags?: Json
+          id?: string
+          metrics_snapshot?: Json
+          risk_level?: string
+          scan_batch_id?: string
+          scanned_at?: string
+          updated_at?: string
+          user_name?: string | null
+        }
+        Relationships: []
+      }
       widget_config: {
         Row: {
           config: Json
