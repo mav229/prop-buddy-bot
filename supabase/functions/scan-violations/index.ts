@@ -168,16 +168,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Also check credentials_reports to exclude breached accounts
-    const accountNumbers = allActiveLogins.map(a => a.loginId);
-    const breachedReports = await db.collection("credentials_reports")
-      .find(
-        { account: { $in: accountNumbers }, $or: [{ isBreached: true }, { "breachReasons.0": { $exists: true } }] },
-        { projection: { account: 1 } }
-      ).toArray();
-    const breachedSet = new Set(breachedReports.map((r: any) => r.account));
-
-    const activeAccounts = allActiveLogins.filter(a => !breachedSet.has(a.loginId));
+    // Only exclude accounts where credentialStatus is the source of truth
+    // breachReasons are monitoring alerts, NOT definitive breaches
+    const activeAccounts = allActiveLogins;
 
     if (activeAccounts.length === 0) {
       await client.close();
