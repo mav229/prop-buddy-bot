@@ -18,53 +18,58 @@ Deno.serve(async (req) => {
 
   const mongoUri = Deno.env.get("MONGO_URI");
   const dbName = Deno.env.get("MONGO_DB_NAME") || "test";
-  if (!mongoUri) return new Response(JSON.stringify({ error: "No MONGO_URI" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   let client: MongoClient | null = null;
   try {
-    client = new MongoClient(mongoUri);
+    client = new MongoClient(mongoUri!);
     await client.connect();
     const db = client.db(dbName);
 
-    // Count credential statuses
-    const credDocs = await db.collection("credentialkeys").find({}, { projection: { credentials: 1 } }).toArray();
+    const credDocs = await db.collection("credentialkeys").find({}, { projection: { credentials: 1, name: 1 } }).toArray();
     
-    const statusCounts: Record<string, number> = {};
-    const sampleFields: string[] = [];
-    let sampleCred: any = null;
-    
+    // Count by credentialStatus + isActive combos
+    const comboCounts: Record<string, number> = {};
+    // Count by phase for ACTIVE
+    const phaseCounts: Record<string, number> = {};
+    // Count unique users (assignedTo) for ACTIVE
+    const activeUsers = new Set<string>();
+    // Count isActive values for ACTIVE status
+    let activeTrue = 0;
+    let activeFalse = 0;
+    let activeUndefined = 0;
+
     for (const doc of credDocs) {
       for (const c of (doc.credentials || [])) {
-        const status = c.credentialStatus || "NO_STATUS";
-        statusCounts[status] = (statusCounts[status] || 0) + 1;
-        if (!sampleCred && status === "ACTIVE") {
-          sampleCred = c;
+        const combo = `${c.credentialStatus || "NONE"}|isActive=${c.isActive}`;
+        comboCounts[combo] = (comboCounts[combo] || 0) + 1;
+        
+        if (c.credentialStatus === "ACTIVE") {
+          const phase = c.phase || "NO_PHASE";
+          phaseCounts[phase] = (phaseCounts[phase] || 0) + 1;
+          if (c.assignedTo) activeUsers.add(c.assignedTo);
+          if (c.isActive === true) activeTrue++;
+          else if (c.isActive === false) activeFalse++;
+          else activeUndefined++;
         }
       }
     }
 
-    // Also check accounts collection
-    const accountSample = await db.collection("accounts").findOne();
-    const accountKeys = accountSample ? Object.keys(accountSample) : [];
-    const accountCount = await db.collection("accounts").estimatedDocumentCount();
-
-    // Check if accounts have status field
-    const accountStatuses: Record<string, number> = {};
-    if (accountSample && ("status" in accountSample || "accountStatus" in accountSample)) {
-      const accounts = await db.collection("accounts").find({}, { projection: { status: 1, accountStatus: 1 } }).toArray();
-      for (const a of accounts) {
-        const s = a.status || a.accountStatus || "NONE";
-        accountStatuses[s] = (accountStatuses[s] || 0) + 1;
-      }
+    // Check credentialkeys doc-level status
+    const docStatuses: Record<string, number> = {};
+    for (const doc of credDocs) {
+      const s = (doc as any).status || (doc as any).keyStatus || "NO_DOC_STATUS";
+      docStatuses[s] = (docStatuses[s] || 0) + 1;
     }
 
     await client.close();
 
     return new Response(JSON.stringify({
-      credentialStatusCounts: statusCounts,
-      sampleActiveCredentialKeys: sampleCred ? Object.keys(sampleCred) : [],
-      sampleActiveCredential: sampleCred,
-      accountsCollection: { count: accountCount, sampleKeys: accountKeys, statusCounts: accountStatuses }
+      statusIsActiveCombos: comboCounts,
+      activePhases: phaseCounts,
+      uniqueActiveUsers: activeUsers.size,
+      activeIsActive: { true: activeTrue, false: activeFalse, undefined: activeUndefined },
+      docLevelStatuses: docStatuses,
+      totalCredDocs: credDocs.length,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     if (client) try { await client.close(); } catch (_) {}
