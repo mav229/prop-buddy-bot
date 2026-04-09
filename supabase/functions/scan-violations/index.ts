@@ -113,14 +113,16 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const authHeader = req.headers.get("Authorization");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const authHeader = req.headers.get("Authorization") || "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+  const supabaseAnonKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || "";
 
-  // Allow either service role or anon key (for cron)
+  // Allow service role, anon key, or publishable key (for cron)
   const isAuthorized =
-    authHeader &&
-    (authHeader.includes(serviceRoleKey || "") || authHeader.includes(anonKey || ""));
+    authHeader.includes(serviceRoleKey) ||
+    authHeader.includes(anonKey) ||
+    authHeader.includes(supabaseAnonKey);
 
   if (!isAuthorized) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
