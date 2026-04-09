@@ -395,6 +395,45 @@ export type Database = {
         }
         Relationships: []
       }
+      flagged_accounts: {
+        Row: {
+          account_number: string
+          created_at: string
+          email: string | null
+          flag_detail: string | null
+          flag_type: string
+          flagged_at: string
+          id: string
+          metrics_snapshot: Json
+          risk_level: string
+          user_name: string | null
+        }
+        Insert: {
+          account_number: string
+          created_at?: string
+          email?: string | null
+          flag_detail?: string | null
+          flag_type: string
+          flagged_at?: string
+          id?: string
+          metrics_snapshot?: Json
+          risk_level?: string
+          user_name?: string | null
+        }
+        Update: {
+          account_number?: string
+          created_at?: string
+          email?: string | null
+          flag_detail?: string | null
+          flag_type?: string
+          flagged_at?: string
+          id?: string
+          metrics_snapshot?: Json
+          risk_level?: string
+          user_name?: string | null
+        }
+        Relationships: []
+      }
       hall_of_fame_certificates: {
         Row: {
           account_number: string | null
