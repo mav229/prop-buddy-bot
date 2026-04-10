@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
 
     for (const r of reports) {
       const loginId = r.account;
-      if (!loginId || flaggedSet.has(String(loginId)) || seenLogins.has(loginId)) continue;
+      if (!loginId || seenLogins.has(loginId)) continue;
       seenLogins.add(loginId);
       activeAccounts.push({
         loginId,
