@@ -28,7 +28,7 @@ const VIOLATION_EMAIL_HTML = (userName: string, accountNumber: string, flagDetai
 <body style="margin:0;padding:0;background:#f4f4f7;font-family:Arial,sans-serif;">
 <div style="max-width:600px;margin:40px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
   <div style="background:linear-gradient(135deg,#dc2626,#991b1b);padding:32px 24px;text-align:center;">
-    <h1 style="color:#fff;margin:0;font-size:22px;">⚠️ Trading Violation Warning</h1>
+    <h1 style="color:#fff;margin:0;font-size:22px;">Trading Violation Warning</h1>
     <p style="color:#fecaca;margin:8px 0 0;font-size:14px;">PropScholar Risk Management</p>
   </div>
   <div style="padding:32px 24px;">
@@ -48,7 +48,7 @@ const VIOLATION_EMAIL_HTML = (userName: string, accountNumber: string, flagDetai
     </p>
     <div style="text-align:center;margin:24px 0;">
       <a href="mailto:support@propscholar.com" style="display:inline-block;background:#4A90D9;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:600;">
-        📧 Contact Support
+        Contact Support
       </a>
     </div>
     <p style="color:#6b7280;font-size:13px;text-align:center;">
@@ -115,7 +115,7 @@ export const PelaPeli = () => {
       const { error: emailError } = await supabase.functions.invoke("send-smtp-email", {
         body: {
           to: account.email,
-          subject: `⚠️ Trading Violation Warning — Account #${account.account_number}`,
+          subject: `Trading Violation Warning — Account #${account.account_number}`,
           html,
           templateId: "violation-notice",
           recipientName: account.user_name || "Trader",
