@@ -65,6 +65,7 @@ export const PelaPeli = () => {
   const [loading, setLoading] = useState(true);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"pending" | "emailed" | "all">("pending");
+  const [showTemplate, setShowTemplate] = useState(false);
 
   const fetchAccounts = async () => {
     setLoading(true);
