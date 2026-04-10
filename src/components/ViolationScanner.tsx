@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import {
   Shield, Loader2, RefreshCw, AlertTriangle, CheckCircle2,
-  Clock, User, Activity, TrendingDown, ChevronDown, ChevronUp,
+  Clock, User, Activity, TrendingDown, ChevronDown, ChevronUp, Mail,
 } from "lucide-react";
+import { ViolationEmailLogs } from "./ViolationEmailLogs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
