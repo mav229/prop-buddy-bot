@@ -164,6 +164,10 @@ export const ViolationScanner = () => {
         </div>
       </div>
 
+      {showEmailLogs && (
+        <ViolationEmailLogs onClose={() => setShowEmailLogs(false)} />
+      )}
+
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {(["HIGH", "MEDIUM", "LOW", "CLEAN"] as const).map((level) => {
