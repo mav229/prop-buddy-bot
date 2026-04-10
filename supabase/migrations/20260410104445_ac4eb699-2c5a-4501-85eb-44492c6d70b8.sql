@@ -1,0 +1,1 @@
+ALTER TABLE public.flagged_accounts ADD COLUMN emailed_at timestamp with time zone DEFAULT NULL;
