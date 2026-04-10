@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
     // Pull ONLY active accounts with trade history directly from credentials_reports
     const reports = await db.collection("credentials_reports")
       .find(
-        { status: "ACTIVE", tradeHistory: { $ne: null } },
+        { status: "ACTIVE" },
         { projection: { account: 1, name: 1, "tradeHistory.deals": 1 } }
       ).toArray();
 
