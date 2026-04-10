@@ -182,21 +182,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    const client = new SMTPClient({
-      user: "team@propscholar.in",
-      password,
-      host: "smtp.hostinger.com",
-      ssl: true,
-      port: 465,
-    });
-
     let sentCount = 0;
 
     for (const cert of pending) {
       try {
         const { trackingId, html } = buildHtml(cert.user_name);
 
-        await client.sendAsync({
+        await sendWithRetry(password, {
           from: "PropScholar <team@propscholar.in>",
           to: cert.email,
           subject: EMAIL_SUBJECT,
