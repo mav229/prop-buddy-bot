@@ -82,6 +82,62 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    const password = Deno.env.get("SMTP_PASSWORD");
+    if (!password) {
+      return new Response(
+        JSON.stringify({ error: "SMTP_PASSWORD not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check for manual send mode
+    let body: any = {};
+    try { body = await req.json(); } catch {}
+
+    if (body.manual) {
+      const { recipientEmail, recipientName } = body;
+      if (!recipientEmail) {
+        return new Response(
+          JSON.stringify({ error: "recipientEmail is required" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const client = new SMTPClient({
+        user: "team@propscholar.in",
+        password,
+        host: "smtp.hostinger.com",
+        ssl: true,
+        port: 465,
+      });
+
+      const { trackingId, html } = buildHtml(recipientName || "Trader");
+
+      await client.sendAsync({
+        from: "PropScholar <team@propscholar.in>",
+        to: recipientEmail,
+        subject: EMAIL_SUBJECT,
+        text: `Hey ${recipientName || "Trader"}, share your PropScholar payout experience!`,
+        attachment: [{ data: html, alternative: true }],
+      });
+
+      await sb.from("email_logs").insert({
+        recipient_email: recipientEmail,
+        recipient_name: recipientName || null,
+        template_id: "testimonial-manual",
+        tracking_id: trackingId,
+        source: "manual",
+      });
+
+      console.log(`Manual testimonial email sent to ${recipientEmail}`);
+      return new Response(
+        JSON.stringify({ message: "Manual testimonial email sent", sent: 1 }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // --- Automated mode below ---
+
     // Check if automation is enabled
     const { data: settings } = await sb
       .from("testimonial_settings")
@@ -111,14 +167,6 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ message: "No pending testimonial emails", sent: 0 }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const password = Deno.env.get("SMTP_PASSWORD");
-    if (!password) {
-      return new Response(
-        JSON.stringify({ error: "SMTP_PASSWORD not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
