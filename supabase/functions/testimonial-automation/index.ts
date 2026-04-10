@@ -123,17 +123,9 @@ Deno.serve(async (req) => {
         );
       }
 
-      const client = new SMTPClient({
-        user: "team@propscholar.in",
-        password,
-        host: "smtp.hostinger.com",
-        ssl: true,
-        port: 465,
-      });
-
       const { trackingId, html } = buildHtml(recipientName || "Trader");
 
-      await client.sendAsync({
+      await sendWithRetry(password, {
         from: "PropScholar <team@propscholar.in>",
         to: recipientEmail,
         subject: EMAIL_SUBJECT,
