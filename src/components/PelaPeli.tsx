@@ -57,6 +57,9 @@ const VIOLATION_EMAIL_HTML = (userName: string, accountNumber: string, flagDetai
 </html>
 `;
 
+// 🔴 MASTER SWITCH — set to true when ready to go live
+const EMAILS_ENABLED = false;
+
 export const PelaPeli = () => {
   const [accounts, setAccounts] = useState<FlaggedAccount[]>([]);
   const [loading, setLoading] = useState(true);
