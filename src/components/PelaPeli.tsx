@@ -150,13 +150,41 @@ export const PelaPeli = () => {
             <Shield className="w-6 h-6 text-red-500" /> Pela Peli
           </h2>
           <p className="text-muted-foreground text-sm mt-1">
-            Send violation notices to flagged accounts. Once emailed, they're permanently excluded from future scans.
+            Send violation notices to flagged accounts. Scans run on all active accounts continuously.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchAccounts} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 mr-1.5 ${loading ? "animate-spin" : ""}`} /> Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowTemplate(!showTemplate)}>
+            <Eye className="w-4 h-4 mr-1.5" /> {showTemplate ? "Hide" : "View"} Template
+          </Button>
+          <Button variant="outline" size="sm" onClick={fetchAccounts} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-1.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </Button>
+        </div>
       </div>
+
+      {/* Email Template Preview */}
+      {showTemplate && (
+        <Card className="border-border/50">
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Mail className="w-4 h-4" /> Email Template Preview
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-lg border overflow-hidden bg-white">
+              <iframe
+                srcDoc={VIOLATION_EMAIL_HTML("John Doe", "123456", "Martingale Breach -- BUY XAUUSD: lot increased 0.10 → 0.20 (+100%) within 45s, price in drawdown (2340.50 → 2338.20)")}
+                className="w-full h-[500px] border-0"
+                title="Email Template Preview"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              This is the email template sent to flagged traders. Tell me if you want to change anything.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-3 gap-4">
