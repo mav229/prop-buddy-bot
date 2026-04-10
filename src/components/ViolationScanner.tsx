@@ -149,6 +149,10 @@ export const ViolationScanner = () => {
               Last: {formatDate(lastScan)}
             </span>
           )}
+          <Button variant="outline" size="sm" onClick={() => setShowEmailLogs(!showEmailLogs)}>
+            <Mail className="w-4 h-4 mr-1" />
+            {showEmailLogs ? "Hide" : "Email"} Logs
+          </Button>
           <Button onClick={runManualScan} disabled={scanning} size="sm">
             {scanning ? (
               <Loader2 className="w-4 h-4 animate-spin mr-1" />
