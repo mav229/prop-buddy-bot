@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { Star, Loader2, Power, Mail, Clock, User, CheckCircle2, Eye, MousePointerClick } from "lucide-react";
+import { Star, Loader2, Power, Mail, Clock, User, CheckCircle2, Eye, MousePointerClick, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -25,6 +26,11 @@ export const TestimonialManager = () => {
   const [logs, setLogs] = useState<any[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
   const [previewMode, setPreviewMode] = useState(false);
+
+  // Manual send state
+  const [manualName, setManualName] = useState("");
+  const [manualEmail, setManualEmail] = useState("");
+  const [manualSending, setManualSending] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -48,7 +54,7 @@ export const TestimonialManager = () => {
     const { data } = await supabase
       .from("email_logs")
       .select("*")
-      .in("template_id", ["testimonial-auto", "testimonial-request"])
+      .in("template_id", ["testimonial-auto", "testimonial-request", "testimonial-manual"])
       .order("created_at", { ascending: false })
       .limit(50);
     setLogs(data || []);
@@ -74,6 +80,38 @@ export const TestimonialManager = () => {
       });
     }
     setToggling(false);
+  };
+
+  const handleManualSend = async () => {
+    if (!manualEmail.trim()) {
+      toast({ title: "Email required", variant: "destructive" });
+      return;
+    }
+    setManualSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("testimonial-automation", {
+        body: {
+          manual: true,
+          recipientEmail: manualEmail.trim(),
+          recipientName: manualName.trim() || "Trader",
+        },
+      });
+      if (error) throw error;
+      toast({
+        title: "Email Sent!",
+        description: `Testimonial request sent to ${manualEmail}`,
+      });
+      setManualName("");
+      setManualEmail("");
+      fetchLogs();
+    } catch (err: any) {
+      toast({
+        title: "Failed to send",
+        description: err.message || "Unknown error",
+        variant: "destructive",
+      });
+    }
+    setManualSending(false);
   };
 
   const buildPreviewHtml = () => {
@@ -194,24 +232,75 @@ export const TestimonialManager = () => {
           </CardContent>
         </Card>
 
-        {/* Preview */}
-        {previewMode && (
-          <Card className="bg-card/50 border-border/50">
-            <CardHeader>
-              <CardTitle className="text-lg">Email Preview</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-lg overflow-hidden border border-border/30 bg-white">
-                <iframe
-                  srcDoc={buildPreviewHtml()}
-                  className="w-full h-[500px] border-0"
-                  title="Email Preview"
+        {/* Manual Send */}
+        <Card className="bg-card/50 border-border/50">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Send className="w-5 h-5" />
+              Manual Send
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Send a testimonial request email to any user manually.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-sm">Name</Label>
+                <Input
+                  placeholder="Trader name (optional)"
+                  value={manualName}
+                  onChange={(e) => setManualName(e.target.value)}
                 />
               </div>
-            </CardContent>
-          </Card>
-        )}
+              <div>
+                <Label className="text-sm">Email *</Label>
+                <Input
+                  type="email"
+                  placeholder="trader@example.com"
+                  value={manualEmail}
+                  onChange={(e) => setManualEmail(e.target.value)}
+                />
+              </div>
+            </div>
+            <Button
+              onClick={handleManualSend}
+              disabled={manualSending || !manualEmail.trim()}
+              className="w-full"
+            >
+              {manualSending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Send Testimonial Email
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Preview */}
+      {previewMode && (
+        <Card className="bg-card/50 border-border/50">
+          <CardHeader>
+            <CardTitle className="text-lg">Email Preview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-lg overflow-hidden border border-border/30 bg-white">
+              <iframe
+                srcDoc={buildPreviewHtml()}
+                className="w-full h-[500px] border-0"
+                title="Email Preview"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Email Logs */}
       <Card className="bg-card/50 border-border/50">
