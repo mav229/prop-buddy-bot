@@ -276,26 +276,25 @@ export const PelaPeli = () => {
                       )}
                     </div>
                   </div>
-                  <div className="shrink-0">
-                    {account.emailed_at ? (
+                  <div className="shrink-0 flex items-center gap-2">
+                    {account.emailed_at && (
                       <Badge className="bg-green-500/10 text-green-500 border-green-500/30">
                         <CheckCircle2 className="w-3 h-3 mr-1" /> Sent
                       </Badge>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        disabled={!account.email || sendingId === account.id}
-                        onClick={() => sendViolationEmail(account)}
-                      >
-                        {sendingId === account.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                        ) : (
-                          <Mail className="w-4 h-4 mr-1" />
-                        )}
-                        {!account.email ? "No Email" : "Send Notice"}
-                      </Button>
                     )}
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={!account.email || sendingId === account.id}
+                      onClick={() => sendViolationEmail(account)}
+                    >
+                      {sendingId === account.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                      ) : (
+                        <Mail className="w-4 h-4 mr-1" />
+                      )}
+                      {!account.email ? "No Email" : account.emailed_at ? "Resend" : "Send Notice"}
+                    </Button>
                   </div>
                 </div>
               </CardContent>
