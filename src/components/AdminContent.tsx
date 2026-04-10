@@ -23,6 +23,7 @@ import { TonePresetsManager } from "./TonePresetsManager";
 import { ManualPush } from "./ManualPush";
 import { TestimonialManager } from "./TestimonialManager";
 import { ViolationScanner } from "./ViolationScanner";
+import { PelaPeli } from "./PelaPeli";
 
 interface AdminContentProps {
   activeTab: string;
@@ -104,6 +105,8 @@ export const AdminContent = ({ activeTab }: AdminContentProps) => {
       return <ExtensionAnalytics />;
     case "conn-logs":
       return <ConnectionLogsView />;
+    case "pela-peli":
+      return <PelaPeli />;
     case "discord":
       return <DiscordSettings />;
     default:

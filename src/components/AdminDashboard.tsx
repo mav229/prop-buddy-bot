@@ -30,6 +30,7 @@ const navItems = [
   { value: "manual-push", label: "Manual Push", icon: Crosshair },
   { value: "testimonials", label: "Testimonials", icon: Star },
   { value: "violations", label: "Scanner", icon: Shield },
+  { value: "pela-peli", label: "Pela Peli", icon: AlertTriangle },
   { value: "orders", label: "Orders", icon: PackageCheck },
   { value: "extension", label: "Extension", icon: Puzzle },
   { value: "conn-logs", label: "Logs", icon: PlugZap },
