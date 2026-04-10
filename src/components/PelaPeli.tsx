@@ -57,6 +57,9 @@ const VIOLATION_EMAIL_HTML = (userName: string, accountNumber: string, flagDetai
 </html>
 `;
 
+// 🔴 MASTER SWITCH — set to true when ready to go live
+const EMAILS_ENABLED = false;
+
 export const PelaPeli = () => {
   const [accounts, setAccounts] = useState<FlaggedAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,6 +86,10 @@ export const PelaPeli = () => {
   }, []);
 
   const sendViolationEmail = async (account: FlaggedAccount) => {
+    if (!EMAILS_ENABLED) {
+      toast({ title: "Emails Paused", description: "Email sending is currently disabled. Flip EMAILS_ENABLED to true when ready.", variant: "destructive" });
+      return;
+    }
     if (!account.email) {
       toast({ title: "No email", description: `Account ${account.account_number} has no email address.`, variant: "destructive" });
       return;
