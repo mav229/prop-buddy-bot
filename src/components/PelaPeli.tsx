@@ -28,7 +28,7 @@ const VIOLATION_EMAIL_HTML = (userName: string, accountNumber: string, flagDetai
 <body style="margin:0;padding:0;background:#f4f4f7;font-family:Arial,sans-serif;">
 <div style="max-width:600px;margin:40px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
   <div style="background:linear-gradient(135deg,#dc2626,#991b1b);padding:32px 24px;text-align:center;">
-    <h1 style="color:#fff;margin:0;font-size:22px;">⚠️ Trading Violation Detected</h1>
+    <h1 style="color:#fff;margin:0;font-size:22px;">⚠️ Trading Violation Warning</h1>
     <p style="color:#fecaca;margin:8px 0 0;font-size:14px;">PropScholar Risk Management</p>
   </div>
   <div style="padding:32px 24px;">
@@ -41,15 +41,23 @@ const VIOLATION_EMAIL_HTML = (userName: string, accountNumber: string, flagDetai
       <p style="color:#7f1d1d;font-size:13px;margin:8px 0 0;line-height:1.5;">${flagDetail}</p>
     </div>
     <p style="color:#374151;font-size:14px;line-height:1.6;">
-      This is a formal notice. Repeated violations may result in account suspension or termination per our terms of service.
+      This is a formal warning. Repeated violations may result in account suspension or termination per our terms of service.
     </p>
     <p style="color:#374151;font-size:14px;line-height:1.6;">
-      If you believe this is an error, please reply to this email or contact our support team immediately.
+      If you believe this is an error or have any questions, please reach out to our support team at:
+    </p>
+    <div style="text-align:center;margin:24px 0;">
+      <a href="mailto:support@propscholar.com" style="display:inline-block;background:#4A90D9;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:600;">
+        📧 Contact Support
+      </a>
+    </div>
+    <p style="color:#6b7280;font-size:13px;text-align:center;">
+      Or email us directly at <a href="mailto:support@propscholar.com" style="color:#4A90D9;text-decoration:underline;">support@propscholar.com</a>
     </p>
     <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;"/>
     <p style="color:#6b7280;font-size:12px;text-align:center;">
       PropScholar Risk Management Team<br/>
-      This is an automated notification — please do not ignore.
+      This is an automated warning — please do not ignore.
     </p>
   </div>
 </div>
@@ -107,7 +115,7 @@ export const PelaPeli = () => {
       const { error: emailError } = await supabase.functions.invoke("send-smtp-email", {
         body: {
           to: account.email,
-          subject: `⚠️ Trading Violation Notice — Account #${account.account_number}`,
+          subject: `⚠️ Trading Violation Warning — Account #${account.account_number}`,
           html,
           templateId: "violation-notice",
           recipientName: account.user_name || "Trader",
