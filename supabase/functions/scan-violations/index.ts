@@ -178,11 +178,16 @@ Deno.serve(async (req) => {
       const deals: Deal[] = report?.tradeHistory?.deals || [];
       const violations = detectTradeViolations(deals);
 
-      const riskLevel = violations.some(v => v.type === "MARTINGALE") ? "VERY HIGH"
-        : violations.some(v => v.type === "AVERAGING") ? "HIGH"
-        : "CLEAN";
+      // Threshold: 1+ martingale OR 2+ averaging to be flagged
+      const martingaleCount = violations.filter(v => v.type === "MARTINGALE").length;
+      const averagingCount = violations.filter(v => v.type === "AVERAGING").length;
+      const meetsThreshold = martingaleCount >= 1 || averagingCount >= 2;
 
-      if (violations.length > 0) flaggedCount++;
+      const riskLevel = !meetsThreshold ? "CLEAN"
+        : martingaleCount >= 1 ? "VERY HIGH"
+        : "HIGH";
+
+      if (meetsThreshold) flaggedCount++;
 
       scanResults.push({
         account_number: String(acct.loginId),
