@@ -146,48 +146,29 @@ Deno.serve(async (req) => {
     const { data: flaggedRows } = await supabase.from("flagged_accounts").select("account_number");
     const flaggedSet = new Set((flaggedRows || []).map((r: any) => r.account_number));
 
-    // Get active credentials — only truly active (not breached, not inactive)
-    const credDocs = await db.collection("credentialkeys")
-      .find({}, { projection: { credentials: 1, name: 1 } })
-      .toArray();
-
-    const seenLogins = new Set<number>();
-    const allActiveLogins: { loginId: number; userName: string; email: string }[] = [];
-
-    for (const doc of credDocs) {
-      for (const c of (doc.credentials || [])) {
-        // Only scan ACTIVE accounts, skip breached
-        if (c.credentialStatus !== "ACTIVE" || !c.loginId) continue;
-        if (c.isBreached === true) continue;
-        const loginId = parseInt(c.loginId, 10);
-        if (isNaN(loginId) || flaggedSet.has(String(loginId)) || seenLogins.has(loginId)) continue;
-        seenLogins.add(loginId);
-        allActiveLogins.push({
-          loginId,
-          userName: c.name || c.assignedTo || doc.name || "Unknown",
-          email: (c.assignedTo || "").toString(),
-        });
-      }
-    }
-
-    // Only exclude accounts where credentialStatus is the source of truth
-    // breachReasons are monitoring alerts, NOT definitive breaches
-    const activeAccounts = allActiveLogins;
-
-    if (activeAccounts.length === 0) {
-      await client.close();
-      return new Response(JSON.stringify({ message: "No active accounts to scan", batch: batchId }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    // Fetch trade history from credentials_reports (only tradeHistory.deals + account)
-    const activeIds = activeAccounts.map(a => a.loginId);
+    // Pull ONLY active accounts with trade history directly from credentials_reports
     const reports = await db.collection("credentials_reports")
-      .find({ account: { $in: activeIds } }, {
-        projection: { account: 1, "tradeHistory.deals": 1 }
-      }).toArray();
+      .find(
+        { status: "ACTIVE", tradeHistory: { $ne: null } },
+        { projection: { account: 1, name: 1, "tradeHistory.deals": 1 } }
+      ).toArray();
 
+    // Deduplicate by account number and skip already-flagged
+    const seenLogins = new Set<number>();
+    const activeAccounts: { loginId: number; userName: string; email: string }[] = [];
     const reportMap = new Map<number, any>();
-    for (const r of reports) reportMap.set(r.account, r);
+
+    for (const r of reports) {
+      const loginId = r.account;
+      if (!loginId || flaggedSet.has(String(loginId)) || seenLogins.has(loginId)) continue;
+      seenLogins.add(loginId);
+      activeAccounts.push({
+        loginId,
+        userName: r.name || "Unknown",
+        email: "",
+      });
+      reportMap.set(loginId, r);
+    }
 
     await client.close();
     client = null;
