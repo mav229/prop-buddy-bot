@@ -142,10 +142,6 @@ Deno.serve(async (req) => {
     await client.connect();
     const db = client.db(dbName);
 
-    // Get already-flagged accounts (skip them)
-    const { data: flaggedRows } = await supabase.from("flagged_accounts").select("account_number");
-    const flaggedSet = new Set((flaggedRows || []).map((r: any) => r.account_number));
-
     // Pull ONLY active accounts with trade history directly from credentials_reports
     const reports = await db.collection("credentials_reports")
       .find(
@@ -160,7 +156,7 @@ Deno.serve(async (req) => {
 
     for (const r of reports) {
       const loginId = r.account;
-      if (!loginId || flaggedSet.has(String(loginId)) || seenLogins.has(loginId)) continue;
+      if (!loginId || seenLogins.has(loginId)) continue;
       seenLogins.add(loginId);
       activeAccounts.push({
         loginId,
