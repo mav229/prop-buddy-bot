@@ -44,6 +44,7 @@ export const ViolationScanner = () => {
   const [lastScan, setLastScan] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filterRisk, setFilterRisk] = useState<string>("ALL");
+  const [showEmailLogs, setShowEmailLogs] = useState(false);
 
   useEffect(() => {
     fetchLatestScan();
