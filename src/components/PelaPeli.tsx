@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  AlertTriangle, Mail, CheckCircle2, Loader2, RefreshCw, User, Shield, Clock, Send,
+  AlertTriangle, Mail, CheckCircle2, Loader2, RefreshCw, User, Shield, Clock, Send, Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,6 +65,7 @@ export const PelaPeli = () => {
   const [loading, setLoading] = useState(true);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"pending" | "emailed" | "all">("pending");
+  const [showTemplate, setShowTemplate] = useState(false);
 
   const fetchAccounts = async () => {
     setLoading(true);
@@ -149,13 +150,41 @@ export const PelaPeli = () => {
             <Shield className="w-6 h-6 text-red-500" /> Pela Peli
           </h2>
           <p className="text-muted-foreground text-sm mt-1">
-            Send violation notices to flagged accounts. Once emailed, they're permanently excluded from future scans.
+            Send violation notices to flagged accounts. Scans run on all active accounts continuously.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchAccounts} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 mr-1.5 ${loading ? "animate-spin" : ""}`} /> Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowTemplate(!showTemplate)}>
+            <Eye className="w-4 h-4 mr-1.5" /> {showTemplate ? "Hide" : "View"} Template
+          </Button>
+          <Button variant="outline" size="sm" onClick={fetchAccounts} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-1.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </Button>
+        </div>
       </div>
+
+      {/* Email Template Preview */}
+      {showTemplate && (
+        <Card className="border-border/50">
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Mail className="w-4 h-4" /> Email Template Preview
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-lg border overflow-hidden bg-white">
+              <iframe
+                srcDoc={VIOLATION_EMAIL_HTML("John Doe", "123456", "Martingale Breach -- BUY XAUUSD: lot increased 0.10 → 0.20 (+100%) within 45s, price in drawdown (2340.50 → 2338.20)")}
+                className="w-full h-[500px] border-0"
+                title="Email Template Preview"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              This is the email template sent to flagged traders. Tell me if you want to change anything.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-3 gap-4">
@@ -247,26 +276,25 @@ export const PelaPeli = () => {
                       )}
                     </div>
                   </div>
-                  <div className="shrink-0">
-                    {account.emailed_at ? (
+                  <div className="shrink-0 flex items-center gap-2">
+                    {account.emailed_at && (
                       <Badge className="bg-green-500/10 text-green-500 border-green-500/30">
                         <CheckCircle2 className="w-3 h-3 mr-1" /> Sent
                       </Badge>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        disabled={!account.email || sendingId === account.id}
-                        onClick={() => sendViolationEmail(account)}
-                      >
-                        {sendingId === account.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                        ) : (
-                          <Mail className="w-4 h-4 mr-1" />
-                        )}
-                        {!account.email ? "No Email" : "Send Notice"}
-                      </Button>
                     )}
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={!account.email || sendingId === account.id}
+                      onClick={() => sendViolationEmail(account)}
+                    >
+                      {sendingId === account.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                      ) : (
+                        <Mail className="w-4 h-4 mr-1" />
+                      )}
+                      {!account.email ? "No Email" : account.emailed_at ? "Resend" : "Send Notice"}
+                    </Button>
                   </div>
                 </div>
               </CardContent>
