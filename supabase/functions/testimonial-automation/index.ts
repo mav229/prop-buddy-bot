@@ -1,6 +1,26 @@
 import { SMTPClient } from "npm:emailjs@4.0.3";
 import { createClient } from "npm:@supabase/supabase-js@2.49.4";
 
+async function sendWithRetry(password: string, msg: any, retries = 2) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const client = new SMTPClient({
+        user: "team@propscholar.in",
+        password,
+        host: "smtp.hostinger.com",
+        ssl: true,
+        port: 465,
+      });
+      await client.sendAsync(msg);
+      return;
+    } catch (err) {
+      if (i === retries) throw err;
+      console.log(`SMTP attempt ${i + 1} failed, retrying...`);
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  }
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -103,17 +123,9 @@ Deno.serve(async (req) => {
         );
       }
 
-      const client = new SMTPClient({
-        user: "team@propscholar.in",
-        password,
-        host: "smtp.hostinger.com",
-        ssl: true,
-        port: 465,
-      });
-
       const { trackingId, html } = buildHtml(recipientName || "Trader");
 
-      await client.sendAsync({
+      await sendWithRetry(password, {
         from: "PropScholar <team@propscholar.in>",
         to: recipientEmail,
         subject: EMAIL_SUBJECT,
@@ -170,21 +182,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    const client = new SMTPClient({
-      user: "team@propscholar.in",
-      password,
-      host: "smtp.hostinger.com",
-      ssl: true,
-      port: 465,
-    });
-
     let sentCount = 0;
 
     for (const cert of pending) {
       try {
         const { trackingId, html } = buildHtml(cert.user_name);
 
-        await client.sendAsync({
+        await sendWithRetry(password, {
           from: "PropScholar <team@propscholar.in>",
           to: cert.email,
           subject: EMAIL_SUBJECT,
