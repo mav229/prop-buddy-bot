@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import {
   Shield, Loader2, RefreshCw, AlertTriangle, CheckCircle2,
-  Clock, User, Activity, TrendingDown, ChevronDown, ChevronUp,
+  Clock, User, Activity, TrendingDown, ChevronDown, ChevronUp, Mail,
 } from "lucide-react";
+import { ViolationEmailLogs } from "./ViolationEmailLogs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +44,7 @@ export const ViolationScanner = () => {
   const [lastScan, setLastScan] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filterRisk, setFilterRisk] = useState<string>("ALL");
+  const [showEmailLogs, setShowEmailLogs] = useState(false);
 
   useEffect(() => {
     fetchLatestScan();
@@ -147,6 +149,10 @@ export const ViolationScanner = () => {
               Last: {formatDate(lastScan)}
             </span>
           )}
+          <Button variant="outline" size="sm" onClick={() => setShowEmailLogs(!showEmailLogs)}>
+            <Mail className="w-4 h-4 mr-1" />
+            {showEmailLogs ? "Hide" : "Email"} Logs
+          </Button>
           <Button onClick={runManualScan} disabled={scanning} size="sm">
             {scanning ? (
               <Loader2 className="w-4 h-4 animate-spin mr-1" />
@@ -157,6 +163,10 @@ export const ViolationScanner = () => {
           </Button>
         </div>
       </div>
+
+      {showEmailLogs && (
+        <ViolationEmailLogs onClose={() => setShowEmailLogs(false)} />
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
