@@ -400,6 +400,7 @@ export type Database = {
           account_number: string
           created_at: string
           email: string | null
+          emailed_at: string | null
           flag_detail: string | null
           flag_type: string
           flagged_at: string
@@ -412,6 +413,7 @@ export type Database = {
           account_number: string
           created_at?: string
           email?: string | null
+          emailed_at?: string | null
           flag_detail?: string | null
           flag_type: string
           flagged_at?: string
@@ -424,6 +426,7 @@ export type Database = {
           account_number?: string
           created_at?: string
           email?: string | null
+          emailed_at?: string | null
           flag_detail?: string | null
           flag_type?: string
           flagged_at?: string
