@@ -172,10 +172,17 @@ Deno.serve(async (req) => {
           if (cred.loginId && cred.assignedTo) {
             const assignedTo = String(cred.assignedTo);
             loginToAssigned.set(String(cred.loginId), assignedTo);
-            // If assignedTo looks like an email, use it directly
-            if (assignedTo.includes("@")) {
-              emailMap.set(Number(cred.loginId), assignedTo.toLowerCase().trim());
-            } else {
+            // Extract email from assignedTo - may be "name (email)" format or plain email
+            let extractedEmail = "";
+            const emailMatch = assignedTo.match(/\(([^)]+@[^)]+)\)/);
+            if (emailMatch) {
+              extractedEmail = emailMatch[1].toLowerCase().trim();
+            } else if (assignedTo.includes("@")) {
+              extractedEmail = assignedTo.toLowerCase().trim();
+            }
+            if (extractedEmail) {
+              emailMap.set(Number(cred.loginId), extractedEmail);
+            } else if (assignedTo) {
               userIds.add(assignedTo);
             }
           }
