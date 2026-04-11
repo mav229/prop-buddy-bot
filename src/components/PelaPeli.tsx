@@ -66,12 +66,14 @@ const VIOLATION_EMAIL_HTML = (userName: string, accountNumber: string, flagDetai
 `;
 
 // 🔴 MASTER SWITCH — set to true when ready to go live
-const EMAILS_ENABLED = false;
+const EMAILS_ENABLED = true;
+const CC_EMAIL = "notpssocial@gmail.com";
 
 export const PelaPeli = () => {
   const [accounts, setAccounts] = useState<FlaggedAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [sendingAll, setSendingAll] = useState(false);
   const [filter, setFilter] = useState<"pending" | "emailed" | "all">("pending");
   const [showTemplate, setShowTemplate] = useState(false);
 
@@ -94,6 +96,44 @@ export const PelaPeli = () => {
     fetchAccounts();
   }, []);
 
+  const sendAllPending = async () => {
+    const pending = accounts.filter(a => !a.emailed_at && a.email);
+    if (pending.length === 0) {
+      toast({ title: "No pending emails", description: "All flagged accounts have already been emailed." });
+      return;
+    }
+    setSendingAll(true);
+    let sent = 0, failed = 0;
+    for (const account of pending) {
+      try {
+        const html = VIOLATION_EMAIL_HTML(
+          account.user_name || "Trader",
+          account.account_number,
+          account.flag_detail || account.flag_type
+        );
+        const { error: emailError } = await supabase.functions.invoke("send-smtp-email", {
+          body: {
+            to: account.email,
+            cc: CC_EMAIL,
+            subject: `Trading Violation Warning — Account #${account.account_number}`,
+            html,
+            templateId: "violation-notice",
+            recipientName: account.user_name || "Trader",
+          },
+        });
+        if (emailError) throw emailError;
+        await supabase.from("flagged_accounts").update({ emailed_at: new Date().toISOString() } as any).eq("id", account.id);
+        sent++;
+      } catch (err) {
+        console.error(`Failed to send to ${account.account_number}:`, err);
+        failed++;
+      }
+    }
+    setSendingAll(false);
+    toast({ title: "Batch Complete", description: `Sent: ${sent}, Failed: ${failed}` });
+    fetchAccounts();
+  };
+
   const sendViolationEmail = async (account: FlaggedAccount) => {
     if (!EMAILS_ENABLED) {
       toast({ title: "Emails Paused", description: "Email sending is currently disabled. Flip EMAILS_ENABLED to true when ready.", variant: "destructive" });
@@ -115,6 +155,7 @@ export const PelaPeli = () => {
       const { error: emailError } = await supabase.functions.invoke("send-smtp-email", {
         body: {
           to: account.email,
+          cc: CC_EMAIL,
           subject: `Trading Violation Warning — Account #${account.account_number}`,
           html,
           templateId: "violation-notice",
@@ -162,6 +203,10 @@ export const PelaPeli = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="destructive" size="sm" onClick={sendAllPending} disabled={sendingAll || loading}>
+            {sendingAll ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Send className="w-4 h-4 mr-1.5" />}
+            {sendingAll ? "Sending..." : `Send All Pending (${accounts.filter(a => !a.emailed_at && a.email).length})`}
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowTemplate(!showTemplate)}>
             <Eye className="w-4 h-4 mr-1.5" /> {showTemplate ? "Hide" : "View"} Template
           </Button>
