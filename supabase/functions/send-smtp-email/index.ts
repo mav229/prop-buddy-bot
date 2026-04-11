@@ -7,6 +7,51 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+async function sendWithRetry(
+  to: string,
+  cc: string | undefined,
+  subject: string,
+  textBody: string,
+  htmlContent: string | undefined,
+  maxRetries = 2
+): Promise<any> {
+  const password = Deno.env.get("SMTP_PASSWORD")!;
+  let lastError: any;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const client = new SMTPClient({
+        user: "team@propscholar.in",
+        password,
+        host: "smtp.hostinger.com",
+        ssl: true,
+        port: 465,
+      });
+
+      const message = await client.sendAsync({
+        from: "PropScholar <team@propscholar.in>",
+        to,
+        ...(cc ? { cc } : {}),
+        subject,
+        text: textBody,
+        attachment: htmlContent
+          ? [{ data: htmlContent, alternative: true }]
+          : undefined,
+      });
+
+      return message;
+    } catch (err) {
+      lastError = err;
+      console.error(`[SMTP] Attempt ${attempt + 1} failed:`, err.message || err);
+      if (attempt < maxRetries) {
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    }
+  }
+
+  throw lastError;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -45,34 +90,14 @@ Deno.serve(async (req) => {
     // Inject tracking pixel and click tracking into HTML
     let finalHtml = html || "";
     if (finalHtml) {
-      // Replace propscholar.com links with click tracking
       finalHtml = finalHtml.replace(
         /href="https:\/\/propscholar\.com"/g,
         `href="${trackerBase}?id=${trackingId}&action=click"`
       );
-      // Add tracking pixel before closing div
       finalHtml += `<img src="${trackerBase}?id=${trackingId}&action=open" width="1" height="1" style="display:none;" />`;
     }
 
-    const client = new SMTPClient({
-      user: "team@propscholar.in",
-      password,
-      host: "smtp.hostinger.com",
-      ssl: true,
-      port: 465,
-    });
-
-    const message = await client.sendAsync({
-      from: "PropScholar <team@propscholar.in>",
-      to,
-      ...(cc ? { cc } : {}),
-      subject,
-      text: body || "",
-      attachment: finalHtml
-        ? [{ data: finalHtml, alternative: true }]
-        : undefined,
-    });
-
+    const message = await sendWithRetry(to, cc, subject, body || "", finalHtml || undefined);
     console.log("Email sent:", message);
 
     // Log to email_logs
