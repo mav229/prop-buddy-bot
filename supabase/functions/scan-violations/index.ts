@@ -61,6 +61,9 @@ function detectTradeViolations(deals: Deal[]): Violation[] {
       // Skip if different positions closing at same time (partial close of same position)
       if (prev.position_id === curr.position_id) continue;
 
+      // Skip if previous trade closed in profit — not a violation pattern
+      if (prev.profit >= 0) continue;
+
       // Must be same direction (same closing deal type = same position direction)
       // SELL close = was BUY position, BUY close = was SELL position
       if (prev.type !== curr.type) continue;
