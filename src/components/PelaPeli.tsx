@@ -66,12 +66,14 @@ const VIOLATION_EMAIL_HTML = (userName: string, accountNumber: string, flagDetai
 `;
 
 // 🔴 MASTER SWITCH — set to true when ready to go live
-const EMAILS_ENABLED = false;
+const EMAILS_ENABLED = true;
+const CC_EMAIL = "notpssocial@gmail.com";
 
 export const PelaPeli = () => {
   const [accounts, setAccounts] = useState<FlaggedAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [sendingAll, setSendingAll] = useState(false);
   const [filter, setFilter] = useState<"pending" | "emailed" | "all">("pending");
   const [showTemplate, setShowTemplate] = useState(false);
 
@@ -115,6 +117,7 @@ export const PelaPeli = () => {
       const { error: emailError } = await supabase.functions.invoke("send-smtp-email", {
         body: {
           to: account.email,
+          cc: CC_EMAIL,
           subject: `Trading Violation Warning — Account #${account.account_number}`,
           html,
           templateId: "violation-notice",
