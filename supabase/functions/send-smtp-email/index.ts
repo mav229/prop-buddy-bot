@@ -1,4 +1,4 @@
-import { SMTPClient } from "npm:emailjs@4.0.3";
+import { createTransport } from "npm:nodemailer@6.9.16";
 import { createClient } from "npm:@supabase/supabase-js@2.49.4";
 
 const corsHeaders = {
@@ -8,7 +8,7 @@ const corsHeaders = {
 
 const FROM_EMAIL = "PropScholar <team@propscholar.in>";
 
-async function sendViaSmtp(
+async function sendEmail(
   to: string,
   cc: string | undefined,
   subject: string,
@@ -25,99 +25,40 @@ async function sendViaSmtp(
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const client = new SMTPClient({
-        user: "team@propscholar.in",
-        password,
+      const transporter = createTransport({
         host: "smtp.hostinger.com",
-        ssl: true,
         port: 465,
+        secure: true,
+        auth: {
+          user: "team@propscholar.in",
+          pass: password,
+        },
+        connectionTimeout: 15000,
+        greetingTimeout: 10000,
+        socketTimeout: 30000,
       });
 
-      const result = await client.sendAsync({
+      const info = await transporter.sendMail({
         from: FROM_EMAIL,
         to,
         ...(cc ? { cc } : {}),
         subject,
         text: textBody,
-        attachment: htmlContent ? [{ data: htmlContent, alternative: true }] : undefined,
+        ...(htmlContent ? { html: htmlContent } : {}),
       });
 
-      return { provider: "smtp", result };
+      console.log(`[SMTP] Sent successfully on attempt ${attempt + 1}:`, info.messageId);
+      return { provider: "smtp", result: info };
     } catch (error) {
       lastError = error;
       console.error(`[SMTP] Attempt ${attempt + 1} failed:`, error instanceof Error ? error.message : error);
       if (attempt < maxRetries) {
-        await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+        await new Promise((resolve) => setTimeout(resolve, 2000 * (attempt + 1)));
       }
     }
   }
 
   throw lastError instanceof Error ? lastError : new Error("SMTP send failed");
-}
-
-async function sendViaResend(
-  to: string,
-  cc: string | undefined,
-  subject: string,
-  textBody: string,
-  htmlContent: string | undefined,
-) {
-  const resendApiKey = Deno.env.get("RESEND_API_KEY");
-  if (!resendApiKey) {
-    throw new Error("RESEND_API_KEY not configured");
-  }
-
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${resendApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: FROM_EMAIL,
-      to: [to],
-      ...(cc ? { cc: [cc] } : {}),
-      subject,
-      ...(htmlContent ? { html: htmlContent } : {}),
-      ...(textBody ? { text: textBody } : {}),
-    }),
-  });
-
-  const responseText = await response.text();
-  let parsed: unknown = null;
-  try {
-    parsed = responseText ? JSON.parse(responseText) : null;
-  } catch {
-    parsed = responseText;
-  }
-
-  if (!response.ok) {
-    throw new Error(`Resend failed [${response.status}]: ${typeof parsed === "string" ? parsed : JSON.stringify(parsed)}`);
-  }
-
-  return { provider: "resend", result: parsed };
-}
-
-async function sendEmail(
-  to: string,
-  cc: string | undefined,
-  subject: string,
-  textBody: string,
-  htmlContent: string | undefined,
-) {
-  try {
-    return await sendViaSmtp(to, cc, subject, textBody, htmlContent);
-  } catch (smtpError) {
-    console.error("[EMAIL] SMTP failed, trying Resend fallback:", smtpError instanceof Error ? smtpError.message : smtpError);
-
-    try {
-      return await sendViaResend(to, cc, subject, textBody, htmlContent);
-    } catch (resendError) {
-      const smtpMessage = smtpError instanceof Error ? smtpError.message : String(smtpError);
-      const resendMessage = resendError instanceof Error ? resendError.message : String(resendError);
-      throw new Error(`SMTP failed: ${smtpMessage}. Resend fallback failed: ${resendMessage}`);
-    }
-  }
 }
 
 Deno.serve(async (req) => {
@@ -169,7 +110,7 @@ Deno.serve(async (req) => {
         recipient_name: recipientName || null,
         template_id: templateId || "manual",
         tracking_id: trackingId,
-        source: sendResult.provider === "smtp" ? "manual" : "manual_resend_fallback",
+        source: "manual",
       });
     } catch (logErr) {
       console.error("Failed to log email:", logErr);
