@@ -96,7 +96,44 @@ export const PelaPeli = () => {
     fetchAccounts();
   }, []);
 
-  const sendViolationEmail = async (account: FlaggedAccount) => {
+  const sendAllPending = async () => {
+    const pending = accounts.filter(a => !a.emailed_at && a.email);
+    if (pending.length === 0) {
+      toast({ title: "No pending emails", description: "All flagged accounts have already been emailed." });
+      return;
+    }
+    setSendingAll(true);
+    let sent = 0, failed = 0;
+    for (const account of pending) {
+      try {
+        const html = VIOLATION_EMAIL_HTML(
+          account.user_name || "Trader",
+          account.account_number,
+          account.flag_detail || account.flag_type
+        );
+        const { error: emailError } = await supabase.functions.invoke("send-smtp-email", {
+          body: {
+            to: account.email,
+            cc: CC_EMAIL,
+            subject: `Trading Violation Warning — Account #${account.account_number}`,
+            html,
+            templateId: "violation-notice",
+            recipientName: account.user_name || "Trader",
+          },
+        });
+        if (emailError) throw emailError;
+        await supabase.from("flagged_accounts").update({ emailed_at: new Date().toISOString() } as any).eq("id", account.id);
+        sent++;
+      } catch (err) {
+        console.error(`Failed to send to ${account.account_number}:`, err);
+        failed++;
+      }
+    }
+    setSendingAll(false);
+    toast({ title: "Batch Complete", description: `Sent: ${sent}, Failed: ${failed}` });
+    fetchAccounts();
+  };
+
     if (!EMAILS_ENABLED) {
       toast({ title: "Emails Paused", description: "Email sending is currently disabled. Flip EMAILS_ENABLED to true when ready.", variant: "destructive" });
       return;
