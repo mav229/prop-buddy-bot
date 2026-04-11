@@ -134,6 +134,7 @@ export const PelaPeli = () => {
     fetchAccounts();
   };
 
+  const sendViolationEmail = async (account: FlaggedAccount) => {
     if (!EMAILS_ENABLED) {
       toast({ title: "Emails Paused", description: "Email sending is currently disabled. Flip EMAILS_ENABLED to true when ready.", variant: "destructive" });
       return;
