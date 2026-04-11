@@ -149,7 +149,75 @@ Deno.serve(async (req) => {
         { projection: { account: 1, name: 1, "tradeHistory.deals": 1 } }
       ).toArray();
 
-    // Deduplicate by account number and skip already-flagged
+    // Collect all account numbers for email lookup
+    const allAccountNumbers: number[] = [];
+    for (const r of reports) {
+      if (r.account) allAccountNumbers.push(r.account);
+    }
+
+    // Fetch emails from credentialkeys collection
+    const emailMap = new Map<number, string>();
+    if (allAccountNumbers.length > 0) {
+      const credDocs = await db.collection("credentialkeys").find(
+        { "credentials.loginId": { $in: allAccountNumbers.map(String) } },
+        { projection: { "credentials.loginId": 1, "credentials.assignedTo": 1 } }
+      ).toArray();
+
+      // Also get user emails from users collection
+      const userIds = new Set<string>();
+      const loginToAssigned = new Map<string, string>();
+
+      for (const doc of credDocs) {
+        for (const cred of (doc.credentials || [])) {
+          if (cred.loginId && cred.assignedTo) {
+            const assignedTo = String(cred.assignedTo);
+            loginToAssigned.set(String(cred.loginId), assignedTo);
+            // Extract email from assignedTo - may be "name (email)" format or plain email
+            let extractedEmail = "";
+            const emailMatch = assignedTo.match(/\(([^)]+@[^)]+)\)/);
+            if (emailMatch) {
+              extractedEmail = emailMatch[1].toLowerCase().trim();
+            } else if (assignedTo.includes("@")) {
+              extractedEmail = assignedTo.toLowerCase().trim();
+            }
+            if (extractedEmail) {
+              emailMap.set(Number(cred.loginId), extractedEmail);
+            } else if (assignedTo) {
+              userIds.add(assignedTo);
+            }
+          }
+        }
+      }
+
+      // For non-email assignedTo values, look up user emails
+      if (userIds.size > 0) {
+        const { ObjectId } = await import("npm:mongodb@6.12.0");
+        const userOids = [];
+        for (const uid of userIds) {
+          try { userOids.push(new ObjectId(uid)); } catch (_) {}
+        }
+        if (userOids.length > 0) {
+          const users = await db.collection("users").find(
+            { _id: { $in: userOids } },
+            { projection: { email: 1 } }
+          ).toArray();
+          const userEmailMap = new Map<string, string>();
+          for (const u of users) {
+            if (u.email) userEmailMap.set(u._id.toString(), u.email.toLowerCase().trim());
+          }
+          // Map back to login IDs
+          for (const [loginId, assignedTo] of loginToAssigned) {
+            if (!emailMap.has(Number(loginId)) && userEmailMap.has(assignedTo)) {
+              emailMap.set(Number(loginId), userEmailMap.get(assignedTo)!);
+            }
+          }
+        }
+      }
+    }
+
+    console.log(`[SCAN] Email lookup: found emails for ${emailMap.size} of ${allAccountNumbers.length} accounts`);
+
+    // Deduplicate by account number
     const seenLogins = new Set<number>();
     const activeAccounts: { loginId: number; userName: string; email: string }[] = [];
     const reportMap = new Map<number, any>();
@@ -161,7 +229,7 @@ Deno.serve(async (req) => {
       activeAccounts.push({
         loginId,
         userName: r.name || "Unknown",
-        email: "",
+        email: emailMap.get(loginId) || "",
       });
       reportMap.set(loginId, r);
     }
