@@ -203,6 +203,10 @@ export const PelaPeli = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="destructive" size="sm" onClick={sendAllPending} disabled={sendingAll || loading}>
+            {sendingAll ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Send className="w-4 h-4 mr-1.5" />}
+            {sendingAll ? "Sending..." : `Send All Pending (${accounts.filter(a => !a.emailed_at && a.email).length})`}
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowTemplate(!showTemplate)}>
             <Eye className="w-4 h-4 mr-1.5" /> {showTemplate ? "Hide" : "View"} Template
           </Button>
