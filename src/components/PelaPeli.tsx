@@ -124,6 +124,8 @@ export const PelaPeli = () => {
         if (emailError) throw emailError;
         await supabase.from("flagged_accounts").update({ emailed_at: new Date().toISOString() } as any).eq("id", account.id);
         sent++;
+        // Small delay between emails to avoid SMTP rate limits
+        await new Promise(r => setTimeout(r, 2000));
       } catch (err) {
         console.error(`Failed to send to ${account.account_number}:`, err);
         failed++;
