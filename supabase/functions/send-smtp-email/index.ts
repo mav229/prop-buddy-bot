@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { to, subject, body, html, templateId, recipientName } = await req.json();
+    const { to, cc, subject, body, html, templateId, recipientName } = await req.json();
 
     if (!to || !subject || (!body && !html)) {
       return new Response(
@@ -65,6 +65,7 @@ Deno.serve(async (req) => {
     const message = await client.sendAsync({
       from: "PropScholar <team@propscholar.in>",
       to,
+      ...(cc ? { cc } : {}),
       subject,
       text: body || "",
       attachment: finalHtml
