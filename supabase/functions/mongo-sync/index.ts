@@ -68,11 +68,13 @@ Deno.serve(async (req) => {
 
   // Auth: allow service role, anon key (cron), or admin JWT
   const authHeader = req.headers.get("Authorization") || "";
+  const apikeyHeader = req.headers.get("apikey") || "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+  const combined = authHeader + " " + apikeyHeader;
   const isAuthorized =
-    (serviceRoleKey && authHeader.includes(serviceRoleKey)) ||
-    (anonKey && authHeader.includes(anonKey));
+    (serviceRoleKey && combined.includes(serviceRoleKey)) ||
+    (anonKey && combined.includes(anonKey));
 
   if (!isAuthorized) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
