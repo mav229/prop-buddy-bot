@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.sync-certificates]
 verify_jwt = false
+
+[functions.scan-violations]
+verify_jwt = false

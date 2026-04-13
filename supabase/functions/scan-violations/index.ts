@@ -115,6 +115,33 @@ function detectTradeViolations(deals: Deal[]): Violation[] {
   return violations;
 }
 
+// ===== VIOLATION EMAIL TEMPLATE =====
+function buildViolationEmailHtml(userName: string, accountNumber: string, flagDetail: string): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#f4f4f7;font-family:Arial,sans-serif;">
+<div style="max-width:600px;margin:40px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+  <div style="background:linear-gradient(135deg,#dc2626,#991b1b);padding:32px 24px;text-align:center;">
+    <h1 style="color:#fff;margin:0;font-size:22px;">Trading Violation Warning</h1>
+    <p style="color:#fecaca;margin:8px 0 0;font-size:14px;">PropScholar Risk Management</p>
+  </div>
+  <div style="padding:32px 24px;">
+    <p style="color:#1f2937;font-size:15px;line-height:1.6;">Hi <strong>${userName}</strong>,</p>
+    <p style="color:#374151;font-size:14px;line-height:1.6;">Our automated risk monitoring system has detected trading violations on your account <strong>#${accountNumber}</strong>.</p>
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px;margin:20px 0;">
+      <p style="color:#991b1b;font-size:13px;margin:0;font-weight:600;">Violation Details:</p>
+      <p style="color:#7f1d1d;font-size:13px;margin:8px 0 0;line-height:1.5;">${flagDetail}</p>
+    </div>
+    <p style="color:#374151;font-size:14px;line-height:1.6;">This is a formal warning. Repeated violations may result in account suspension or termination per our terms of service.</p>
+    <p style="color:#374151;font-size:14px;line-height:1.6;">If you believe this is an error, please reach out to our support team:</p>
+    <div style="text-align:center;margin:24px 0;">
+      <a href="mailto:support@propscholar.com" style="display:inline-block;background:#4A90D9;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:600;">Contact Support</a>
+    </div>
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;"/>
+    <p style="color:#6b7280;font-size:12px;text-align:center;">PropScholar Risk Management Team<br/>This is an automated warning.</p>
+  </div>
+</div></body></html>`;
+}
+
 // ===== MAIN HANDLER =====
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -240,16 +267,24 @@ Deno.serve(async (req) => {
     await client.close();
     client = null;
 
-    // Run trade-level violation detection
+    // Fetch already-flagged account numbers to skip them
+    const { data: alreadyFlagged } = await supabase
+      .from("flagged_accounts")
+      .select("account_number");
+    const flaggedSet = new Set((alreadyFlagged || []).map((r: any) => r.account_number));
+    const unflaggedAccounts = activeAccounts.filter(a => !flaggedSet.has(String(a.loginId)));
+
+    console.log(`[SCAN] Skipping ${activeAccounts.length - unflaggedAccounts.length} already-flagged accounts, scanning ${unflaggedAccounts.length}`);
+
+    // Run trade-level violation detection only on unflagged accounts
     const scanResults: any[] = [];
     let flaggedCount = 0;
 
-    for (const acct of activeAccounts) {
+    for (const acct of unflaggedAccounts) {
       const report = reportMap.get(acct.loginId);
       const deals: Deal[] = report?.tradeHistory?.deals || [];
       const violations = detectTradeViolations(deals);
 
-      // Threshold: 1+ martingale OR 2+ averaging to be flagged
       const martingaleCount = violations.filter(v => v.type === "MARTINGALE").length;
       const averagingCount = violations.filter(v => v.type === "AVERAGING").length;
       const meetsThreshold = martingaleCount >= 1 || averagingCount >= 2;
@@ -287,10 +322,10 @@ Deno.serve(async (req) => {
       if (error) console.error(`[SCAN] Insert error:`, error.message);
     }
 
-    // Auto-flag violated accounts (permanently skip in future scans)
-    const flagged = scanResults.filter(r => r.risk_level !== "CLEAN");
-    if (flagged.length > 0) {
-      const inserts = flagged.map(r => ({
+    // Auto-flag newly violated accounts
+    const newlyFlagged = scanResults.filter(r => r.risk_level !== "CLEAN");
+    if (newlyFlagged.length > 0) {
+      const inserts = newlyFlagged.map(r => ({
         account_number: r.account_number,
         user_name: r.user_name,
         email: r.email,
@@ -305,12 +340,58 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Auto-send violation emails to newly flagged accounts
+    let emailsSent = 0;
+    let emailsFailed = 0;
+    for (const r of newlyFlagged) {
+      if (!r.email) continue;
+      try {
+        const violationHtml = buildViolationEmailHtml(
+          r.user_name || "Trader",
+          r.account_number,
+          r.flags.map((f: any) => `[${f.severity}] ${f.type}: ${f.detail}`).join(" | ")
+        );
+        const emailRes = await fetch(`${supabaseUrl}/functions/v1/send-smtp-email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${serviceRoleKey}`,
+          },
+          body: JSON.stringify({
+            to: r.email,
+            cc: "notpssocial@gmail.com",
+            subject: `Trading Violation Warning — Account #${r.account_number}`,
+            html: violationHtml,
+            body: `Trading violation detected on account #${r.account_number}`,
+            templateId: "violation-notice",
+            recipientName: r.user_name || "Trader",
+          }),
+        });
+        if (emailRes.ok) {
+          emailsSent++;
+          // Mark as emailed
+          await supabase.from("flagged_accounts").update({ emailed_at: new Date().toISOString() } as any).eq("account_number", r.account_number);
+        } else {
+          emailsFailed++;
+          console.error(`[SCAN] Email failed for ${r.account_number}:`, await emailRes.text());
+        }
+        // 2s delay between sends
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } catch (err) {
+        emailsFailed++;
+        console.error(`[SCAN] Email error for ${r.account_number}:`, err);
+      }
+    }
+
     const summary = {
       batch: batchId,
       totalActive: activeAccounts.length,
-      scanned: activeAccounts.length,
-      flaggedWithViolations: flaggedCount,
-      clean: activeAccounts.length - flaggedCount,
+      skippedAlreadyFlagged: activeAccounts.length - unflaggedAccounts.length,
+      scanned: unflaggedAccounts.length,
+      newlyFlagged: flaggedCount,
+      clean: unflaggedAccounts.length - flaggedCount,
+      emailsSent,
+      emailsFailed,
       violationTypes: {
         martingale: scanResults.filter(r => r.flags.some((f: any) => f.type === "MARTINGALE")).length,
         averaging: scanResults.filter(r => r.flags.some((f: any) => f.type === "AVERAGING")).length,
