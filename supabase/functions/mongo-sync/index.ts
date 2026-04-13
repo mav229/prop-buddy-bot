@@ -35,13 +35,17 @@ async function syncCollection(
   colName: string,
 ): Promise<{ synced: number; error?: string }> {
   try {
-    // For large collections like "users", use projection to limit data size
     const largeCollections = ["users", "orders", "purchases", "logs_automation"];
     const options = largeCollections.includes(colName)
-      ? { projection: { tradeHistory: 0, __v: 0 } }
+      ? { projection: { tradeHistory: 0, __v: 0, responseBody: 0, requestBody: 0 } }
       : {};
 
-    const cursor = db.collection(colName).find({}, options);
+    // For logs_automation, only sync last 30 days to avoid OOM
+    const filter = colName === "logs_automation"
+      ? { createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } }
+      : {};
+
+    const cursor = db.collection(colName).find(filter, options);
     let totalSynced = 0;
     let batch: { collection: string; mongo_id: string; data: Record<string, unknown>; synced_at: string }[] = [];
 
