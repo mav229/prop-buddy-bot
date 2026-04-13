@@ -240,16 +240,24 @@ Deno.serve(async (req) => {
     await client.close();
     client = null;
 
-    // Run trade-level violation detection
+    // Fetch already-flagged account numbers to skip them
+    const { data: alreadyFlagged } = await supabase
+      .from("flagged_accounts")
+      .select("account_number");
+    const flaggedSet = new Set((alreadyFlagged || []).map((r: any) => r.account_number));
+    const unflaggedAccounts = activeAccounts.filter(a => !flaggedSet.has(String(a.loginId)));
+
+    console.log(`[SCAN] Skipping ${activeAccounts.length - unflaggedAccounts.length} already-flagged accounts, scanning ${unflaggedAccounts.length}`);
+
+    // Run trade-level violation detection only on unflagged accounts
     const scanResults: any[] = [];
     let flaggedCount = 0;
 
-    for (const acct of activeAccounts) {
+    for (const acct of unflaggedAccounts) {
       const report = reportMap.get(acct.loginId);
       const deals: Deal[] = report?.tradeHistory?.deals || [];
       const violations = detectTradeViolations(deals);
 
-      // Threshold: 1+ martingale OR 2+ averaging to be flagged
       const martingaleCount = violations.filter(v => v.type === "MARTINGALE").length;
       const averagingCount = violations.filter(v => v.type === "AVERAGING").length;
       const meetsThreshold = martingaleCount >= 1 || averagingCount >= 2;
@@ -287,10 +295,10 @@ Deno.serve(async (req) => {
       if (error) console.error(`[SCAN] Insert error:`, error.message);
     }
 
-    // Auto-flag violated accounts (permanently skip in future scans)
-    const flagged = scanResults.filter(r => r.risk_level !== "CLEAN");
-    if (flagged.length > 0) {
-      const inserts = flagged.map(r => ({
+    // Auto-flag newly violated accounts
+    const newlyFlagged = scanResults.filter(r => r.risk_level !== "CLEAN");
+    if (newlyFlagged.length > 0) {
+      const inserts = newlyFlagged.map(r => ({
         account_number: r.account_number,
         user_name: r.user_name,
         email: r.email,
@@ -302,6 +310,49 @@ Deno.serve(async (req) => {
       for (let i = 0; i < inserts.length; i += 50) {
         const { error } = await supabase.from("flagged_accounts").upsert(inserts.slice(i, i + 50), { onConflict: "account_number" });
         if (error) console.error(`[SCAN] Flag error:`, error.message);
+      }
+    }
+
+    // Auto-send violation emails to newly flagged accounts
+    let emailsSent = 0;
+    let emailsFailed = 0;
+    for (const r of newlyFlagged) {
+      if (!r.email) continue;
+      try {
+        const violationHtml = buildViolationEmailHtml(
+          r.user_name || "Trader",
+          r.account_number,
+          r.flags.map((f: any) => `[${f.severity}] ${f.type}: ${f.detail}`).join(" | ")
+        );
+        const emailRes = await fetch(`${supabaseUrl}/functions/v1/send-smtp-email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${serviceRoleKey}`,
+          },
+          body: JSON.stringify({
+            to: r.email,
+            cc: "notpssocial@gmail.com",
+            subject: `Trading Violation Warning — Account #${r.account_number}`,
+            html: violationHtml,
+            body: `Trading violation detected on account #${r.account_number}`,
+            templateId: "violation-notice",
+            recipientName: r.user_name || "Trader",
+          }),
+        });
+        if (emailRes.ok) {
+          emailsSent++;
+          // Mark as emailed
+          await supabase.from("flagged_accounts").update({ emailed_at: new Date().toISOString() } as any).eq("account_number", r.account_number);
+        } else {
+          emailsFailed++;
+          console.error(`[SCAN] Email failed for ${r.account_number}:`, await emailRes.text());
+        }
+        // 2s delay between sends
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } catch (err) {
+        emailsFailed++;
+        console.error(`[SCAN] Email error for ${r.account_number}:`, err);
       }
     }
 
