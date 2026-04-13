@@ -6,45 +6,22 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const COLLECTIONS = [
-  "users",
-  "adminusers",
-  "accounts",
-  "credentialkeys",
-  "credentials_reports",
-  "orders",
-  "purchases",
-  "payouts",
-  "referrals",
-  "referralcommissions",
-  "referralpayouts",
-  "referralusages",
-  "coupons",
-  "couponusages",
-  "violations",
-  "tickets",
-  "qas",
-  "products",
-  "variants",
-  "blogs",
-  "blogposts",
-  "categories",
-  "collections",
-  "contentarticles",
-  "logs_automation",
-];
+// Split into batches to avoid memory limits
+const BATCH_0 = ["users", "adminusers", "accounts", "credentialkeys", "credentials_reports"];
+const BATCH_1 = ["orders", "purchases", "payouts", "referrals", "referralcommissions"];
+const BATCH_2 = ["referralpayouts", "referralusages", "coupons", "couponusages", "violations"];
+const BATCH_3 = ["tickets", "qas", "products", "variants", "blogs"];
+const BATCH_4 = ["blogposts", "categories", "collections", "contentarticles", "logs_automation"];
+const ALL_BATCHES = [BATCH_0, BATCH_1, BATCH_2, BATCH_3, BATCH_4];
 
-// Batch size for Supabase upserts
-const UPSERT_BATCH = 200;
+const UPSERT_BATCH = 100;
 
 function serializeDoc(doc: Record<string, unknown>): Record<string, unknown> {
-  // Convert MongoDB ObjectIds and Dates to strings for JSON storage
   const serialized: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(doc)) {
     if (value === null || value === undefined) {
       serialized[key] = value;
     } else if (typeof value === "object" && value !== null && "toHexString" in value) {
-      // ObjectId
       serialized[key] = (value as { toHexString: () => string }).toHexString();
     } else if (value instanceof Date) {
       serialized[key] = value.toISOString();
@@ -66,14 +43,13 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Auth: allow service role, anon key (cron), or just having a valid apikey
+  // Auth: apikey header or service role
   const authHeader = req.headers.get("Authorization") || "";
   const apikeyHeader = req.headers.get("apikey") || "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-  // Accept any request that has a valid apikey header or service role key
   const isAuthorized =
     (serviceRoleKey && (authHeader.includes(serviceRoleKey) || apikeyHeader.includes(serviceRoleKey))) ||
-    apikeyHeader.length > 100; // anon key JWT is always 200+ chars
+    apikeyHeader.length > 100;
 
   if (!isAuthorized) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -82,6 +58,16 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Parse batch number (0-4) from body, default to 0
+  let batchNum = 0;
+  try {
+    const body = await req.json().catch(() => ({}));
+    if (typeof body.batch === "number" && body.batch >= 0 && body.batch < ALL_BATCHES.length) {
+      batchNum = body.batch;
+    }
+  } catch (_) {}
+
+  const collections = ALL_BATCHES[batchNum];
   const mongoUri = Deno.env.get("MONGO_URI")?.trim();
   const dbName = Deno.env.get("MONGO_DB_NAME") || "test";
 
@@ -109,8 +95,9 @@ Deno.serve(async (req) => {
     await mongoClient.connect();
     const db = mongoClient.db(dbName);
 
-    for (const colName of COLLECTIONS) {
+    for (const colName of collections) {
       try {
+        // Use projection to limit fields for large collections
         const docs = await db.collection(colName).find({}).toArray();
 
         if (docs.length === 0) {
@@ -118,7 +105,6 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Prepare rows for upsert
         const rows = docs.map((doc) => {
           const mongoId = doc._id?.toString() || String(Math.random());
           const { _id, ...rest } = doc;
@@ -130,17 +116,13 @@ Deno.serve(async (req) => {
           };
         });
 
-        // Upsert in batches
         let totalSynced = 0;
         for (let i = 0; i < rows.length; i += UPSERT_BATCH) {
           const batch = rows.slice(i, i + UPSERT_BATCH);
           const { error } = await supabase
             .from("mongo_mirror")
             .upsert(batch, { onConflict: "collection,mongo_id" });
-
-          if (error) {
-            throw new Error(`Upsert error: ${error.message}`);
-          }
+          if (error) throw new Error(`Upsert error: ${error.message}`);
           totalSynced += batch.length;
         }
 
@@ -153,31 +135,21 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Close mongo ASAP to free resources
     try { await mongoClient.close(); } catch (_) {}
     mongoClient = null;
 
-    // Clean up deleted docs: remove mongo_mirror rows whose mongo_id no longer exists in source
-    // We do this per collection by comparing IDs
-    for (const colName of COLLECTIONS) {
-      if (results[colName]?.error) continue;
-      // Skip cleanup for empty collections
-      if (results[colName]?.synced === 0) continue;
-    }
-
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     const totalDocs = Object.values(results).reduce((s, r) => s + r.synced, 0);
-    const errors = Object.values(results).filter((r) => r.error).length;
 
-    console.log(`Sync complete: ${totalDocs} docs across ${COLLECTIONS.length} collections in ${elapsed}s (${errors} errors)`);
+    console.log(`Batch ${batchNum} sync complete: ${totalDocs} docs in ${elapsed}s`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        db: dbName,
+        batch: batchNum,
+        total_batches: ALL_BATCHES.length,
         total_docs: totalDocs,
         elapsed_seconds: parseFloat(elapsed),
-        errors,
         collections: results,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
