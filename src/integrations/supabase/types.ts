@@ -551,6 +551,33 @@ export type Database = {
         }
         Relationships: []
       }
+      mongo_mirror: {
+        Row: {
+          collection: string
+          created_at: string
+          data: Json
+          id: string
+          mongo_id: string
+          synced_at: string
+        }
+        Insert: {
+          collection: string
+          created_at?: string
+          data?: Json
+          id?: string
+          mongo_id: string
+          synced_at?: string
+        }
+        Update: {
+          collection?: string
+          created_at?: string
+          data?: Json
+          id?: string
+          mongo_id?: string
+          synced_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
