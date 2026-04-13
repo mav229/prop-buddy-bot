@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
   const apikeyHeader = req.headers.get("apikey") || "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
-  console.log("Auth check:", { hasAuthHeader: !!authHeader, hasApikey: !!apikeyHeader, hasService: !!serviceRoleKey, hasAnon: !!anonKey });
+  console.log("Auth check:", { hasAuthHeader: !!authHeader, hasApikey: !!apikeyHeader, hasService: !!serviceRoleKey, hasAnon: !!anonKey, apikeyLen: apikeyHeader.length, anonLen: anonKey.length, match: apikeyHeader === anonKey });
   const combined = authHeader + " " + apikeyHeader;
   const isAuthorized =
     (serviceRoleKey && combined.includes(serviceRoleKey)) ||
