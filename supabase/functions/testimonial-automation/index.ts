@@ -1,25 +1,5 @@
-import { SMTPClient } from "npm:emailjs@4.0.3";
+import { createTransport } from "npm:nodemailer@6.9.16";
 import { createClient } from "npm:@supabase/supabase-js@2.49.4";
-
-async function sendWithRetry(password: string, msg: any, retries = 2) {
-  for (let i = 0; i <= retries; i++) {
-    try {
-      const client = new SMTPClient({
-        user: "team@propscholar.in",
-        password,
-        host: "smtp.hostinger.com",
-        ssl: true,
-        port: 465,
-      });
-      await client.sendAsync(msg);
-      return;
-    } catch (err) {
-      if (i === retries) throw err;
-      console.log(`SMTP attempt ${i + 1} failed, retrying...`);
-      await new Promise((r) => setTimeout(r, 1000));
-    }
-  }
-}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,8 +7,30 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const GOOGLE_REVIEW_LINK = "https://g.page/r/CdHO0VDiVc1aEAI/review";
-const TRUSTPILOT_LINK = "https://www.trustpilot.com/review/propscholar.com";
+const FROM_EMAIL = "PropScholar <team@propscholar.in>";
+
+async function sendWithRetry(password: string, to: string, subject: string, text: string, html: string, retries = 2) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const transporter = createTransport({
+        host: "smtp.hostinger.com",
+        port: 465,
+        secure: true,
+        auth: { user: "team@propscholar.in", pass: password },
+        connectionTimeout: 15000,
+        greetingTimeout: 10000,
+        socketTimeout: 30000,
+      });
+      const info = await transporter.sendMail({ from: FROM_EMAIL, to, subject, text, html });
+      console.log(`[SMTP] Sent to ${to}:`, info.messageId);
+      return;
+    } catch (err) {
+      if (i === retries) throw err;
+      console.log(`SMTP attempt ${i + 1} failed, retrying...`);
+      await new Promise((r) => setTimeout(r, 2000 * (i + 1)));
+    }
+  }
+}
 
 const BANNER_URL = "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/email-assets/testimonial-banner.png";
 const ICON_IG = "https://pcvkjrxrlibhyyxldbzs.supabase.co/storage/v1/object/public/email-assets/icon-instagram.png";
@@ -110,7 +112,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check for manual send mode
     let body: any = {};
     try { body = await req.json(); } catch {}
 
@@ -124,14 +125,7 @@ Deno.serve(async (req) => {
       }
 
       const { trackingId, html } = buildHtml(recipientName || "Trader");
-
-      await sendWithRetry(password, {
-        from: "PropScholar <team@propscholar.in>",
-        to: recipientEmail,
-        subject: EMAIL_SUBJECT,
-        text: `Hey ${recipientName || "Trader"}, share your PropScholar payout experience!`,
-        attachment: [{ data: html, alternative: true }],
-      });
+      await sendWithRetry(password, recipientEmail, EMAIL_SUBJECT, `Hey ${recipientName || "Trader"}, share your PropScholar payout experience!`, html);
 
       await sb.from("email_logs").insert({
         recipient_email: recipientEmail,
@@ -148,9 +142,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // --- Automated mode below ---
-
-    // Check if automation is enabled
+    // --- Automated mode ---
     const { data: settings } = await sb
       .from("testimonial_settings")
       .select("is_enabled")
@@ -164,7 +156,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Find COMPLETED certificates with email but no testimonial sent
     const { data: pending, error: fetchErr } = await sb
       .from("hall_of_fame_certificates")
       .select("id, user_name, email, payout_amount, account_number")
@@ -187,22 +178,13 @@ Deno.serve(async (req) => {
     for (const cert of pending) {
       try {
         const { trackingId, html } = buildHtml(cert.user_name);
+        await sendWithRetry(password, cert.email, EMAIL_SUBJECT, `Hey ${cert.user_name}, share your PropScholar payout experience!`, html);
 
-        await sendWithRetry(password, {
-          from: "PropScholar <team@propscholar.in>",
-          to: cert.email,
-          subject: EMAIL_SUBJECT,
-          text: `Hey ${cert.user_name}, share your PropScholar payout experience!`,
-          attachment: [{ data: html, alternative: true }],
-        });
-
-        // Mark as sent
         await sb
           .from("hall_of_fame_certificates")
           .update({ testimonial_sent_at: new Date().toISOString() })
           .eq("id", cert.id);
 
-        // Log to email_logs
         await sb.from("email_logs").insert({
           recipient_email: cert.email,
           recipient_name: cert.user_name,
