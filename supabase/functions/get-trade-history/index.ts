@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { account } = await req.json();
+    const { account, mode } = await req.json();
     if (!account) {
       return new Response(JSON.stringify({ error: "account required" }), {
         status: 400,
@@ -24,6 +24,28 @@ Deno.serve(async (req) => {
     const db = client.db(dbName);
 
     const accNum = Number(account);
+
+    if (mode === "schema") {
+      // Return top-level keys + tradeHistory keys to discover open-time fields
+      const report = await db.collection("credentials_reports").findOne({ account: accNum });
+      await client.close();
+      if (!report) return new Response(JSON.stringify({ error: "Not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const topKeys = Object.keys(report);
+      const thKeys = report.tradeHistory ? Object.keys(report.tradeHistory) : [];
+      const sample: any = {};
+      if (report.tradeHistory) {
+        for (const k of thKeys) {
+          const v = (report.tradeHistory as any)[k];
+          if (Array.isArray(v)) {
+            sample[k] = { isArray: true, length: v.length, firstItemKeys: v[0] ? Object.keys(v[0]) : [], firstItem: v[0] };
+          } else {
+            sample[k] = { isArray: false, value: v };
+          }
+        }
+      }
+      return new Response(JSON.stringify({ topKeys, thKeys, sample }, null, 2), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     const report = await db.collection("credentials_reports").findOne(
       { account: accNum },
       { projection: { account: 1, name: 1, "tradeHistory.deals": 1 } },
