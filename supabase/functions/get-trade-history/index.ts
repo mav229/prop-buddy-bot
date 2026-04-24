@@ -10,47 +10,44 @@ Deno.serve(async (req) => {
 
   try {
     const { account, mode } = await req.json();
-    if (!account) {
-      return new Response(JSON.stringify({ error: "account required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const uri = Deno.env.get("MONGO_URI")!;
     const dbName = Deno.env.get("MONGO_DB_NAME")!;
     const client = new MongoClient(uri);
     await client.connect();
     const db = client.db(dbName);
 
-    const accNum = Number(account);
-
-    if (mode === "schema") {
-      // Return top-level keys + tradeHistory keys to discover open-time fields
-      const report = await db.collection("credentials_reports").findOne({ account: accNum });
+    if (mode === "collections") {
+      const cols = await db.listCollections().toArray();
       await client.close();
-      if (!report) return new Response(JSON.stringify({ error: "Not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      const topKeys = Object.keys(report);
-      const thKeys = report.tradeHistory ? Object.keys(report.tradeHistory) : [];
-      const sample: any = {};
-      if (report.tradeHistory) {
-        for (const k of thKeys) {
-          const v = (report.tradeHistory as any)[k];
-          if (Array.isArray(v)) {
-            sample[k] = { isArray: true, length: v.length, firstItemKeys: v[0] ? Object.keys(v[0]) : [], firstItem: v[0] };
-          } else {
-            sample[k] = { isArray: false, value: v };
-          }
-        }
-      }
-      return new Response(JSON.stringify({ topKeys, thKeys, sample }, null, 2), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify(cols.map(c => c.name)), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    if (mode === "find_open") {
+      // Search every collection for a doc that mentions one of our position_ids
+      const positionIds = [1939496650, 1937262584, 1942089999]; // ETH avg pair + another
+      const cols = await db.listCollections().toArray();
+      const results: Record<string, any> = {};
+      for (const c of cols) {
+        try {
+          const sample = await db.collection(c.name).findOne({ $or: [
+            { position_id: { $in: positionIds } },
+            { positionId: { $in: positionIds } },
+            { ticket: { $in: positionIds } },
+          ]});
+          if (sample) {
+            results[c.name] = { keys: Object.keys(sample), sample };
+          }
+        } catch {}
+      }
+      await client.close();
+      return new Response(JSON.stringify(results, null, 2), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const accNum = Number(account);
     const report = await db.collection("credentials_reports").findOne(
       { account: accNum },
       { projection: { account: 1, name: 1, "tradeHistory.deals": 1 } },
     );
-
     await client.close();
 
     if (!report) {
