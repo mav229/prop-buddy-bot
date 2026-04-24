@@ -72,6 +72,15 @@ function detectTradeViolations(deals: Deal[]): Violation[] {
       const timeGap = curr.time - prev.time;
       if (timeGap > TIME_GAP_LIMIT) continue;
 
+      // BATCH-CLOSE FILTER: If two positions close within 30s at nearly identical
+      // prices (≤0.08% apart), this is almost certainly a batch SL/TP/manual close
+      // of pre-existing positions — NOT averaging into a loser.
+      // True averaging requires the second trade to be OPENED while the first was
+      // already in drawdown; we cannot verify that without open-time data, but a
+      // batch close at the same price level is a clear false-positive signature.
+      const priceDeltaPct = Math.abs(curr.price - prev.price) / prev.price * 100;
+      if (timeGap <= 30 && priceDeltaPct <= 0.08) continue;
+
       // Drawdown check using close prices
       // For BUY positions (closed by SELL): drawdown if curr close price < prev close price
       // For SELL positions (closed by BUY): drawdown if curr close price > prev close price
