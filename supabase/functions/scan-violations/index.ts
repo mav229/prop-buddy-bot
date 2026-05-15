@@ -194,11 +194,17 @@ Deno.serve(async (req) => {
     await client.connect();
     const db = client.db(dbName);
 
-    // Pull ONLY active accounts with trade history directly from credentials_reports
+    // Pull active accounts plus admin-breached accounts that need warning records.
     const reports = await db.collection("credentials_reports")
       .find(
-        { status: "ACTIVE" },
-        { projection: { account: 1, name: 1, "tradeHistory.deals": 1 } }
+        {
+          $or: [
+            { status: "ACTIVE" },
+            { breachReasons: { $elemMatch: { $regex: "ADMIN_BREACH", $options: "i" } } },
+            { "evaluation.breachReasons": { $elemMatch: { $regex: "ADMIN_BREACH", $options: "i" } } },
+          ],
+        },
+        { projection: { account: 1, name: 1, status: 1, breachReasons: 1, "evaluation.breachReasons": 1, "tradeHistory.deals": 1 } }
       ).toArray();
 
     // Collect all account numbers for email lookup
