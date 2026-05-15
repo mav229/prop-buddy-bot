@@ -277,7 +277,7 @@ Deno.serve(async (req) => {
 
     // Deduplicate by account number
     const seenLogins = new Set<number>();
-    const activeAccounts: { loginId: number; userName: string; email: string }[] = [];
+    const activeAccounts: { loginId: number; userName: string; email: string; status: string }[] = [];
     const reportMap = new Map<number, any>();
 
     for (const r of reports) {
@@ -288,6 +288,7 @@ Deno.serve(async (req) => {
         loginId,
         userName: r.name || "Unknown",
         email: emailMap.get(loginId) || "",
+        status: r.status || "ACTIVE",
       });
       reportMap.set(loginId, r);
     }
@@ -343,7 +344,7 @@ Deno.serve(async (req) => {
         risk_level: riskLevel,
         flags: violations,
         metrics_snapshot: { totalDeals: deals.length, violationCount: violations.length },
-        credential_status: "ACTIVE",
+        credential_status: acct.status,
         scan_batch_id: batchId,
         scanned_at: new Date().toISOString(),
       });
