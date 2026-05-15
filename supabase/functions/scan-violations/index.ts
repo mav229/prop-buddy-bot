@@ -140,6 +140,30 @@ function buildViolationEmailHtml(userName: string, accountNumber: string, flagDe
 </div></body></html>`;
 }
 
+function extractAdminViolationFlags(report: any) {
+  const reasons = [
+    ...(Array.isArray(report?.breachReasons) ? report.breachReasons : []),
+    ...(Array.isArray(report?.evaluation?.breachReasons) ? report.evaluation.breachReasons : []),
+  ];
+
+  return reasons
+    .filter((reason: unknown) => {
+      const text = String(reason || "");
+      return /ADMIN_BREACH/i.test(text) && /(averaging|martingale|violation)/i.test(text);
+    })
+    .map((reason: unknown) => {
+      const detail = String(reason).replace(/^ADMIN_BREACH:\s*/i, "").trim();
+      const isMartingale = /martingale/i.test(detail);
+      return {
+        type: isMartingale ? "MARTINGALE" : "AVERAGING",
+        severity: isMartingale ? "HIGH" : "MEDIUM",
+        detail,
+        symbol: detail.match(/\b[A-Z]{3,6}USD\b/)?.[0] || "UNKNOWN",
+        source: "ADMIN_BREACH",
+      };
+    });
+}
+
 // ===== MAIN HANDLER =====
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
