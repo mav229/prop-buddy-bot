@@ -63,7 +63,7 @@ function detectTradeViolations(deals: Deal[]): Violation[] {
       // Skip duplicate/partial rows for the same position.
       if (prev.position_id === curr.position_id) continue;
 
-      // Must be same direction (same closing deal type = same position direction)
+      // Must be same direction (same open deal type = same position direction)
       if (prev.type !== curr.type) continue;
 
       // Time gap between closes
