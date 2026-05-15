@@ -33,17 +33,19 @@ interface Violation {
   reason: string;
 }
 
-// ===== VIOLATION DETECTION FROM CLOSE DEALS =====
+// ===== VIOLATION DETECTION FROM OPEN / ENTRY DEALS =====
 function detectTradeViolations(deals: Deal[]): Violation[] {
   if (!deals || deals.length < 2) return [];
 
-  // Filter only exit deals (entry=1)
-  const exitDeals = deals.filter(d => d.entry === 1 && d.symbol);
-  if (exitDeals.length < 2) return [];
+  // MT5 deal entry: 0 = IN/open, 1 = OUT/close.
+  // Averaging/martingale is about adding a NEW position while the previous
+  // position is already in drawdown, so only the first/open deal row is valid.
+  const openDeals = deals.filter(d => d.entry === 0 && d.symbol);
+  if (openDeals.length < 2) return [];
 
   // Group by symbol
   const bySymbol = new Map<string, Deal[]>();
-  for (const d of exitDeals) {
+  for (const d of openDeals) {
     if (!bySymbol.has(d.symbol)) bySymbol.set(d.symbol, []);
     bySymbol.get(d.symbol)!.push(d);
   }
@@ -51,40 +53,27 @@ function detectTradeViolations(deals: Deal[]): Violation[] {
   const violations: Violation[] = [];
 
   for (const [symbol, symbolDeals] of bySymbol) {
-    // Sort by close time
+    // Sort by open time
     symbolDeals.sort((a, b) => a.time - b.time);
 
     for (let i = 1; i < symbolDeals.length; i++) {
       const prev = symbolDeals[i - 1];
       const curr = symbolDeals[i];
 
-      // Skip if different positions closing at same time (partial close of same position)
+      // Skip duplicate/partial rows for the same position.
       if (prev.position_id === curr.position_id) continue;
 
-      // Skip if previous trade closed in profit — not a violation pattern
-      if (prev.profit >= 0) continue;
-
       // Must be same direction (same closing deal type = same position direction)
-      // SELL close = was BUY position, BUY close = was SELL position
       if (prev.type !== curr.type) continue;
 
       // Time gap between closes
       const timeGap = curr.time - prev.time;
       if (timeGap > TIME_GAP_LIMIT) continue;
 
-      // BATCH-CLOSE FILTER: If two positions close within 30s at nearly identical
-      // prices (≤0.08% apart), this is almost certainly a batch SL/TP/manual close
-      // of pre-existing positions — NOT averaging into a loser.
-      // True averaging requires the second trade to be OPENED while the first was
-      // already in drawdown; we cannot verify that without open-time data, but a
-      // batch close at the same price level is a clear false-positive signature.
-      const priceDeltaPct = Math.abs(curr.price - prev.price) / prev.price * 100;
-      if (timeGap <= 30 && priceDeltaPct <= 0.08) continue;
-
-      // Drawdown check using close prices
-      // For BUY positions (closed by SELL): drawdown if curr close price < prev close price
-      // For SELL positions (closed by BUY): drawdown if curr close price > prev close price
-      const positionDirection = prev.type === 1 ? "BUY" : "SELL"; // opposite of close type
+      // Drawdown check using ENTRY prices from open rows.
+      // BUY averages down when next entry price is lower.
+      // SELL averages up when next entry price is higher.
+      const positionDirection = prev.type === 0 ? "BUY" : "SELL";
       let isDrawdown = false;
       if (positionDirection === "BUY" && curr.price < prev.price) isDrawdown = true;
       if (positionDirection === "SELL" && curr.price > prev.price) isDrawdown = true;
@@ -105,7 +94,7 @@ function detectTradeViolations(deals: Deal[]): Violation[] {
           prev_deal: prevDeal,
           curr_deal: currDeal,
           time_gap_seconds: timeGap,
-          reason: `Martingale Breach -- ${positionDirection} ${symbol}: lot increased ${prev.volume} → ${curr.volume} (+${pctIncrease}%) within ${timeGap}s, price in drawdown (${prev.price} → ${curr.price})`,
+          reason: `Martingale Breach -- ${positionDirection} ${symbol}: lot increased ${prev.volume} → ${curr.volume} (+${pctIncrease}%) within ${timeGap}s, entry price in drawdown (${prev.price} → ${curr.price})`,
         });
       } else {
         // AVERAGING: same or lower lot
@@ -115,7 +104,7 @@ function detectTradeViolations(deals: Deal[]): Violation[] {
           prev_deal: prevDeal,
           curr_deal: currDeal,
           time_gap_seconds: timeGap,
-          reason: `Averaging Violation -- ${positionDirection} ${symbol}: same/lower lot (${prev.volume} → ${curr.volume}) within ${timeGap}s during drawdown (${prev.price} → ${curr.price})`,
+          reason: `Averaging Violation -- ${positionDirection} ${symbol}: same/lower lot (${prev.volume} → ${curr.volume}) within ${timeGap}s using entry prices during drawdown (${prev.price} → ${curr.price})`,
         });
       }
     }
