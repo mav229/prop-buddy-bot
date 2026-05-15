@@ -305,11 +305,24 @@ Deno.serve(async (req) => {
     for (const acct of unflaggedAccounts) {
       const report = reportMap.get(acct.loginId);
       const deals: Deal[] = report?.tradeHistory?.deals || [];
-      const violations = detectTradeViolations(deals);
+      const tradeViolations = detectTradeViolations(deals);
+      const adminViolationFlags = extractAdminViolationFlags(report);
+      const violations = [
+        ...tradeViolations.map(v => ({
+          type: v.type,
+          severity: v.type === "MARTINGALE" ? "HIGH" : "MEDIUM",
+          detail: v.reason,
+          symbol: v.symbol,
+          prev_deal: v.prev_deal,
+          curr_deal: v.curr_deal,
+          time_gap_seconds: v.time_gap_seconds,
+        })),
+        ...adminViolationFlags,
+      ];
 
       const martingaleCount = violations.filter(v => v.type === "MARTINGALE").length;
       const averagingCount = violations.filter(v => v.type === "AVERAGING").length;
-      const meetsThreshold = martingaleCount >= 1 || averagingCount >= 2;
+      const meetsThreshold = martingaleCount >= 1 || averagingCount >= 2 || adminViolationFlags.length > 0;
 
       const riskLevel = !meetsThreshold ? "CLEAN"
         : martingaleCount >= 1 ? "VERY HIGH"
@@ -322,15 +335,7 @@ Deno.serve(async (req) => {
         user_name: acct.userName,
         email: acct.email.includes("@") ? acct.email : null,
         risk_level: riskLevel,
-        flags: violations.map(v => ({
-          type: v.type,
-          severity: v.type === "MARTINGALE" ? "HIGH" : "MEDIUM",
-          detail: v.reason,
-          symbol: v.symbol,
-          prev_deal: v.prev_deal,
-          curr_deal: v.curr_deal,
-          time_gap_seconds: v.time_gap_seconds,
-        })),
+        flags: violations,
         metrics_snapshot: { totalDeals: deals.length, violationCount: violations.length },
         credential_status: "ACTIVE",
         scan_batch_id: batchId,
